@@ -1,0 +1,9 @@
+"rule_engines": [
+    {
+        "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
+        "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+        "plugin_specific_configuration" : {
+            "pep_regex_to_match" : "tiered_storage_.*"
+        }
+    }
+]
