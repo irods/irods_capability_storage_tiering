@@ -8,94 +8,26 @@
 #include "genQuery.h"
 #endif
 
+#include "rcMisc.h"
+
 char *getCondFromString( char * t );
-static
-int my_fill( char * str, genQueryInp_t * genQueryInp ) {
 
-    int  n, m;
-    char *p, *t, *f, *u, *a, *c;
-    char *s;
-    s = strdup( str );
-    if ( ( t = strstr( s, "select" ) ) != NULL ||
-            ( t = strstr( s, "SELECT" ) ) != NULL ) {
-
-        if ( ( f = strstr( t, "where" ) ) != NULL ||
-                ( f = strstr( t, "WHERE" ) ) != NULL ) {
-            /* Where Condition Found*/
-            *f = '\0';
-        }
-        t = t +  7;
-        while ( ( u = strchr( t, ',' ) ) != NULL ) {
-            *u = '\0';
-            trimWS( t );
-            separateSelFuncFromAttr( t, &a, &c );
-            m = getSelVal( a );
-            n = getAttrIdFromAttrName( c );
-            if ( n < 0 ) {
-                free( s );
-                return n;
-            }
-            addInxIval( &genQueryInp->selectInp, n, m );
-            t  = u + 1;
-        }
-        trimWS( t );
-        separateSelFuncFromAttr( t, &a, &c );
-        m = getSelVal( a );
-        n = getAttrIdFromAttrName( c );
-        if ( n < 0 ) {
-            free( s );
-            return n;
-        }
-        addInxIval( &genQueryInp->selectInp, n, m );
-        if ( f == NULL ) {
-            free( s );
-            return 0;
-        }
-    }
-    else {
-        free( s );
-        return INPUT_ARG_NOT_WELL_FORMED_ERR;
-    }
-    t = f + 6;
-    while ( ( u = getCondFromString( t ) ) != NULL ) {
-        *u = '\0';
-        trimWS( t );
-        if ( ( p = strchr( t, ' ' ) ) == NULL ) {
-            free( s );
-            return INPUT_ARG_NOT_WELL_FORMED_ERR;
-        }
-        *p = '\0';
-        n = getAttrIdFromAttrName( t );
-        if ( n < 0 ) {
-            free( s );
-            return n;
-        }
-        addInxVal( &genQueryInp->sqlCondInp, n, p + 1 );
-        t = u + 5;
-    }
-    trimWS( t );
-    if ( ( p = strchr( t, ' ' ) ) == NULL ) {
-        free( s );
-        return INPUT_ARG_NOT_WELL_FORMED_ERR;
-    }
-    *p = '\0';
-    n = getAttrIdFromAttrName( t );
-    if ( n < 0 ) {
-        free( s );
-        return n;
-    }
-    addInxVal( &genQueryInp->sqlCondInp, n, p + 1 );
-    free( s );
-    return 0;
-}
 namespace irods {
     namespace query_helper {
 #ifdef RODS_SERVER
         typedef rsComm_t comm_type;
-        static const std::function<int(rsComm_t*, genQueryInp_t*, genQueryOut_t**)> query_fcn{rsGenQuery};
+        static const std::function<
+            int(rsComm_t*,
+                genQueryInp_t*,
+                genQueryOut_t**)>
+                    query_fcn{rsGenQuery};
 #else
         typedef rcComm_t comm_type;
-        static const std::function<int(rcComm_t*, genQueryInp_t*, genQueryOut_t**)> query_fcn{rcGenQuery};
+        static const std::function<
+            int(rcComm_t*,
+                genQueryInp_t*,
+                genQueryOut_t**)>
+            query_fcn{rcGenQuery};
 #endif
     };
 
@@ -226,8 +158,7 @@ namespace irods {
 
             memset(&gen_input_, 0, sizeof(gen_input_));
             gen_input_.maxRows = _max_rows;
-            //const int fill_err = fillGenQueryInpFromStrCond(
-            const int fill_err = my_fill(
+            const int fill_err = fillGenQueryInpFromStrCond(
                                      const_cast<char*>(_query_string.c_str()),
                                      &gen_input_);
             if(fill_err < 0) {

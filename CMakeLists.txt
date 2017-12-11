@@ -73,6 +73,8 @@ set(
       ${PLUGIN}
       MODULE
       ${CMAKE_SOURCE_DIR}/libirods_rule_engine_plugin-tiered_storage.cpp
+      ${CMAKE_SOURCE_DIR}/irods_object_migrator.cpp
+      ${CMAKE_SOURCE_DIR}/irods_storage_tiering.cpp
       )
 
   target_include_directories(
