@@ -33,8 +33,10 @@ int _delayExec(
 namespace irods {
 
     storage_tiering_configuration::storage_tiering_configuration(
-            const std::string& _instance_name ) {
+        const std::string& _instance_name ) {
         instance_name = _instance_name;
+        bool success_flag = false;
+
         try {
             const auto& rule_engines = get_server_property<
                 const std::vector<boost::any>&>(
@@ -88,28 +90,28 @@ namespace irods {
                                     plugin_spec_cfg.at("time_check_string"));
                         }
                     }
-                }
-            }
+                    success_flag = true;
+                } // if inst_name
+            } // for rule_engines
         } catch ( const boost::bad_any_cast& e ) {
             THROW( INVALID_ANY_CAST, e.what() );
         } catch ( const std::out_of_range& e ) {
             THROW( KEY_NOT_FOUND, e.what() );
         }
 
-        std::stringstream msg;
-        msg << "failed to find configuration for storage_tiering plugin ["
-            << _instance_name << "]";
-        rodsLog( LOG_ERROR, "%s", msg.str().c_str() );
-        
-        THROW( SYS_INVALID_INPUT_PARAM, msg.str() );
-
+        if(!success_flag) {
+            THROW(
+                SYS_INVALID_INPUT_PARAM,
+                boost::format("failed to find configuration for storage_tiering plugin [%s]") %
+                _instance_name);
+        }
     } // ctor storage_tiering_configuration
 
     storage_tiering::storage_tiering(
             rsComm_t*          _comm,
             const std::string& _instance_name) :
         comm_(_comm),
-        config(_instance_name) {
+        config_(_instance_name) {
 
     }
 
@@ -265,9 +267,8 @@ namespace irods {
 
         try {
             std::string ver = get_metadata_for_resource(
-                    comm_,
-                    config_.storage_tiering_verification_attribute,
-                    _resc_name);
+                                  config_.storage_tiering_verification_attribute,
+                                  _resc_name);
             return ver;
         }
         catch(const exception& _e) {
@@ -281,9 +282,8 @@ namespace irods {
 
         try {
             std::string ver = get_metadata_for_resource(
-                    comm_,
-                    config_.storage_tiering_restage_delay_attribute,
-                    _resc_name);
+                                  config_.storage_tiering_restage_delay_attribute,
+                                  _resc_name);
             return ver;
         }
         catch(const exception& _e) {
@@ -319,9 +319,8 @@ namespace irods {
         try {
             std::time_t now = std::time(nullptr);
             std::string offset_str = get_metadata_for_resource(
-                    comm_,
-                    config_.storage_tiering_time_attribute,
-                    _resc_name);
+                                         config_.storage_tiering_time_attribute,
+                                         _resc_name);
             std::time_t offset = boost::lexical_cast<std::time_t>(offset_str);
             return std::to_string(now - offset);
         }
@@ -339,14 +338,13 @@ namespace irods {
             const std::string& _src_resc,
             const std::string& _dst_resc) {
         try {
-            const std::string tier_time{get_tier_time_for_resc(comm_, _src_resc)};
+            const std::string tier_time{get_tier_time_for_resc(_src_resc)};
 
             std::string query_str;
             try {
                 query_str = get_metadata_for_resource(
-                        comm_,
-                        config_.storage_tiering_query_attribute,
-                        _src_resc);
+                                config_.storage_tiering_query_attribute,
+                                _src_resc);
                 size_t start_pos = query_str.find(config_.time_check_string);
                 if(start_pos != std::string::npos) {
                     query_str.replace(start_pos, config_.time_check_string.length(), tier_time);
@@ -354,8 +352,7 @@ namespace irods {
             }
             catch(const exception&) {
                 const std::string leaf_str{ get_leaf_resources_string(
-                        comm_,
-                        _src_resc)};
+                                                _src_resc)};
                 query_str =
                     boost::str(
                             boost::format("SELECT DATA_NAME, COLL_NAME WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
@@ -375,7 +372,7 @@ namespace irods {
                 }
                 obj_path += result[0];
 
-                const std::string verification_type{get_verification_for_resc(comm_,_src_resc)};
+                const std::string verification_type{get_verification_for_resc(_src_resc)};
                 object_migrator mover(
                     comm_,
                     verification_type,
@@ -434,7 +431,7 @@ namespace irods {
             }
 
             dataObjInp_t* obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            update_access_time_for_data_object(comm_, obj_inp->objPath);
+            update_access_time_for_data_object(obj_inp->objPath);
         }
         catch(const boost::bad_any_cast& _e) {
             THROW( INVALID_ANY_CAST, _e.what() );
@@ -470,23 +467,19 @@ namespace irods {
             h_parse.first_resc(src_resc);
 
             const std::string group_name = get_metadata_for_resource(
-                    _rei->rsComm, 
-                    config_.storage_tiering_group_attribute,
-                    src_resc);
+                                               config_.storage_tiering_group_attribute,
+                                               src_resc);
 
             std::map<std::string, std::string> idx_resc_map;
             get_tier_group_resources_and_indicies(
-                    _rei->rsComm, 
                     group_name,
                     idx_resc_map);
 
             const std::string low_tier_resc_name = idx_resc_map.begin()->second;
             const std::string verification_type  = get_verification_for_resc(
-                    _rei->rsComm,
-                    low_tier_resc_name);
+                                                       low_tier_resc_name);
             const std::string restage_delay_params{get_restage_delay_param_for_resc(
-                    _rei->rsComm,
-                    src_resc)};
+                                  src_resc)};
             queue_restage_operation(
                     _rei,
                     restage_delay_params,
@@ -506,17 +499,29 @@ namespace irods {
     void storage_tiering::apply_storage_tiering_policy(
             const std::string& _group) {
         const std::map<std::string, std::string> rescs = get_resource_map_for_group(
-                comm_,
-                _group);
+                                                             _group);
         auto resc_itr = rescs.begin();
         for( ; resc_itr != rescs.end(); ++resc_itr) {
             auto next_itr = resc_itr;
             ++next_itr;
-            tier_objects_for_resc(comm_, resc_itr->second, next_itr->second);
+            tier_objects_for_resc(resc_itr->second, next_itr->second);
         } // for resc
 
     } // apply_storage_tiering_policy
 
-    
+    void storage_tiering::move_data_object(
+            const std::string& _verification_type,
+            const std::string& _src_resc,
+            const std::string& _dst_resc,
+            const std::string& _obj_path) {
+        irods::object_migrator mover(
+            comm_,
+            _verification_type,
+            _src_resc,
+            _dst_resc,
+            _obj_path);
+        mover();
+
+    } // move_data_object
 
 }; // namespace irods

@@ -1,7 +1,6 @@
 // =-=-=-=-=-=-=-
 // irods includes
 #include "irods_re_plugin.hpp"
-#include "irods_object_migrator.hpp"
 #include "irods_storage_tiering.hpp"
 
 #undef LIST
@@ -12,22 +11,12 @@
 #include <sstream>
 #include <vector>
 #include <string>
-#include <chrono>
-#include <ctime>
-#include <sstream>
-#include <map>
-#include <iostream>
-#include <fstream>
-#include <mutex>
 
 // =-=-=-=-=-=-=-
 // boost includes
 #include <boost/any.hpp>
-#include <boost/regex.hpp>
 #include <boost/exception/all.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include "json.hpp"
 
@@ -207,14 +196,12 @@ irods::error exec_rule_expression(
         }
 
         try {
-            irods::object_migrator mover(
-                rei->rsComm,
+            irods::storage_tiering st(rei->rsComm, instance_name);
+            st.move_data_object(
                 rule_obj["verification-type"],
                 rule_obj["source-resc"],
                 rule_obj["destination-resc"],
                 rule_obj["object-path"]);
-            mover();
-
         }
         catch(const irods::exception& _e) {
             return ERROR(

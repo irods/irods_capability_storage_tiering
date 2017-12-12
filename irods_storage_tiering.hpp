@@ -75,6 +75,7 @@ namespace irods {
 
         public:
         storage_tiering(
+            rsComm_t*          _comm,
             const std::string& _instance_name);
 
         void apply_access_time(
@@ -86,6 +87,12 @@ namespace irods {
 
         void apply_storage_tiering_policy(
             const std::string& _group);
+
+        void move_data_object(
+            const std::string& _verification_type,
+            const std::string& _src_resc,
+            const std::string& _dst_resc,
+            const std::string& _obj_path);
 
     }; // class storage_tiering
 
