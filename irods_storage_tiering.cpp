@@ -198,7 +198,7 @@ namespace irods {
                 std::string& tier_idx  = row[1];
 
                 try {
-                    int idx = boost::lexical_cast<int>(tier_idx);
+                    boost::lexical_cast<int>(tier_idx);
                 }
                 catch(const boost::bad_lexical_cast& _e) {
                     rodsLog(
@@ -413,7 +413,14 @@ namespace irods {
                 "",
                 _restage_delay_params.c_str(), 
                 _rei);
-
+        if(delay_err < 0) {
+            THROW(
+                delay_err,
+                boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                _obj_path %
+                _src_resc %
+                _dst_resc);
+        }
     } // queue_restage_operation
 
    // =-=-=-=-=-=-=-
