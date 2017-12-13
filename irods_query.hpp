@@ -43,7 +43,7 @@ namespace irods {
             const value_type*,        // pointer
             value_type> {             // reference
                 query_helper::comm_type*           comm_;
-                std::string          query_string_;
+                const std::string    query_string_;
                 const uintmax_t      max_rows_;
                 uint32_t             row_idx_;
                 genQueryInp_t*       gen_input_; 
@@ -75,7 +75,7 @@ namespace irods {
                     gen_output_{_gen_output},
                     end_iteration_state_{false} {
                 } // ctor
-                
+
                 iterator operator++() {
                     advance_query();
                     return *this;
@@ -113,8 +113,8 @@ namespace irods {
 
                     // finished page, and out of pages
                     if(gen_output_->continueInx <= 0) {
-                       end_iteration_state_ = true;
-                       return ;
+                        end_iteration_state_ = true;
+                        return;
                     }
 
                     // finished page, attempt to fetch another
@@ -168,7 +168,7 @@ namespace irods {
                     _query_string);
             }
 
-            genQueryOut_t* gen_out = nullptr;
+            genQueryOut_t* gen_out{};
             const int query_err = query_helper::query_fcn(
                                       _comm,
                                       &gen_input_,

@@ -47,9 +47,9 @@ irods::error rule_exists(
     bool&              _ret) {
 
     // TODO: compare to specific rule strings here
-    std::set<std::string> rules{ "pep_api_data_obj_close_post",
-                                 "pep_api_data_obj_put_post",
-                                 "pep_api_data_obj_get_post"};
+    const std::set<std::string> rules{ "pep_api_data_obj_close_post",
+                                       "pep_api_data_obj_put_post",
+                                       "pep_api_data_obj_get_post"};
     _ret = rules.find(_rn) != rules.end();
     
     return SUCCESS();
@@ -59,30 +59,23 @@ irods::error list_rules(irods::default_re_ctx&, std::vector<std::string>&) {
     return SUCCESS();
 }
 
-
 irods::error exec_rule(
     irods::default_re_ctx&,
     const std::string&     _rn,
     std::list<boost::any>& _args,
     irods::callback        _eff_hdlr) {
 
-    ruleExecInfo_t* rei = nullptr;
-    irods::error err = _eff_hdlr("unsafe_ms_ctx", &rei);
+    ruleExecInfo_t* rei{};
+    const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
     if(!err.ok()) {
         return err;
     }
 
     try {
-        irods::storage_tiering st(rei->rsComm, instance_name);
-        std::set<std::string> access_time_rules{
-                                  "pep_api_data_obj_close_post",
-                                  "pep_api_data_obj_put_post",
-                                  "pep_api_data_obj_get_post"};
-        if(access_time_rules.find(_rn) != access_time_rules.end()) {
-            st.apply_access_time(_args);
-        }
+        irods::storage_tiering st{rei->rsComm, instance_name};
+        st.apply_access_time(_args);
 
-        if(_rn == "pep_api_data_obj_get_post") {
+        if("pep_api_data_obj_get_post" == _rn) {
             st.restage_object_to_lowest_tier(rei, _args);
         }
     }
@@ -90,8 +83,6 @@ irods::error exec_rule(
         irods::log(_e);
         return irods::error(_e);
     }
-
-    // additional magic goes here
 
     return err;
 
@@ -108,18 +99,18 @@ irods::error exec_rule_text(
         using json = nlohmann::json;
 
         // skip the first line: @external
-        json rule_obj = json::parse(_rule_text.substr(10));
+        const auto rule_obj = json::parse(_rule_text.substr(10));
 
         // if the rule text does not have our instance name, fail
-        if(rule_obj["rule-engine-instance-name"] != instance_name) {
+        if(instance_name != rule_obj["rule-engine-instance-name"]) {
             return ERROR(
                     SYS_NOT_SUPPORTED,
                     "instance name not found");
         }
 
-        if(rule_obj["rule-engine-operation"] == "apply_storage_tiering_policy") {
-            ruleExecInfo_t* rei = nullptr;
-            irods::error err = _eff_hdlr("unsafe_ms_ctx", &rei);
+        if("apply_storage_tiering_policy" == rule_obj["rule-engine-operation"]) {
+            ruleExecInfo_t* rei{};
+            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
             if(!err.ok()) {
                 return err;
             }
@@ -129,11 +120,11 @@ irods::error exec_rule_text(
             delay_obj["storage-tier-groups"] = rule_obj["storage-tier-groups"];
             const std::string& delay_cond = rule_obj["delay-parameters"];
 
-            int delay_err = _delayExec(
-                                delay_obj.dump().c_str(),
-                                "",
-                                delay_cond.c_str(), 
-                                rei);
+            const int delay_err = _delayExec(
+                                      delay_obj.dump().c_str(),
+                                      "",
+                                      delay_cond.c_str(), 
+                                      rei);
             if(delay_err < 0) {
                 return ERROR(
                         delay_err,
@@ -168,16 +159,16 @@ irods::error exec_rule_expression(
     irods::callback        _eff_hdlr) {
     using json = nlohmann::json;
 
-    json rule_obj = json::parse(_rule_text);
+    const auto rule_obj = json::parse(_rule_text);
     if("apply_storage_tiering_policy" == rule_obj["rule-engine-operation"]) {
-        ruleExecInfo_t* rei = nullptr;
-        irods::error err = _eff_hdlr("unsafe_ms_ctx", &rei);
+        ruleExecInfo_t* rei{};
+        const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
         if(!err.ok()) {
             return err;
         }
 
         try {
-            irods::storage_tiering st(rei->rsComm, instance_name);
+            irods::storage_tiering st{rei->rsComm, instance_name};
             for(const auto& group : rule_obj["storage-tier-groups"]) {
                 st.apply_storage_tiering_policy(group); 
             }
@@ -189,18 +180,18 @@ irods::error exec_rule_expression(
         }
     }
     else if("migrate_object_to_resource" == rule_obj["rule-engine-operation"]) {
-        ruleExecInfo_t* rei = nullptr;
-        irods::error err = _eff_hdlr("unsafe_ms_ctx", &rei);
+        ruleExecInfo_t* rei{};
+        const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
         if(!err.ok()) {
             return err;
         }
 
         try {
-            irods::storage_tiering st(rei->rsComm, instance_name);
+            irods::storage_tiering st{rei->rsComm, instance_name};
             st.move_data_object(
                 rule_obj["verification-type"],
-                rule_obj["source-resc"],
-                rule_obj["destination-resc"],
+                rule_obj["source-resource"],
+                rule_obj["destination-resource"],
                 rule_obj["object-path"]);
         }
         catch(const irods::exception& _e) {
