@@ -21,8 +21,7 @@ def get_build_prerequisites_all():
             'irods-externals-clang-runtime3.8-0',
             'irods-externals-boost1.60.0-0',
             'irods-externals-jansson2.7-0',
-            'irods-externals-zeromq4-14.1.3-0',
-            'irods-externals-qpid-with-proton0.34-0']
+            'irods-externals-zeromq4-14.1.3-0']
 
 def get_build_prerequisites_apt():
     return ['libcurl4-gnutls-dev', 'make', 'libssl-dev', 'gcc'] + get_build_prerequisites_all()

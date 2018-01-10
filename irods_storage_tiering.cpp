@@ -476,7 +476,12 @@ namespace irods {
         auto resc_itr = rescs.begin();
         for( ; resc_itr != rescs.end(); ++resc_itr) {
             auto next_itr = resc_itr;
+
             ++next_itr;
+            if(rescs.end() == next_itr) {
+                break;
+            }
+
             migrate_violating_objects_for_resource(resc_itr->second, next_itr->second);
         } // for resc
 
