@@ -40,7 +40,7 @@ def install_build_prerequisites():
             irods_python_ci_utilities.subprocess_get_output(['sudo', 'add-apt-repository', '-y', 'ppa:ubuntu-toolchain-r/test'], check_rc=True)
             irods_python_ci_utilities.install_os_packages(['libstdc++6'])
 
-    irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
+    #irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
 
 def main():
     parser = optparse.OptionParser()
