@@ -9,32 +9,21 @@ import time
 import irods_python_ci_utilities
 
 
-def get_build_prerequisites_all():
+def get_build_prerequisites_apt():
     return[]
 
-
-def get_build_prerequisites_apt():
-    if irods_python_ci_utilities.get_distribution_version_major() == '12':
-        return['openjdk-7-jre']+get_build_prerequisites_all()
-
-    else:
-        return['default-jre']+get_build_prerequisites_all()
-
-
 def get_build_prerequisites_yum():
-    return['java-1.7.0-openjdk-devel']+get_build_prerequisites_all()
-
+    return[]
 
 def get_build_prerequisites_zypper():
-    return['java-1.7.0-openjdk-devel']+get_build_prerequisites_all()
+    return[]
 
 
 def get_build_prerequisites():
     dispatch_map = {
         'Ubuntu': get_build_prerequisites_apt,
         'Centos': get_build_prerequisites_yum,
-        'Centos linux': get_build_prerequisites_yum,
-        'Opensuse': get_build_prerequisites_zypper,
+        'Centos linux': get_build_prerequisites_yum
     }
     try:
         return dispatch_map[irods_python_ci_utilities.get_distribution()]()
@@ -64,7 +53,7 @@ def main():
     package_suffix = irods_python_ci_utilities.get_package_suffix()
     os_specific_directory = irods_python_ci_utilities.append_os_specific_directory(built_packages_root_directory)
 
-    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-tiered_storage*.{0}'.format(package_suffix))))
+    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-tiered-storage*.{0}'.format(package_suffix))))
 
     install_build_prerequisites()
 
