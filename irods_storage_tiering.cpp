@@ -473,6 +473,15 @@ namespace irods {
         const std::string& _group) {
         const std::map<std::string, std::string> rescs = get_resource_map_for_group(
                                                              _group);
+        if(rescs.empty()) {
+            rodsLog(
+                LOG_ERROR,
+                "%s :: no resources found for group [%s]",
+                __FUNCTION__,
+                _group.c_str());
+            return;
+        }
+
         auto resc_itr = rescs.begin();
         for( ; resc_itr != rescs.end(); ++resc_itr) {
             auto next_itr = resc_itr;
