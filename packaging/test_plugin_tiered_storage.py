@@ -133,7 +133,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                 # test stage to tier 1
                 sleep(5)
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
-                sleep(40)
+                sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                 # test stage to tier 2
@@ -237,7 +237,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
                 # test stage to tier 1
                 sleep(5)
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
-                sleep(40)
+                sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
                 admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs1g2')
 
