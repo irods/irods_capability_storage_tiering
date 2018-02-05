@@ -346,9 +346,110 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
 
 
+class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
+    def setUp(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            # configure mungefs
+            shutil.rmtree('/tmp/irods/munge_mount', ignore_errors=True)
+            shutil.rmtree('/tmp/irods/munge_target', ignore_errors=True)
+            os.mkdir('/tmp/irods/munge_mount')
+            os.mkdir('/tmp/irods/munge_target')
+            assert_command('mungefs /tmp/irods/munge_mount -omodules=subdir,subdir=/tmp/irods/munge_target')
+
+            admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/munge_mount', 'STDOUT_SINGLELINE', 'unixfilesystem')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_group example_group 1')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_time 5')
+
+    def tearDown(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            assert_command('fusermount -u /tmp/irods/munge_mount')
+            shutil.rmtree('/tmp/irods/munge_mount', ignore_errors=True)
+            shutil.rmtree('/tmp/irods/munge_target', ignore_errors=True)
+
+            admin_session.assert_icommand('iadmin rmresc ufs0')
+            admin_session.assert_icommand('iadmin rmresc ufs1')
+            admin_session.assert_icommand('iadmin rum')
+
+    def test_put_verify_filesystem(self):
+        with tiered_storage_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                shutil.copy('/etc/irods/server_config.json', '/var/lib/irods/server_config.copy')
+
+                # configure mungefs to report an invalid file size
+                assert_command('mungefsctl --operations "getattr" --corrupt_size')
+
+                # set filesystem verification
+                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_verification filesystem')
+
+                # debug
+                admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
+
+                filename = 'test_put_file'
+                filepath = lib.create_local_testfile(filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + filename)
+                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
+
+                # test stage to tier 1
+                sleep(5)
+                initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                sleep(60)
+                log_cnt = lib.count_occurrences_of_string_in_log(
+                        paths.server_log_path(),
+                        'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
+                        start_index=initial_size_of_server_log)
+                assert 1 == log_cnt
+
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
+
+                # clean up
+                assert_command('mungefsctl --operations "getattr"')
+                admin_session.assert_icommand('irm -f ' + filename)
 
 
+    def test_put_verify_checksum(self):
+        with tiered_storage_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                shutil.copy('/etc/irods/server_config.json', '/var/lib/irods/server_config.copy')
 
+                # configure mungefs to report an invalid file size
+                assert_command('mungefsctl --operations "read" --corrupt_data')
+
+                # set checksum verification
+                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_verification checksum')
+
+                # debug
+                admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
+
+                filename = 'test_put_file'
+                filepath = lib.create_local_testfile(filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + filename)
+                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
+
+                # test stage to tier 1
+                sleep(5)
+                initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                sleep(60)
+                admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
+
+                log_cnt = lib.count_occurrences_of_string_in_log(
+                        paths.server_log_path(),
+                        'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
+                        start_index=initial_size_of_server_log)
+                assert 1 == log_cnt
+
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
+
+                # clean up
+                assert_command('mungefsctl --operations "read"')
+                admin_session.assert_icommand('irm -f ' + filename)
 
 
 

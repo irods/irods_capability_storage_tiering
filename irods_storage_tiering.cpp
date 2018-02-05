@@ -345,7 +345,7 @@ namespace irods {
                 }
                 object_path += result[0];
 
-                const std::string verification_type{get_verification_for_resc(_source_resource)};
+                const std::string verification_type{get_verification_for_resc(_destination_resource)};
                 object_migrator mover(
                     comm_,
                     verification_type,
