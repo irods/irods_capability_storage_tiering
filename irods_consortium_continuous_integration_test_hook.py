@@ -1,23 +1,79 @@
 from __future__ import print_function
 
+import multiprocessing
 import optparse
 import os
+import sys
 import shutil
 import glob
 import time
+import tempfile
 
 import irods_python_ci_utilities
 
+def install_cmake_and_add_to_front_of_path():
+    irods_python_ci_utilities.install_os_packages(['irods-externals-cmake3.5.2-0'])
+    os.environ['PATH'] = '/opt/irods-externals/cmake3.5.2-0/bin' + os.pathsep + os.environ['PATH']
+
+def get_build_prerequisites_all():
+    return ['irods-externals-clang3.8-0',
+            'irods-externals-cppzmq4.1-0',
+            'irods-externals-libarchive3.1.2-0',
+            'irods-externals-avro1.7.7-0',
+            'irods-externals-clang-runtime3.8-0',
+            'irods-externals-boost1.60.0-0',
+            'irods-externals-jansson2.7-0',
+            'irods-externals-zeromq4-14.1.3-0']
 
 def get_build_prerequisites_apt():
-    return[]
+    return ['libstdc++6', 'libcurl4-gnutls-dev', 'make', 'libssl-dev', 'gcc', 'g++', 'libfuse-dev'] + get_build_prerequisites_all()
 
 def get_build_prerequisites_yum():
-    return[]
+    return ['curl-devel', 'openssl-devel', 'gcc-g++', 'fuse-devel'] + get_build_prerequisites_all()
 
-def get_build_prerequisites_zypper():
-    return[]
+def get_build_prerequisites():
+    dispatch_map = {
+        'Ubuntu': get_build_prerequisites_apt,
+        'Centos': get_build_prerequisites_yum,
+        'Centos linux': get_build_prerequisites_yum,
+        'Opensuse ': get_build_prerequisites_yum,
+    }
+    try:
+        return dispatch_map[irods_python_ci_utilities.get_distribution()]()
+    except KeyError:
+        irods_python_ci_utilities.raise_not_implemented_for_distribution()
 
+def install_build_prerequisites_apt():
+    if irods_python_ci_utilities.get_distribution() == 'Ubuntu': # cmake from externals requires newer libstdc++ on ub12
+        if irods_python_ci_utilities.get_distribution_version_major() == '12':
+            irods_python_ci_utilities.install_os_packages(['python-software-properties'])
+            irods_python_ci_utilities.subprocess_get_output(['sudo', 'add-apt-repository', '-y', 'ppa:ubuntu-toolchain-r/test'], check_rc=True)
+            irods_python_ci_utilities.install_os_packages(['libstdc++6'])
+    irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
+
+def install_build_prerequisites_yum():
+    irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
+
+def install_build_prerequisites():
+    dispatch_map = {
+        'Ubuntu': install_build_prerequisites_apt,
+        'Centos': install_build_prerequisites_yum,
+        'Centos linux': install_build_prerequisites_yum,
+        'Opensuse ': install_build_prerequisites_yum,
+    }
+    try:
+        return dispatch_map[irods_python_ci_utilities.get_distribution()]()
+    except KeyError:
+        irods_python_ci_utilities.raise_not_implemented_for_distribution()
+
+def install_irods_dev_and_runtime_packages(irods_packages_root_directory):
+    irods_packages_directory = irods_python_ci_utilities.append_os_specific_directory(irods_packages_root_directory)
+    dev_package_basename = filter(lambda x:'irods-dev' in x, os.listdir(irods_packages_directory))[0]
+    dev_package = os.path.join(irods_packages_directory, dev_package_basename)
+    irods_python_ci_utilities.install_os_packages_from_files([dev_package])
+    runtime_package_basename = filter(lambda x:'irods-runtime' in x, os.listdir(irods_packages_directory))[0]
+    runtime_package = os.path.join(irods_packages_directory, runtime_package_basename)
+    irods_python_ci_utilities.install_os_packages_from_files([runtime_package])
 
 def get_build_prerequisites():
     dispatch_map = {
@@ -30,17 +86,25 @@ def get_build_prerequisites():
     except KeyError:
         irods_python_ci_utilities.raise_not_implemented_for_distribution()
 
+def build_and_install_mungefs():
+    source_directory = tempfile.mkdtemp(prefix='irods_mungefs_source_directory')
+    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs', source_directory], check_rc=True)
 
-def install_build_prerequisites():
-    irods_python_ci_utilities.subprocess_get_output(['sudo', '-EH', 'pip', 'install', 'unittest-xml-reporting==1.14.0'])
+    build_directory = tempfile.mkdtemp(prefix='irods_mungefs_build_directory')
+    irods_python_ci_utilities.subprocess_get_output(['cmake', source_directory], check_rc=True, cwd=build_directory)
+    irods_python_ci_utilities.subprocess_get_output(['make', '-j', str(multiprocessing.cpu_count()), 'package'], check_rc=True, cwd=build_directory)
 
-    if irods_python_ci_utilities.get_distribution() == 'Ubuntu': # cmake from externals requires newer libstdc++ on ub12
-        if irods_python_ci_utilities.get_distribution_version_major() == '12':
-            irods_python_ci_utilities.install_os_packages(['python-software-properties'])
-            irods_python_ci_utilities.subprocess_get_output(['sudo', 'add-apt-repository', '-y', 'ppa:ubuntu-toolchain-r/test'], check_rc=True)
-            irods_python_ci_utilities.install_os_packages(['libstdc++6'])
+    package_suffix = irods_python_ci_utilities.get_package_suffix()
+    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(build_directory, 'mungefs-*.{0}'.format(package_suffix))))
 
-    #irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
+def build_and_install_mungefs():
+    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs'], check_rc=True)
+    irods_python_ci_utilities.subprocess_get_output(['mkdir', 'build'], check_rc=True)
+    os.chdir('./build')
+    irods_python_ci_utilities.subprocess_get_output(['cmake', '../mungefs'], check_rc=True)
+    irods_python_ci_utilities.subprocess_get_output(['make', 'package'], check_rc=True)
+    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'mungefs-*.{0}'.format(package_suffix))))
+    os.chdir('..')
 
 def build_and_install_mungefs():
     irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs'], check_rc=True)
@@ -61,9 +125,10 @@ def main():
     built_packages_root_directory = options.built_packages_root_directory
     package_suffix = irods_python_ci_utilities.get_package_suffix()
     os_specific_directory = irods_python_ci_utilities.append_os_specific_directory(built_packages_root_directory)
-
     irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-tiered-storage*.{0}'.format(package_suffix))))
 
+    irods_python_ci_utilities.install_irods_core_dev_repository()
+    install_cmake_and_add_to_front_of_path()
     install_build_prerequisites()
 
     build_and_install_mungefs()
