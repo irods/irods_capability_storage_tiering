@@ -42,6 +42,15 @@ def install_build_prerequisites():
 
     #irods_python_ci_utilities.install_os_packages(get_build_prerequisites())
 
+def build_and_install_mungefs():
+    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs'], check_rc=True)
+    irods_python_ci_utilities.subprocess_get_output(['mkdir', 'build'], check_rc=True)
+    os.chdir('./build')
+    irods_python_ci_utilities.subprocess_get_output(['cmake', '../mungefs'], check_rc=True)
+    irods_python_ci_utilities.subprocess_get_output(['make', 'package'], check_rc=True)
+    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'mungefs-*.{0}'.format(package_suffix))))
+    os.chdir('..')
+
 def main():
     parser = optparse.OptionParser()
     parser.add_option('--output_root_directory')
@@ -57,7 +66,11 @@ def main():
 
     install_build_prerequisites()
 
+    build_and_install_mungefs()
+
     time.sleep(10)
+
+
 
     try:
         test_output_file = 'log/test_output.log'
