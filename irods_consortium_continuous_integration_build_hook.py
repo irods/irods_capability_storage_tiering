@@ -3,7 +3,6 @@ from __future__ import print_function
 import multiprocessing
 import optparse
 import os
-import sys
 import tempfile
 
 import irods_python_ci_utilities

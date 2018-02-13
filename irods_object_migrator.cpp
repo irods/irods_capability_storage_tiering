@@ -207,9 +207,9 @@ namespace irods {
     } // capture_replica_attributes
 
     rodsLong_t object_migrator::get_file_size_from_filesystem(
-        const std::string _object_path,
-        const std::string _resource_hierarchy,
-        const std::string _file_path ) {
+        const std::string& _object_path,
+        const std::string& _resource_hierarchy,
+        const std::string& _file_path ) {
         fileStatInp_t stat_inp{};
         rstrcpy(stat_inp.objPath,  _object_path.c_str(),  sizeof(stat_inp.objPath));
         rstrcpy(stat_inp.rescHier, _resource_hierarchy.c_str(), sizeof(stat_inp.rescHier));
@@ -233,8 +233,8 @@ namespace irods {
     } // get_file_size_from_filesystem
 
     std::string object_migrator::compute_checksum_for_resc(
-        const std::string _object_path,
-        const std::string _resource_name ) {
+        const std::string& _object_path,
+        const std::string& _resource_name ) {
         // query if a checksum exists
         std::string coll_name, obj_name;
         get_object_and_collection_from_path(

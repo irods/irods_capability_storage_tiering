@@ -13,7 +13,7 @@ static const std::string VERIFY_CATALOG{"catalog"};
 
 
     class object_migrator {
-        rsComm_t*          comm_;
+        rsComm_t*         comm_;
         const std::string verification_type_;
         const std::string source_resource_;
         const std::string destination_resource_;
@@ -33,13 +33,13 @@ static const std::string VERIFY_CATALOG{"catalog"};
             const std::string& _data_checksum);
 
         std::string compute_checksum_for_resc(
-                const std::string _object_path,
-                const std::string _resource_name );
+                const std::string& _object_path,
+                const std::string& _resource_name );
 
         rodsLong_t get_file_size_from_filesystem(
-                const std::string _object_path,
-                const std::string _resource_hierarchy,
-                const std::string _file_path );
+                const std::string& _object_path,
+                const std::string& _resource_hierarchy,
+                const std::string& _file_path );
 
         void capture_replica_attributes(
                 const std::string& _object_path,

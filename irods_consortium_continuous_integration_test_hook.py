@@ -3,7 +3,6 @@ from __future__ import print_function
 import multiprocessing
 import optparse
 import os
-import sys
 import shutil
 import glob
 import time
@@ -75,17 +74,6 @@ def install_irods_dev_and_runtime_packages(irods_packages_root_directory):
     runtime_package = os.path.join(irods_packages_directory, runtime_package_basename)
     irods_python_ci_utilities.install_os_packages_from_files([runtime_package])
 
-def get_build_prerequisites():
-    dispatch_map = {
-        'Ubuntu': get_build_prerequisites_apt,
-        'Centos': get_build_prerequisites_yum,
-        'Centos linux': get_build_prerequisites_yum
-    }
-    try:
-        return dispatch_map[irods_python_ci_utilities.get_distribution()]()
-    except KeyError:
-        irods_python_ci_utilities.raise_not_implemented_for_distribution()
-
 def build_and_install_mungefs():
     source_directory = tempfile.mkdtemp(prefix='irods_mungefs_source_directory')
     irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs', source_directory], check_rc=True)
@@ -96,24 +84,6 @@ def build_and_install_mungefs():
 
     package_suffix = irods_python_ci_utilities.get_package_suffix()
     irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(build_directory, 'mungefs-*.{0}'.format(package_suffix))))
-
-def build_and_install_mungefs():
-    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs'], check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output(['mkdir', 'build'], check_rc=True)
-    os.chdir('./build')
-    irods_python_ci_utilities.subprocess_get_output(['cmake', '../mungefs'], check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output(['make', 'package'], check_rc=True)
-    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'mungefs-*.{0}'.format(package_suffix))))
-    os.chdir('..')
-
-def build_and_install_mungefs():
-    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs'], check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output(['mkdir', 'build'], check_rc=True)
-    os.chdir('./build')
-    irods_python_ci_utilities.subprocess_get_output(['cmake', '../mungefs'], check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output(['make', 'package'], check_rc=True)
-    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'mungefs-*.{0}'.format(package_suffix))))
-    os.chdir('..')
 
 def main():
     parser = optparse.OptionParser()

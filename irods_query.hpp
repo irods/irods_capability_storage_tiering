@@ -168,7 +168,6 @@ namespace irods {
                     _query_string);
             }
 
-            genQueryOut_t* gen_out{};
             const int query_err = query_helper::query_fcn(
                                       _comm,
                                       &gen_input_,
