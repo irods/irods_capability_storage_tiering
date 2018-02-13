@@ -23,7 +23,7 @@ namespace irods {
         
         std::string instance_name{};
 
-        storage_tiering_configuration(const std::string& _instance_name);
+        explicit storage_tiering_configuration(const std::string& _instance_name);
     };
 
     class storage_tiering {

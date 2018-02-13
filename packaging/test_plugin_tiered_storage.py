@@ -1,4 +1,3 @@
-import os
 import sys
 import shutil
 import contextlib
@@ -125,7 +124,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                 filename = 'test_put_file'
-                filepath = lib.create_local_testfile(filename)
                 admin_session.assert_icommand('iput -R rnd0 ' + filename)
                 admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
@@ -137,14 +135,14 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                 # test stage to tier 2
-                sleep(10) 
+                sleep(10)
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
-                sleep(60) 
+                sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
                 # test restage to tier 0
                 admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
-                sleep(40) 
+                sleep(40)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0')
 
                 admin_session.assert_icommand('irm -f ' + filename)
@@ -224,7 +222,6 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
                 filepath = lib.create_local_testfile(filename)
 
                 filenameg2 = 'test_put_fileg2'
-                filepathg2 = lib.create_local_testfile(filenameg2)
 
                 admin_session.assert_icommand('iput -R rnd0 ' + filename)
                 admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
@@ -350,14 +347,13 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
             # configure mungefs
-            shutil.rmtree('/tmp/irods/munge_mount', ignore_errors=True)
-            shutil.rmtree('/tmp/irods/munge_target', ignore_errors=True)
-            os.mkdir('/tmp/irods/munge_mount')
-            os.mkdir('/tmp/irods/munge_target')
-            assert_command('mungefs /tmp/irods/munge_mount -omodules=subdir,subdir=/tmp/irods/munge_target')
+            self.munge_mount=tempfile.mkdtemp(prefix='munge_mount_')
+            self.munge_target=tempfile.mkdtemp(prefix='munge_target_')
+
+            assert_command('mungefs ' + self.munge_mount + ' -omodules=subdir,subdir=' + self.munge_target)
 
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
-            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/munge_mount', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':'+self.munge_mount, 'STDOUT_SINGLELINE', 'unixfilesystem')
 
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_group example_group 0')
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_group example_group 1')
@@ -366,14 +362,15 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
-            assert_command('fusermount -u /tmp/irods/munge_mount')
-            shutil.rmtree('/tmp/irods/munge_mount', ignore_errors=True)
-            shutil.rmtree('/tmp/irods/munge_target', ignore_errors=True)
+            assert_command('fusermount -u '+self.munge_mount)
+            shutil.rmtree(self.munge_mount, ignore_errors=True)
+            shutil.rmtree(self.munge_target, ignore_errors=True)
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
             admin_session.assert_icommand('iadmin rmresc ufs1')
             admin_session.assert_icommand('iadmin rum')
 
+    @classmethod
     def test_put_verify_filesystem(self):
         with tiered_storage_configured():
             with session.make_session_for_existing_admin() as admin_session:
@@ -403,7 +400,10 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                         paths.server_log_path(),
                         'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
                         start_index=initial_size_of_server_log)
-                assert 1 == log_cnt
+
+                if not 1 == log_cnt:
+                    print('log_cnt: '+str(log_cnt))
+                    raise AssertionError()
 
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
 
@@ -411,7 +411,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                 assert_command('mungefsctl --operations "getattr"')
                 admin_session.assert_icommand('irm -f ' + filename)
 
-
+    @classmethod
     def test_put_verify_checksum(self):
         with tiered_storage_configured():
             with session.make_session_for_existing_admin() as admin_session:
@@ -443,7 +443,11 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                         paths.server_log_path(),
                         'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
                         start_index=initial_size_of_server_log)
-                assert 1 == log_cnt
+
+                if not 1 == log_cnt:
+                    print('log_cnt: '+str(log_cnt))
+                    raise AssertionError()
+
 
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
 
