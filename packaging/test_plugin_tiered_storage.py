@@ -219,7 +219,6 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                 filename = 'test_put_file'
-                filepath = lib.create_local_testfile(filename)
 
                 filenameg2 = 'test_put_fileg2'
 
