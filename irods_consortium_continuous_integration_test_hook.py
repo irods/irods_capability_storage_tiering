@@ -7,7 +7,7 @@ import shutil
 import glob
 import time
 import tempfile
-
+import re
 import irods_python_ci_utilities
 
 def install_cmake_and_add_to_front_of_path():
@@ -28,7 +28,7 @@ def get_build_prerequisites_apt():
     return ['libstdc++6', 'libcurl4-gnutls-dev', 'make', 'libssl-dev', 'gcc', 'g++', 'libfuse-dev'] + get_build_prerequisites_all()
 
 def get_build_prerequisites_yum():
-    return ['curl-devel', 'openssl-devel', 'gcc-g++', 'fuse-devel'] + get_build_prerequisites_all()
+    return ['curl-devel', 'openssl-devel', 'gcc-g++', 'fuse', 'fuse-devel'] + get_build_prerequisites_all()
 
 def get_build_prerequisites():
     dispatch_map = {
@@ -65,16 +65,15 @@ def install_build_prerequisites():
     except KeyError:
         irods_python_ci_utilities.raise_not_implemented_for_distribution()
 
-def install_irods_dev_and_runtime_packages(irods_packages_root_directory):
-    irods_packages_directory = irods_python_ci_utilities.append_os_specific_directory(irods_packages_root_directory)
-    dev_package_basename = filter(lambda x:'irods-dev' in x, os.listdir(irods_packages_directory))[0]
-    dev_package = os.path.join(irods_packages_directory, dev_package_basename)
-    irods_python_ci_utilities.install_os_packages_from_files([dev_package])
-    runtime_package_basename = filter(lambda x:'irods-runtime' in x, os.listdir(irods_packages_directory))[0]
-    runtime_package = os.path.join(irods_packages_directory, runtime_package_basename)
-    irods_python_ci_utilities.install_os_packages_from_files([runtime_package])
-
 def build_and_install_mungefs():
+    dist = irods_python_ci_utilities.get_distribution()
+    pat = re.compile('^Centos')
+    if pat.match(dist):
+        irods_python_ci_utilities.subprocess_get_output(['sudo', 'groupadd', 'fuse'], check_rc=True)
+        irods_python_ci_utilities.subprocess_get_output(['sudo', 'usermod', '-a', '-G', 'fuse', 'irods'], check_rc=True)
+        irods_python_ci_utilities.subprocess_get_output(['sudo', 'chown', 'root:fuse', '/dev/fuse'], check_rc=True)
+        irods_python_ci_utilities.subprocess_get_output(['sudo', 'chmod', 'g+rwx', '/dev/fuse'], check_rc=True)
+
     source_directory = tempfile.mkdtemp(prefix='irods_mungefs_source_directory')
     irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs', source_directory], check_rc=True)
 
@@ -100,12 +99,12 @@ def main():
     irods_python_ci_utilities.install_irods_core_dev_repository()
     install_cmake_and_add_to_front_of_path()
     install_build_prerequisites()
+    
+    time.sleep(10)
 
     build_and_install_mungefs()
 
     time.sleep(10)
-
-
 
     try:
         test_output_file = 'log/test_output.log'
