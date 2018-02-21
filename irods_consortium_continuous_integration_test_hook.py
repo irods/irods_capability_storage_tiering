@@ -99,7 +99,7 @@ def main():
     irods_python_ci_utilities.install_irods_core_dev_repository()
     install_cmake_and_add_to_front_of_path()
     install_build_prerequisites()
-    
+
     time.sleep(10)
 
     build_and_install_mungefs()
