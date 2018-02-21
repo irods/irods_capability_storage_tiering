@@ -1,6 +1,6 @@
 # **iRODS Storage Tiering Rule Engine Plugin**
 
-The storage tiering framework provides iRODS the capability of automatically moving data between identified tiers of storage withing a configured tiering group.
+The storage tiering framework provides iRODS the capability of automatically moving data between identified tiers of storage within a configured tiering group.
 
 To define a storage tiering group, selected storage resources are labeled with metadata which define their place in the group and how long data should reside in that tier before being migrated to the next tier.
 
