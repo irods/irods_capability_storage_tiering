@@ -222,6 +222,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
                 filename = 'test_put_file'
 
                 filenameg2 = 'test_put_fileg2'
+                lib.create_local_testfile(filenameg2)
 
                 admin_session.assert_icommand('iput -R rnd0 ' + filename)
                 admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
