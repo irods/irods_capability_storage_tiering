@@ -77,7 +77,7 @@ imeta add -R medium_resc irods::storage_tier_time 28800
 
 When a violating data object is identified for a given source resource, the object is replicated to the next resource in the tier.  In order to determine that this operation has succeeded before the source replica is trimmed, the storage tiering plugin provides the ability to perform three methods of verification of the destination replica.
 
-In order of escalating computational complexity, first the system may just rely on the fact that no errors were caught and that the entry is properly registered in the catalog.  This is the default behavior, but would also be confiugred as such:
+In order of escalating computational complexity, first the system may just rely on the fact that no errors were caught and that the entry is properly registered in the catalog.  This is the default behavior, but would also be configured as such:
 ```
 imeta add -R fast_resc irods::storage_tier_verification catalog
 ```
