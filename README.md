@@ -1,8 +1,10 @@
 # **iRODS Storage Tiering Rule Engine Plugin**
 
-The storage tiering framework provides iRODS the capability of automatically moving data between identified tiers of storage within a configured tiering group.
+The storage tiering framework provides iRODS the capability of automatically moving data between any number of identified tiers of storage within a configured tiering group.
 
 To define a storage tiering group, selected storage resources are labeled with metadata which define their place in the group and how long data should reside in that tier before being migrated to the next tier.
+
+The example diagram below shows a configuration with three tiers.
 
 ![Storage Tiering Diagram](storage_tiering_diagram.jpg)
 
@@ -73,21 +75,21 @@ imeta add -R medium_resc irods::storage_tier_time 28800
 
 # **Configuring Tiering Verification**
 
-When a violating data object is identified for a given source resource, the object is replicated to the next resource in the tier.  In order to determine that this operation has succeeded before the source replica is trimmed, the storage tiering plugin provides the ability to perform three methods of verification of the destination relica.
+When a violating data object is identified for a given source resource, the object is replicated to the next resource in the tier.  In order to determine that this operation has succeeded before the source replica is trimmed, the storage tiering plugin provides the ability to perform three methods of verification of the destination replica.
 
 In order of escalating computational complexity, first the system may just rely on the fact that no errors were caught and that the entry is properly registered in the catalog.  This is the default behavior, but would also be confiugred as such:
 ```
 imeta add -R fast_resc irods::storage_tier_verification catalog
 ```
 
-A more expensive but reliable method is to check the file size of the replica on the destination resource:
+A more expensive but reliable method is to check the file size of the replica on the destination resource (in this case, when a replica lands on `medium_resc`, check it):
 ```
-imeta add -R fast_resc irods::storage_tier_verification filesystem
+imeta add -R medium_resc irods::storage_tier_verification filesystem
 ```
 
 And finally, the most computationally intensive but thorough method of verification is computing and comparing checksums.  Keep in mind that if no checksum is available for the source replica, such as no checksum was computed on ingest, the plugin will compute one for the source replica first.
 ```
-imeta add -R fast_resc irods::storage_tier_verification checksum
+imeta add -R slow_resc irods::storage_tier_verification checksum
 ```
 
 # **Customizing the Violating Objects Query**
