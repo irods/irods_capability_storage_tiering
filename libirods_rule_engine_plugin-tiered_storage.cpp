@@ -76,7 +76,7 @@ irods::error exec_rule(
         st.apply_access_time(_args);
 
         if("pep_api_data_obj_get_post" == _rn) {
-            st.restage_object_to_lowest_tier(rei, _args);
+            st.restage_object_to_lowest_tier(_args, rei);
         }
     }
     catch(const irods::exception& _e) {
@@ -131,6 +131,28 @@ irods::error exec_rule_text(
                         "delayExec failed");
             }
         }
+        else if("migrate_object_to_resource" == rule_obj["rule-engine-operation"]) {
+            ruleExecInfo_t* rei{};
+            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
+            if(!err.ok()) {
+                return err;
+            }
+
+            try {
+                irods::storage_tiering st{rei->rsComm, instance_name};
+                st.move_data_object(
+                    rule_obj["verification-type"],
+                    rule_obj["source-resource"],
+                    rule_obj["destination-resource"],
+                    rule_obj["object-path"]);
+            }
+            catch(const irods::exception& _e) {
+                return ERROR(
+                        _e.code(),
+                        _e.what());
+            }
+
+        }
         else {
             return ERROR(
                     SYS_NOT_SUPPORTED,
@@ -160,6 +182,7 @@ irods::error exec_rule_expression(
     using json = nlohmann::json;
 
     const auto rule_obj = json::parse(_rule_text);
+
     if("apply_storage_tiering_policy" == rule_obj["rule-engine-operation"]) {
         ruleExecInfo_t* rei{};
         const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
@@ -170,7 +193,7 @@ irods::error exec_rule_expression(
         try {
             irods::storage_tiering st{rei->rsComm, instance_name};
             for(const auto& group : rule_obj["storage-tier-groups"]) {
-                st.apply_storage_tiering_policy(group); 
+                st.apply_storage_tiering_policy(group, rei);
             }
         }
         catch(const irods::exception& _e) {

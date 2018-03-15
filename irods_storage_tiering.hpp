@@ -61,15 +61,8 @@ namespace irods {
         
         void migrate_violating_objects_for_resource(
             const std::string& _source_resource,
-            const std::string& _destination_resource);
-
-        void queue_restage_operation(
-            ruleExecInfo_t*    _rei,
-            const std::string& _restage_delay_params,
-            const std::string& _verification_type,
-            const std::string& _source_resource,
             const std::string& _destination_resource,
-            const std::string& _object_path);
+            ruleExecInfo_t*        _rei);
 
         public:
         storage_tiering(
@@ -80,11 +73,20 @@ namespace irods {
             std::list<boost::any>& _args);
 
         void restage_object_to_lowest_tier(
-            ruleExecInfo_t*        _rei,
-            std::list<boost::any>& _args);
+            std::list<boost::any>& _args,
+            ruleExecInfo_t*        _rei);
 
         void apply_storage_tiering_policy(
-            const std::string& _group);
+            const std::string& _group,
+            ruleExecInfo_t*    _rei);
+
+        void queue_data_movement(
+            const std::string& _restage_delay_params,
+            const std::string& _verification_type,
+            const std::string& _source_resource,
+            const std::string& _destination_resource,
+            const std::string& _object_path,
+            ruleExecInfo_t*    _rei);
 
         void move_data_object(
             const std::string& _verification_type,

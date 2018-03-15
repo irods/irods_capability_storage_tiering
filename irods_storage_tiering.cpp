@@ -7,8 +7,10 @@
 #include "irods_virtual_path.hpp"
 #include "irods_hierarchy_parser.hpp"
 #include "irods_resource_manager.hpp"
+#include "irods_resource_backport.hpp"
 
 #include "rsModAVUMetadata.hpp"
+#include "rsExecMyRule.hpp"
 
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
@@ -332,27 +334,70 @@ namespace irods {
 
     void storage_tiering::migrate_violating_objects_for_resource(
         const std::string& _source_resource,
-        const std::string& _destination_resource) {
+        const std::string& _destination_resource,
+        ruleExecInfo_t*    _rei ) {
         try {
             const auto query_str = get_violating_query_string_for_resource(_source_resource);
             query qobj{comm_, query_str, 1};
             if(qobj.size() > 0) {
+                using json = nlohmann::json;
+
                 const auto result = qobj.front();
-                auto object_path = result[1];
-                const auto& vps = get_virtual_path_separator();
+                auto object_path  = result[1];
+                const auto& vps   = get_virtual_path_separator();
                 if( !boost::ends_with(object_path, vps)) {
                     object_path += vps;
                 }
                 object_path += result[0];
 
-                const std::string verification_type{get_verification_for_resc(_destination_resource)};
-                object_migrator mover(
-                    comm_,
-                    verification_type,
-                    _source_resource,
-                    _destination_resource,
-                    object_path);
-                mover();
+                json rule_obj;
+                rule_obj["rule-engine-operation"]     = "migrate_object_to_resource";
+                rule_obj["rule-engine-instance-name"] = config_.instance_name;
+                rule_obj["verification-type"]     = get_verification_for_resc(_destination_resource);
+                rule_obj["source-resource"]       = _source_resource;
+                rule_obj["destination-resource"]  = _destination_resource;
+                rule_obj["object-path"]           = object_path;
+                std::string remote_host;
+
+                rodsLong_t src_resc_id{0};
+                error ret = resc_mgr.hier_to_leaf_id(
+                                _source_resource,
+                                src_resc_id);
+                ret = get_resource_property<std::string>(
+                                src_resc_id,
+                                RESOURCE_LOCATION,
+                                remote_host);
+                if(!ret.ok()) {
+                    THROW(ret.code(), ret.result());
+                }
+
+                execMyRuleInp_t exec_inp;
+                memset(&exec_inp, 0, sizeof(exec_inp));
+                exec_inp.condInput.len = 0;
+                exec_inp.addr.portNum = 0,
+                rstrcpy(
+                    exec_inp.addr.hostAddr,
+                    remote_host.c_str(),
+                    LONG_NAME_LEN);
+                snprintf(
+                    exec_inp.myRule,
+                    META_STR_LEN,
+                    "removmeplz%s", // exec rule text strips first 10 chars from rule
+                    rule_obj.dump().c_str());
+
+                msParamArray_t *out_params{nullptr};
+                const auto rem_err = rsExecMyRule(
+                                        _rei->rsComm,
+                                        &exec_inp,
+                                        &out_params);
+                if(rem_err < 0) {
+                    THROW(
+                        rem_err,
+                        boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                        object_path %
+                        _source_resource %
+                        _destination_resource);
+                }
             }
         }
         catch(const exception& _e) {
@@ -371,13 +416,13 @@ namespace irods {
         }
     } // migrate_violating_objects_for_resource
 
-    void storage_tiering::queue_restage_operation(
-        ruleExecInfo_t*    _rei,
+    void storage_tiering::queue_data_movement(
         const std::string& _restage_delay_params,
         const std::string& _verification_type,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const std::string& _object_path) {
+        const std::string& _object_path,
+        ruleExecInfo_t*    _rei) {
         using json = nlohmann::json;
 
         json rule_obj;
@@ -400,7 +445,7 @@ namespace irods {
                 _source_resource %
                 _destination_resource);
         }
-    } // queue_restage_operation
+    } // queue_data_movement
 
    // =-=-=-=-=-=-=-
    // Application Functions
@@ -423,16 +468,16 @@ namespace irods {
     } // apply_access_time
 
     void storage_tiering::restage_object_to_lowest_tier(
-        ruleExecInfo_t*        _rei,
-        std::list<boost::any>& _args) {
+        std::list<boost::any>& _args,
+        ruleExecInfo_t*        _rei) {
         try {
             // NOTE:: 3rd parameter is the dataObjInp_t
             auto it = _args.begin();
             std::advance(it, 2);
             if(_args.end() == it) {
                 THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
+                    SYS_INVALID_INPUT_PARAM,
+                    "invalid number of arguments");
             }
 
             auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
@@ -456,13 +501,13 @@ namespace irods {
                                                   low_tier_resource_name);
             const auto restage_delay_params = get_restage_delay_param_for_resc(
                                                   source_resource);
-            queue_restage_operation(
-                    _rei,
+            queue_data_movement(
                     restage_delay_params,
                     verification_type,
                     source_resource,
                     low_tier_resource_name,
-                    object_path);
+                    object_path,
+                    _rei);
         }
         catch(const boost::bad_any_cast& _e) {
             THROW(INVALID_ANY_CAST, _e.what());
@@ -470,7 +515,8 @@ namespace irods {
     } // restage_object_to_lowest_tier
 
     void storage_tiering::apply_storage_tiering_policy(
-        const std::string& _group) {
+        const std::string& _group,
+        ruleExecInfo_t*    _rei ) {
         const std::map<std::string, std::string> rescs = get_resource_map_for_group(
                                                              _group);
         if(rescs.empty()) {
@@ -491,7 +537,7 @@ namespace irods {
                 break;
             }
 
-            migrate_violating_objects_for_resource(resc_itr->second, next_itr->second);
+            migrate_violating_objects_for_resource(resc_itr->second, next_itr->second, _rei);
         } // for resc
 
     } // apply_storage_tiering_policy
