@@ -82,6 +82,10 @@ namespace irods {
                                     plugin_spec_cfg.at("storage_tiering_restage_delay_attribute"));
                         }
 
+                        if(plugin_spec_cfg.find("storage_tiering_minimum_restage_tier") != plugin_spec_cfg.end()) {
+                            storage_tiering_minimum_restage_tier = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("storage_tiering_minimum_restage_tier"));
+                        }
                         if(plugin_spec_cfg.find("default_restage_delay_parameters") != plugin_spec_cfg.end()) {
                             default_restage_delay_parameters = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("default_restage_delay_parameters"));
@@ -244,6 +248,32 @@ namespace irods {
         }
 
     } // get_verification_for_resc
+
+    std::string storage_tiering::get_restage_tier_resource_name(
+        const std::string& _group_name) {
+        const auto idx_resc_map = get_tier_group_resources_and_indices(
+                                      _group_name);
+        std::string resc_list;
+        for(const auto& itr : idx_resc_map) {
+            resc_list += "'"+itr.second + "', ";
+        }
+
+        std::string query_str{
+            boost::str(
+                    boost::format(
+                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME IN (%s)") %
+                    config_.storage_tiering_minimum_restage_tier %
+                    resc_list) };
+        query qobj{comm_, query_str, 1};
+        if(qobj.size() > 0) {
+            const auto& result = qobj.front();
+            return result[0];
+        }
+        else {
+            return idx_resc_map.begin()->second;
+        }
+
+    } // get_restage_tier_resource_name
 
     std::string storage_tiering::get_restage_delay_param_for_resc(
             const std::string& _resource_name) {
@@ -494,9 +524,8 @@ namespace irods {
             const auto group_name = get_metadata_for_resource(
                                         config_.storage_tiering_group_attribute,
                                         source_resource);
-            const auto idx_resc_map = get_tier_group_resources_and_indices(
-                                          group_name);
-            const auto& low_tier_resource_name = idx_resc_map.begin()->second;
+            const auto low_tier_resource_name = get_restage_tier_resource_name(
+                                                     group_name);
             const auto  verification_type = get_verification_for_resc(
                                                   low_tier_resource_name);
             const auto restage_delay_params = get_restage_delay_param_for_resc(

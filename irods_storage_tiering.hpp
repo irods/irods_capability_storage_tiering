@@ -17,6 +17,7 @@ namespace irods {
         std::string storage_tiering_query_attribute{"irods::storage_tier_query"};
         std::string storage_tiering_verification_attribute{"irods::storage_tier_verification"};
         std::string storage_tiering_restage_delay_attribute{"irods::storage_tier_restage_delay"};
+        std::string storage_tiering_minimum_restage_tier{"irods::storage_tier_minimum_restage_tier"};
 
         std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
@@ -45,6 +46,9 @@ namespace irods {
             const std::string& _resource_name);
 
         std::string get_verification_for_resc(
+            const std::string& _resource_name);
+
+        std::string get_restage_tier_resource_name(
             const std::string& _resource_name);
 
         std::string get_restage_delay_param_for_resc(

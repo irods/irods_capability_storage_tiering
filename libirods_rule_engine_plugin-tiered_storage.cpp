@@ -1,7 +1,9 @@
+// nclude "irods_re_ruleexistshelper.hpp"
 // =-=-=-=-=-=-=-
 // irods includes
 #include "irods_re_plugin.hpp"
 #include "irods_storage_tiering.hpp"
+#include "irods_re_ruleexistshelper.hpp"
 
 #undef LIST
 
@@ -32,6 +34,8 @@ irods::error start(
     irods::default_re_ctx&,
     const std::string& _instance_name ) {
     instance_name = _instance_name;
+    RuleExistsHelper::Instance()->registerRuleRegex("pep_api_data_obj_.*");
+
     return SUCCESS();
 }
 
@@ -45,13 +49,14 @@ irods::error rule_exists(
     irods::default_re_ctx&,
     const std::string& _rn,
     bool&              _ret) {
-
     // TODO: compare to specific rule strings here
     const std::set<std::string> rules{ "pep_api_data_obj_close_post",
                                        "pep_api_data_obj_put_post",
-                                       "pep_api_data_obj_get_post"};
+                                       "pep_api_data_obj_get_post",
+                                       "pep_api_reg_data_obj_post",
+                                       "pep_api_reg_replica_post"};
     _ret = rules.find(_rn) != rules.end();
-    
+
     return SUCCESS();
 }
 
@@ -64,7 +69,6 @@ irods::error exec_rule(
     const std::string&     _rn,
     std::list<boost::any>& _args,
     irods::callback        _eff_hdlr) {
-
     ruleExecInfo_t* rei{};
     const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
     if(!err.ok()) {
