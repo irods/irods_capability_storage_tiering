@@ -93,7 +93,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tier_group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -172,7 +172,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tier_group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
             admin_session.assert_icommand('iadmin mkresc ufs0g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -185,7 +185,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tier_time 5')
             admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tier_time 65')
 
-            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tier_query "select DATA_NAME, COLL_NAME where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -281,7 +281,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::custom_storage_tier_group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tier_time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tier_query "select DATA_NAME, COLL_NAME where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:

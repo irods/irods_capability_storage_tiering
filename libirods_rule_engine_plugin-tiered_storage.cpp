@@ -103,7 +103,11 @@ irods::error exec_rule_text(
         using json = nlohmann::json;
 
         // skip the first line: @external
-        const auto rule_obj = json::parse(_rule_text.substr(10));
+        std::string rule_text{_rule_text};
+        if(_rule_text.find("@external") != std::string::npos) {
+            rule_text = _rule_text.substr(10);
+        }
+        const auto rule_obj = json::parse(rule_text);
 
         // if the rule text does not have our instance name, fail
         if(instance_name != rule_obj["rule-engine-instance-name"]) {

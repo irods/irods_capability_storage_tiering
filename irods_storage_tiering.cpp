@@ -355,7 +355,7 @@ namespace irods {
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
             return boost::str(
-                       boost::format("SELECT DATA_NAME, COLL_NAME WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
+                       boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
                        config_.access_time_attribute %
                        tier_time %
                        leaf_str);
@@ -369,10 +369,9 @@ namespace irods {
         try {
             const auto query_str = get_violating_query_string_for_resource(_source_resource);
             query qobj{comm_, query_str, 1};
-            if(qobj.size() > 0) {
+            for(const auto& result : qobj) {
                 using json = nlohmann::json;
 
-                const auto result = qobj.front();
                 auto object_path  = result[1];
                 const auto& vps   = get_virtual_path_separator();
                 if( !boost::ends_with(object_path, vps)) {
@@ -387,13 +386,10 @@ namespace irods {
                 rule_obj["source-resource"]       = _source_resource;
                 rule_obj["destination-resource"]  = _destination_resource;
                 rule_obj["object-path"]           = object_path;
-                std::string remote_host;
 
-                rodsLong_t src_resc_id{0};
-                error ret = resc_mgr.hier_to_leaf_id(
-                                _source_resource,
-                                src_resc_id);
-                ret = get_resource_property<std::string>(
+                std::string remote_host;
+                rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
+                error ret = get_resource_property<std::string>(
                                 src_resc_id,
                                 RESOURCE_LOCATION,
                                 remote_host);
@@ -412,7 +408,7 @@ namespace irods {
                 snprintf(
                     exec_inp.myRule,
                     META_STR_LEN,
-                    "removmeplz%s", // exec rule text strips first 10 chars from rule
+                    "%s",
                     rule_obj.dump().c_str());
 
                 msParamArray_t *out_params{nullptr};
@@ -429,6 +425,11 @@ namespace irods {
                         _destination_resource);
                 }
             }
+        }
+        catch(const boost::bad_lexical_cast& _e) {
+            THROW(
+                INVALID_LEXICAL_CAST,
+                "");
         }
         catch(const exception& _e) {
             // if nothing of interest is found, thats not an error
