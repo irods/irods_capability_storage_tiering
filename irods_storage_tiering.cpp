@@ -266,6 +266,7 @@ namespace irods {
                     resc_list) };
         query qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
+            const auto& result = qobj.front();
             if(qobj.size() > 1) {
                 rodsLog(
                     LOG_ERROR,
@@ -274,7 +275,6 @@ namespace irods {
                     result[0].c_str());
             }
 
-            const auto& result = qobj.front();
             return result[0];
         }
         else {
