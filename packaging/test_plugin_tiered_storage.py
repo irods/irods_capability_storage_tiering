@@ -31,11 +31,11 @@ def tiered_storage_configured_custom(arg=None):
                 "plugin_name" : "irods_rule_engine_plugin-tiered_storage",
                 "plugin_specific_configuration" : {
                     "access_time_attribute" : "irods::custom_access_time",
-                    "storage_tiering_group_attribute" : "irods::custom_storage_tier_group",
-                    "storage_tiering_time_attribute" : "irods::custom_storage_tier_time",
-                    "storage_tiering_query_attribute" : "irods::custom_storage_tier_query",
-                    "storage_tiering_verification_attribute" : "irods::custom_storage_tier_verification",
-                    "storage_tiering_restage_delay_attribute" : "irods::custom_storage_tier_restage_delay",
+                    "group_attribute" : "irods::custom_storage_tiering::group",
+                    "time_attribute" : "irods::custom_storage_tiering::time",
+                    "query_attribute" : "irods::custom_storage_tiering::query",
+                    "verification_attribute" : "irods::custom_storage_tiering::verification",
+                    "restage_delay_attribute" : "irods::custom_storage_tiering::restage_delay",
 
                     "default_restage_delay_parameters" : "<PLUSET>1s</PLUSET>",
                     "time_check_string" : "TIME_CHECK_STRING"
@@ -88,12 +88,12 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs4')
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs5')
 
-            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_group example_group 0')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_group example_group 1')
-            admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tier_group example_group 2')
-            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_time 5')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::group example_group 1')
+            admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tiering::group example_group 2')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::time 65')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -167,25 +167,25 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs4')
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs5')
 
-            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_group example_group 0')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_group example_group 1')
-            admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tier_group example_group 2')
-            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tier_time 5')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::group example_group 1')
+            admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tiering::group example_group 2')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::time 65')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
             admin_session.assert_icommand('iadmin mkresc ufs0g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
 
-            admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tier_group example_group_g2 0')
-            admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tier_group example_group_g2 1')
-            admin_session.assert_icommand('imeta add -R ufs2g2 irods::storage_tier_group example_group_g2 2')
+            admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tiering::group example_group_g2 0')
+            admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tiering::group example_group_g2 1')
+            admin_session.assert_icommand('imeta add -R ufs2g2 irods::storage_tiering::group example_group_g2 2')
 
-            admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tier_time 5')
-            admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tier_time 65')
+            admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tiering::time 65')
 
-            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -276,12 +276,12 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs4')
             admin_session.assert_icommand('iadmin addchildtoresc rnd2 ufs5')
 
-            admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tier_group example_group 0')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tier_group example_group 1')
-            admin_session.assert_icommand('imeta add -R rnd2 irods::custom_storage_tier_group example_group 2')
-            admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tier_time 5')
-            admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tier_time 65')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tier_query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tiering::group example_group 1')
+            admin_session.assert_icommand('imeta add -R rnd2 irods::custom_storage_tiering::group example_group 2')
+            admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tiering::time 65')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -356,10 +356,10 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':'+self.munge_mount, 'STDOUT_SINGLELINE', 'unixfilesystem')
 
-            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_group example_group 0')
-            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_group example_group 1')
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group 1')
 
-            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_time 5')
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -381,7 +381,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                 assert_command('mungefsctl --operations "getattr" --corrupt_size')
 
                 # set filesystem verification
-                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_verification filesystem')
+                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::verification filesystem')
 
                 # debug
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
@@ -422,7 +422,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                 assert_command('mungefsctl --operations "read" --corrupt_data')
 
                 # set checksum verification
-                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_verification checksum')
+                admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::verification checksum')
 
                 # debug
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
@@ -463,12 +463,12 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
 
-            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_group example_group 0')
-            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_group example_group 1')
-            admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tier_group example_group 2')
-            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tier_time 5')
-            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_time 65')
-            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tier_minimum_restage_tier nop')
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group 1')
+            admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::group example_group 2')
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 65')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier nop')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:

@@ -57,34 +57,34 @@ namespace irods {
                                     plugin_spec_cfg.at("access_time_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_group_attribute") != plugin_spec_cfg.end()) {
-                            storage_tiering_group_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_group_attribute"));
+                        if(plugin_spec_cfg.find("group_attribute") != plugin_spec_cfg.end()) {
+                            group_attribute = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("group_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_time_attribute") != plugin_spec_cfg.end()) {
-                            storage_tiering_time_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_time_attribute"));
+                        if(plugin_spec_cfg.find("time_attribute") != plugin_spec_cfg.end()) {
+                            time_attribute = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("time_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_query_attribute") != plugin_spec_cfg.end()) {
-                            storage_tiering_query_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_query_attribute"));
+                        if(plugin_spec_cfg.find("query_attribute") != plugin_spec_cfg.end()) {
+                            query_attribute = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("query_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_verification_attribute") != plugin_spec_cfg.end()) {
-                            storage_tiering_verification_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_verification_attribute"));
+                        if(plugin_spec_cfg.find("verification_attribute") != plugin_spec_cfg.end()) {
+                            verification_attribute = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("verification_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_restage_delay_attribute") != plugin_spec_cfg.end()) {
-                            storage_tiering_restage_delay_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_restage_delay_attribute"));
+                        if(plugin_spec_cfg.find("restage_delay_attribute") != plugin_spec_cfg.end()) {
+                            restage_delay_attribute = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("restage_delay_attribute"));
                         }
 
-                        if(plugin_spec_cfg.find("storage_tiering_minimum_restage_tier") != plugin_spec_cfg.end()) {
-                            storage_tiering_minimum_restage_tier = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("storage_tiering_minimum_restage_tier"));
+                        if(plugin_spec_cfg.find("minimum_restage_tier") != plugin_spec_cfg.end()) {
+                            minimum_restage_tier = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("minimum_restage_tier"));
                         }
                         if(plugin_spec_cfg.find("default_restage_delay_parameters") != plugin_spec_cfg.end()) {
                             default_restage_delay_parameters = boost::any_cast<std::string>(
@@ -171,7 +171,7 @@ namespace irods {
             boost::str(
                     boost::format(
                         "SELECT RESC_NAME, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = '%s'") %
-                    config_.storage_tiering_group_attribute %
+                    config_.group_attribute %
                     _group_name) };
         for(auto row : query{comm_, query_str}) {
             std::string& resc_name = row[0];
@@ -239,7 +239,7 @@ namespace irods {
 
         try {
             std::string ver = get_metadata_for_resource(
-                                  config_.storage_tiering_verification_attribute,
+                                  config_.verification_attribute,
                                   _resource_name);
             return ver;
         }
@@ -262,7 +262,7 @@ namespace irods {
             boost::str(
                     boost::format(
                         "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME IN (%s)") %
-                    config_.storage_tiering_minimum_restage_tier %
+                    config_.minimum_restage_tier %
                     resc_list) };
         query qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
@@ -280,7 +280,7 @@ namespace irods {
 
         try {
             std::string ver = get_metadata_for_resource(
-                                  config_.storage_tiering_restage_delay_attribute,
+                                  config_.restage_delay_attribute,
                                   _resource_name);
             return ver;
         }
@@ -298,7 +298,7 @@ namespace irods {
                 boost::str(
                         boost::format("SELECT META_RESC_ATTR_UNITS, RESC_NAME WHERE META_RESC_ATTR_VALUE = '%s' AND META_RESC_ATTR_NAME = '%s'") %
                         _group %
-                        config_.storage_tiering_group_attribute)}; 
+                        config_.group_attribute)};
             for(const auto& g : query{comm_, query_str}) {
                 groups[g[0]] = g[1];
             }
@@ -316,7 +316,7 @@ namespace irods {
         try {
             std::time_t now = std::time(nullptr);
             std::string offset_str = get_metadata_for_resource(
-                                         config_.storage_tiering_time_attribute,
+                                         config_.time_attribute,
                                          _resource_name);
             std::time_t offset = boost::lexical_cast<std::time_t>(offset_str);
             return std::to_string(now - offset);
@@ -331,7 +331,7 @@ namespace irods {
                 SYS_INVALID_INPUT_PARAM,
                 boost::format("failed to get tiering time for resource [%s] : set attribute [%s] with value (tier time) in seconds") %
                 _resource_name %
-                config_.storage_tiering_time_attribute);
+                config_.time_attribute);
         }
 
     } // get_tier_time_for_resc
@@ -341,7 +341,7 @@ namespace irods {
         const auto tier_time = get_tier_time_for_resc(_resource_name);
         try {
             std::string tmp_query_str = get_metadata_for_resource(
-                                            config_.storage_tiering_query_attribute,
+                                            config_.query_attribute,
                                             _resource_name);
             size_t start_pos = tmp_query_str.find(config_.time_check_string);
             if(start_pos != std::string::npos) {
@@ -523,7 +523,7 @@ namespace irods {
             h_parse.first_resc(source_resource);
 
             const auto group_name = get_metadata_for_resource(
-                                        config_.storage_tiering_group_attribute,
+                                        config_.group_attribute,
                                         source_resource);
             const auto low_tier_resource_name = get_restage_tier_resource_name(
                                                      group_name);

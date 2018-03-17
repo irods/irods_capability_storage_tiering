@@ -12,12 +12,12 @@
 namespace irods {
     struct storage_tiering_configuration {
         std::string access_time_attribute{"irods::access_time"};
-        std::string storage_tiering_group_attribute{"irods::storage_tier_group"};
-        std::string storage_tiering_time_attribute{"irods::storage_tier_time"};
-        std::string storage_tiering_query_attribute{"irods::storage_tier_query"};
-        std::string storage_tiering_verification_attribute{"irods::storage_tier_verification"};
-        std::string storage_tiering_restage_delay_attribute{"irods::storage_tier_restage_delay"};
-        std::string storage_tiering_minimum_restage_tier{"irods::storage_tier_minimum_restage_tier"};
+        std::string group_attribute{"irods::storage_tiering::group"};
+        std::string time_attribute{"irods::storage_tiering::time"};
+        std::string query_attribute{"irods::storage_tiering::query"};
+        std::string verification_attribute{"irods::storage_tiering::verification"};
+        std::string restage_delay_attribute{"irods::storage_tiering::restage_delay"};
+        std::string minimum_restage_tier{"irods::storage_tiering::minimum_restage_tier"};
 
         std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
