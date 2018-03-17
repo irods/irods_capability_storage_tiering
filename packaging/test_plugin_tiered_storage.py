@@ -468,7 +468,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::group example_group 2')
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 65')
-            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier nop')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:

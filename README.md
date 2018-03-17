@@ -92,6 +92,14 @@ And finally, the most computationally intensive but thorough method of verificat
 imeta add -R slow_resc irods::storage_tiering::verification checksum
 ```
 
+# **Restaging Tiered Data**
+
+After data has been migrated within the system a user may wish to retrieve the data at a future time.  When this happens the data is immediately returned to the user, and an asynchrpnous job is submitted to restage the data to the lowest tier index in the tier group.  In the case where an administrator may not with the data to be returned to the lowest teir, such as when data is automatically ingested, the minimum tier may be indicated with a flag.  In this case the storage tiering plugin will restage the data to the indicated tier within the tier group.  To configure this option add the following flag to a root resource within the tier group:
+
+```
+imeta add -R medium_resc irods::storage_tiering::minimum_restage_tier true
+```
+
 # **Customizing the Violating Objects Query**
 
 A tier within a tier group may identify data objects which are in violation by an alternate mechanism beyond the built-in time-based constraint.  This allows the data grid administrator to take additional context into account when identifying data objects to migrate.

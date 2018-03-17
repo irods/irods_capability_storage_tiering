@@ -261,11 +261,19 @@ namespace irods {
         std::string query_str{
             boost::str(
                     boost::format(
-                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME IN (%s)") %
+                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = 'true' and RESC_NAME IN (%s)") %
                     config_.minimum_restage_tier %
                     resc_list) };
         query qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
+            if(qobj.size() > 1) {
+                rodsLog(
+                    LOG_ERROR,
+                    "multiple [%s] tags defined.  selecting resource [%s]",
+                    config_.minimum_restage_tier.c_str(),
+                    result[0].c_str());
+            }
+
             const auto& result = qobj.front();
             return result[0];
         }
