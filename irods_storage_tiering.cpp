@@ -376,7 +376,7 @@ namespace irods {
         ruleExecInfo_t*    _rei ) {
         try {
             const auto query_str = get_violating_query_string_for_resource(_source_resource);
-            query qobj{comm_, query_str, 1};
+            query qobj{comm_, query_str};
             for(const auto& result : qobj) {
                 using json = nlohmann::json;
 
