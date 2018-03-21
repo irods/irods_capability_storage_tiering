@@ -82,6 +82,23 @@ irods::error exec_rule(
         if("pep_api_data_obj_get_post" == _rn) {
             st.restage_object_to_lowest_tier(_args, rei);
         }
+        else {
+            return ERROR(
+                       SYS_NOT_SUPPORTED,
+                       _rn);
+        }
+    }
+    catch(const  std::invalid_argument& _e) {
+        irods::log(LOG_ERROR, _e.what());
+        return ERROR(
+                   SYS_NOT_SUPPORTED,
+                   _e.what());
+    }
+    catch(const std::domain_error& _e) {
+        irods::log(LOG_ERROR, _e.what());
+        return ERROR(
+                   SYS_NOT_SUPPORTED,
+                   _e.what());
     }
     catch(const irods::exception& _e) {
         irods::log(_e);
@@ -98,10 +115,9 @@ irods::error exec_rule_text(
     msParamArray_t*        _ms_params,
     const std::string&     _out_desc,
     irods::callback        _eff_hdlr) {
+    using json = nlohmann::json;
 
     try {
-        using json = nlohmann::json;
-
         // skip the first line: @external
         std::string rule_text{_rule_text};
         if(_rule_text.find("@external") != std::string::npos) {
@@ -167,6 +183,12 @@ irods::error exec_rule_text(
                     "supported rule name not found");
         }
     }
+    catch(const  std::invalid_argument& _e) {
+        irods::log(LOG_ERROR, _e.what());
+        return ERROR(
+                   SYS_NOT_SUPPORTED,
+                   _e.what());
+    }
     catch(const std::domain_error& _e) {
         irods::log(LOG_ERROR, _e.what());
         return ERROR(
@@ -189,57 +211,77 @@ irods::error exec_rule_expression(
     irods::callback        _eff_hdlr) {
     using json = nlohmann::json;
 
-    const auto rule_obj = json::parse(_rule_text);
+    try {
+        const auto rule_obj = json::parse(_rule_text);
 
-    if("apply_storage_tiering_policy" == rule_obj["rule-engine-operation"]) {
-        ruleExecInfo_t* rei{};
-        const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
-        if(!err.ok()) {
-            return err;
-        }
+        if("apply_storage_tiering_policy" == rule_obj["rule-engine-operation"]) {
+            ruleExecInfo_t* rei{};
+            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
+            if(!err.ok()) {
+                return err;
+            }
 
-        try {
-            irods::storage_tiering st{rei->rsComm, instance_name};
-            for(const auto& group : rule_obj["storage-tier-groups"]) {
-                st.apply_storage_tiering_policy(group, rei);
+            try {
+                irods::storage_tiering st{rei->rsComm, instance_name};
+                for(const auto& group : rule_obj["storage-tier-groups"]) {
+                    st.apply_storage_tiering_policy(group, rei);
+                }
+            }
+            catch(const irods::exception& _e) {
+                return ERROR(
+                        _e.code(),
+                        _e.what());
             }
         }
-        catch(const irods::exception& _e) {
+        else if("migrate_object_to_resource" == rule_obj["rule-engine-operation"]) {
+            ruleExecInfo_t* rei{};
+            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
+            if(!err.ok()) {
+                return err;
+            }
+
+            try {
+                irods::storage_tiering st{rei->rsComm, instance_name};
+                st.move_data_object(
+                    rule_obj["verification-type"],
+                    rule_obj["source-resource"],
+                    rule_obj["destination-resource"],
+                    rule_obj["object-path"]);
+            }
+            catch(const irods::exception& _e) {
+                return ERROR(
+                        _e.code(),
+                        _e.what());
+            }
+
+        }
+        else {
             return ERROR(
-                    _e.code(),
-                    _e.what());
+                    SYS_NOT_SUPPORTED,
+                    "supported rule name not found");
         }
     }
-    else if("migrate_object_to_resource" == rule_obj["rule-engine-operation"]) {
-        ruleExecInfo_t* rei{};
-        const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
-        if(!err.ok()) {
-            return err;
-        }
-
-        try {
-            irods::storage_tiering st{rei->rsComm, instance_name};
-            st.move_data_object(
-                rule_obj["verification-type"],
-                rule_obj["source-resource"],
-                rule_obj["destination-resource"],
-                rule_obj["object-path"]);
-        }
-        catch(const irods::exception& _e) {
-            return ERROR(
-                    _e.code(),
-                    _e.what());
-        }
-
-    }
-    else {
+    catch(const  std::invalid_argument& _e) {
+        irods::log(LOG_ERROR, _e.what());
         return ERROR(
-                SYS_NOT_SUPPORTED,
-                "supported rule name not found");
+                   SYS_NOT_SUPPORTED,
+                   _e.what());
+    }
+    catch(const std::domain_error& _e) {
+        irods::log(LOG_ERROR, _e.what());
+        return ERROR(
+                   SYS_NOT_SUPPORTED,
+                   _e.what());
+    }
+    catch(const irods::exception& _e) {
+        return ERROR(
+                _e.code(),
+                _e.what());
     }
 
     return SUCCESS();
-}
+
+} // exec_rule_expression
 
 extern "C"
 irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
