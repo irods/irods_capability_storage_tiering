@@ -165,6 +165,7 @@ irods::error exec_rule_text(
             try {
                 irods::storage_tiering st{rei->rsComm, instance_name};
                 st.move_data_object(
+                    rule_obj["preserve-replicas"],
                     rule_obj["verification-type"],
                     rule_obj["source-resource"],
                     rule_obj["destination-resource"],
@@ -243,6 +244,7 @@ irods::error exec_rule_expression(
             try {
                 irods::storage_tiering st{rei->rsComm, instance_name};
                 st.move_data_object(
+                    rule_obj["preserve-replicas"],
                     rule_obj["verification-type"],
                     rule_obj["source-resource"],
                     rule_obj["destination-resource"],

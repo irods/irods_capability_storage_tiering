@@ -14,6 +14,7 @@ static const std::string VERIFY_CATALOG{"catalog"};
 
     class object_migrator {
         rsComm_t*         comm_;
+        bool              preserve_replicas_;
         const std::string verification_type_;
         const std::string source_resource_;
         const std::string destination_resource_;
@@ -67,6 +68,7 @@ static const std::string VERIFY_CATALOG{"catalog"};
         object_migrator();
         object_migrator(
             rsComm_t*          _comm,
+            const bool         _preserve_replicas,
             const std::string& _verification_type,
             const std::string& _source_resource,
             const std::string& _destination_resource,

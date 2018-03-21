@@ -86,6 +86,12 @@ namespace irods {
                             minimum_restage_tier = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("minimum_restage_tier"));
                         }
+
+                        if(plugin_spec_cfg.find("preserve_replicas") != plugin_spec_cfg.end()) {
+                            preserve_replicas = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("preserve_replicas"));
+                        }
+
                         if(plugin_spec_cfg.find("default_restage_delay_parameters") != plugin_spec_cfg.end()) {
                             default_restage_delay_parameters = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("default_restage_delay_parameters"));
@@ -234,9 +240,26 @@ namespace irods {
 
     } // get_leaf_resources_string
 
+    bool storage_tiering::get_preserve_replicas_for_resc(
+        const std::string& _resource_name) {
+        try {
+            std::string pres = get_metadata_for_resource(
+                                  config_.preserve_replicas,
+                                  _resource_name);
+            std::transform(
+                pres.begin(),
+                pres.end(),
+                pres.begin(),
+                ::tolower);
+            return ("true" == pres);
+        }
+        catch(const exception& _e) {
+            return false;
+        }
+    } // get_preserve_replicas_for_resc
+
     std::string storage_tiering::get_verification_for_resc(
             const std::string& _resource_name) {
-
         try {
             std::string ver = get_metadata_for_resource(
                                   config_.verification_attribute,
@@ -390,10 +413,11 @@ namespace irods {
                 json rule_obj;
                 rule_obj["rule-engine-operation"]     = "migrate_object_to_resource";
                 rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                rule_obj["verification-type"]     = get_verification_for_resc(_destination_resource);
-                rule_obj["source-resource"]       = _source_resource;
-                rule_obj["destination-resource"]  = _destination_resource;
-                rule_obj["object-path"]           = object_path;
+                rule_obj["preserve-replicas"]     = get_preserve_replicas_for_resc(_source_resource);
+                rule_obj["verification-type"]    = get_verification_for_resc(_destination_resource);
+                rule_obj["source-resource"]      = _source_resource;
+                rule_obj["destination-resource"] = _destination_resource;
+                rule_obj["object-path"]          = object_path;
 
                 std::string remote_host;
                 rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
@@ -466,10 +490,11 @@ namespace irods {
 
         json rule_obj;
         rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-        rule_obj["verification-type"]     = _verification_type;
-        rule_obj["source-resource"]       = _source_resource;
-        rule_obj["destination-resource"]  = _destination_resource;
-        rule_obj["object-path"]           = _object_path;
+        rule_obj["preserve-replicas"]     = get_preserve_replicas_for_resc(_source_resource);
+        rule_obj["verification-type"]    = _verification_type;
+        rule_obj["source-resource"]      = _source_resource;
+        rule_obj["destination-resource"] = _destination_resource;
+        rule_obj["object-path"]          = _object_path;
 
         const auto delay_err = _delayExec(
                                    rule_obj.dump().c_str(),
@@ -581,12 +606,14 @@ namespace irods {
     } // apply_storage_tiering_policy
 
     void storage_tiering::move_data_object(
+            const bool         _preserve_replicas,
             const std::string& _verification_type,
             const std::string& _source_resource,
             const std::string& _destination_resource,
             const std::string& _object_path) {
         irods::object_migrator mover(
             comm_,
+            _preserve_replicas,
             _verification_type,
             _source_resource,
             _destination_resource,

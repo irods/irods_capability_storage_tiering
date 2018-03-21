@@ -18,6 +18,7 @@ namespace irods {
         std::string verification_attribute{"irods::storage_tiering::verification"};
         std::string restage_delay_attribute{"irods::storage_tiering::restage_delay"};
         std::string minimum_restage_tier{"irods::storage_tiering::minimum_restage_tier"};
+        std::string preserve_replicas{"irods::storage_tiering::preserve_replicas"};
 
         std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
@@ -44,6 +45,9 @@ namespace irods {
 
         std::string get_leaf_resources_string(
             const std::string& _resource_name);
+
+        bool get_preserve_replicas_for_resc(
+            const std::string& _source_resource);
 
         std::string get_verification_for_resc(
             const std::string& _resource_name);
@@ -93,6 +97,7 @@ namespace irods {
             ruleExecInfo_t*    _rei);
 
         void move_data_object(
+            const bool         _preserve_replicas,
             const std::string& _verification_type,
             const std::string& _source_resource,
             const std::string& _destination_resource,

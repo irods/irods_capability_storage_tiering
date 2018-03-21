@@ -28,11 +28,13 @@ namespace irods {
 
     object_migrator::object_migrator(
         rsComm_t*          _comm,
+        const bool         _preserve_replicas,
         const std::string& _verification_type,
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _object_path) :
             comm_{_comm},
+            preserve_replicas_{_preserve_replicas},
             verification_type_{_verification_type},
             source_resource_{_source_resource},
             destination_resource_{_destination_resource},
@@ -90,9 +92,11 @@ namespace irods {
                 "replica not verified");
         }
 
-        trim_replica_on_resource(
-            object_path_,
-            source_resource_);
+        if(!preserve_replicas_) {
+            trim_replica_on_resource(
+                object_path_,
+                source_resource_);
+        }
     } // operator()
 
     void object_migrator::get_object_and_collection_from_path(
