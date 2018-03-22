@@ -1,3 +1,4 @@
+import os
 import sys
 import shutil
 import contextlib
@@ -572,6 +573,45 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('irm -f ' + filename)
                 admin_session.assert_icommand('irm -f ' + filename2)
 
+class TestStorageTieringPluginForRegistration(ResourceBase, unittest.TestCase):
+    def setUp(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group 1')
+            admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::group example_group 2')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 65')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 1')
+
+    def tearDown(self):
+        with session.make_session_for_existing_admin() as admin_session:
+
+            admin_session.assert_icommand('iadmin rmresc ufs0')
+            admin_session.assert_icommand('iadmin rmresc ufs1')
+            admin_session.assert_icommand('iadmin rmresc ufs2')
+            admin_session.assert_icommand('iadmin rum')
+
+    def test_put_and_get(self):
+        with tiered_storage_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                filename  = 'test_put_file'
+                filepath  = lib.create_local_testfile(filename)
+                dst_path = '/tempZone/home/public/test_put_file'
+                cwd = os.getcwd()
+                src_path = cwd + "/" + filename
+                print("cwd: " + cwd)
+                admin_session.assert_icommand('ireg -R ufs0 ' + src_path + " " + dst_path)
+                admin_session.assert_icommand('ils -L ' + dst_path, 'STDOUT_SINGLELINE', 'rods')
+                admin_session.assert_icommand('imeta ls -d ' + dst_path, 'STDOUT_SINGLELINE', 'access')
+
+                admin_session.assert_icommand('irm -U ' + dst_path)
 
 
 
