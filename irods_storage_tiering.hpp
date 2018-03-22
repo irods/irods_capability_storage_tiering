@@ -19,6 +19,7 @@ namespace irods {
         std::string restage_delay_attribute{"irods::storage_tiering::restage_delay"};
         std::string minimum_restage_tier{"irods::storage_tiering::minimum_restage_tier"};
         std::string preserve_replicas{"irods::storage_tiering::preserve_replicas"};
+        std::string object_limit{"irods::storage_tiering::object_limit"};
 
         std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
@@ -67,6 +68,9 @@ namespace irods {
         std::string get_violating_query_string_for_resource(
             const std::string& _resource_name);
         
+        uint32_t get_object_limit_for_resource(
+            const std::string& _resource_name);
+
         void migrate_violating_objects_for_resource(
             const std::string& _source_resource,
             const std::string& _destination_resource,

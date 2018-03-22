@@ -92,6 +92,11 @@ namespace irods {
                                     plugin_spec_cfg.at("preserve_replicas"));
                         }
 
+                        if(plugin_spec_cfg.find("object_limit") != plugin_spec_cfg.end()) {
+                            object_limit = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("object_limit"));
+                        }
+
                         if(plugin_spec_cfg.find("default_restage_delay_parameters") != plugin_spec_cfg.end()) {
                             default_restage_delay_parameters = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("default_restage_delay_parameters"));
@@ -393,15 +398,45 @@ namespace irods {
         }
     } // get_violating_query_string_for_resource
 
+    uint32_t storage_tiering::get_object_limit_for_resource(
+        const std::string& _resource_name) {
+        const auto object_limit = get_metadata_for_resource(
+                                      config_.object_limit,
+                                      _resource_name);
+        if(object_limit.empty()) {
+            return MAX_SQL_ROWS;
+        }
+
+        try {
+            return boost::lexical_cast<uint32_t>(object_limit);
+        }
+        catch(const boost::bad_lexical_cast& _e) {
+            THROW(
+                INVALID_LEXICAL_CAST,
+                _e.what());
+        }
+    } // get_object_limit_for_resource
+
     void storage_tiering::migrate_violating_objects_for_resource(
         const std::string& _source_resource,
         const std::string& _destination_resource,
         ruleExecInfo_t*    _rei ) {
         try {
-            const auto query_str = get_violating_query_string_for_resource(_source_resource);
-            query qobj{comm_, query_str};
+            const auto query_str   = get_violating_query_string_for_resource(_source_resource);
+            const auto query_limit = get_object_limit_for_resource(_source_resource);
+            query qobj{comm_, query_str, query_limit};
+
+            uintmax_t obj_ctr = 0;
             for(const auto& result : qobj) {
                 using json = nlohmann::json;
+
+                // if query_limit is not 'unlimited' then exit the loop if
+                // we have crossed the object limit.
+                if(query_limit != MAX_SQL_ROWS &&
+                   obj_ctr >= query_limit) {
+                    break;
+                }
+                ++obj_ctr;
 
                 auto object_path  = result[1];
                 const auto& vps   = get_virtual_path_separator();
