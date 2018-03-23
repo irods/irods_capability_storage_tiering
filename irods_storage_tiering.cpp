@@ -400,20 +400,27 @@ namespace irods {
 
     uint32_t storage_tiering::get_object_limit_for_resource(
         const std::string& _resource_name) {
-        const auto object_limit = get_metadata_for_resource(
-                                      config_.object_limit,
-                                      _resource_name);
-        if(object_limit.empty()) {
-            return MAX_SQL_ROWS;
-        }
-
         try {
+            const auto object_limit = get_metadata_for_resource(
+                                          config_.object_limit,
+                                          _resource_name);
+            if(object_limit.empty()) {
+                return MAX_SQL_ROWS;
+            }
+
             return boost::lexical_cast<uint32_t>(object_limit);
         }
         catch(const boost::bad_lexical_cast& _e) {
             THROW(
                 INVALID_LEXICAL_CAST,
                 _e.what());
+        }
+        catch(const irods::exception& _e) {
+            if(CAT_NO_ROWS_FOUND == _e.code()) {
+                return MAX_SQL_ROWS;
+            }
+
+            throw;
         }
     } // get_object_limit_for_resource
 
@@ -425,7 +432,6 @@ namespace irods {
             const auto query_str   = get_violating_query_string_for_resource(_source_resource);
             const auto query_limit = get_object_limit_for_resource(_source_resource);
             query qobj{comm_, query_str, query_limit};
-
             uintmax_t obj_ctr = 0;
             for(const auto& result : qobj) {
                 using json = nlohmann::json;
@@ -496,7 +502,7 @@ namespace irods {
         catch(const boost::bad_lexical_cast& _e) {
             THROW(
                 INVALID_LEXICAL_CAST,
-                "");
+                _e.what());
         }
         catch(const exception& _e) {
             // if nothing of interest is found, thats not an error
@@ -634,7 +640,6 @@ namespace irods {
             if(rescs.end() == next_itr) {
                 break;
             }
-
             migrate_violating_objects_for_resource(resc_itr->second, next_itr->second, _rei);
         } // for resc
 
