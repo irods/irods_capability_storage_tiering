@@ -106,7 +106,16 @@ namespace irods {
                             time_check_string = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("time_check_string"));
                         }
+
+                        if(plugin_spec_cfg.find(data_transfer_log_level_key) != plugin_spec_cfg.end()) {
+                            const std::string val = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at(data_transfer_log_level_key));
+                            if("LOG_NOTICE" == val) {
+                                data_transfer_log_level_value = LOG_NOTICE;
+                            }
+                        }
                     }
+
                     success_flag = true;
                 } // if inst_name
             } // for rule_engines
@@ -452,13 +461,13 @@ namespace irods {
                 object_path += result[0];
 
                 json rule_obj;
-                rule_obj["rule-engine-operation"]     = "migrate_object_to_resource";
+                rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
                 rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                rule_obj["preserve-replicas"]     = get_preserve_replicas_for_resc(_source_resource);
-                rule_obj["verification-type"]    = get_verification_for_resc(_destination_resource);
-                rule_obj["source-resource"]      = _source_resource;
+                rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
+                rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
+                rule_obj["source-resource"] = _source_resource;
                 rule_obj["destination-resource"] = _destination_resource;
-                rule_obj["object-path"]          = object_path;
+                rule_obj["object-path"] = object_path;
 
                 std::string remote_host;
                 rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
@@ -658,6 +667,17 @@ namespace irods {
             _source_resource,
             _destination_resource,
             _object_path);
+
+        rodsLog(
+            config_.data_transfer_log_level_value,
+            "storage_tiering::migrating [%s] from [%s] to [%s] inst name [%s] with verification[%s] and preservation %d",
+            _object_path.c_str(),
+            _source_resource.c_str(),
+            _destination_resource.c_str(),
+            config_.instance_name.c_str(),
+            _verification_type.c_str(),
+            _preserve_replicas);
+
         mover();
 
     } // move_data_object

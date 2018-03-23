@@ -24,6 +24,9 @@ namespace irods {
         std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
         
+        const std::string data_transfer_log_level_key{"data_transfer_log_level"};
+        int data_transfer_log_level_value{LOG_DEBUG};
+
         std::string instance_name{};
 
         explicit storage_tiering_configuration(const std::string& _instance_name);
