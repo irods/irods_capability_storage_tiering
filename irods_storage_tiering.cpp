@@ -184,6 +184,31 @@ namespace irods {
             _meta_attr_name);
     } // get_metadata_for_resource
 
+    void storage_tiering::get_metadata_for_resource(
+        const std::string&  _meta_attr_name,
+        const std::string&  _resource_name,
+        metadata_results&   _results ) {
+        std::string query_str {
+            boost::str(
+                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
+                    _meta_attr_name %
+                    _resource_name) };
+        query qobj{comm_, query_str};
+        if(qobj.size() > 0) {
+            for( const auto& r : qobj) {
+                _results.push_back(std::make_pair("", r[0]));
+            }
+
+            return;
+        }
+
+        THROW(
+            CAT_NO_ROWS_FOUND,
+            boost::format("no results found for resc [%s] with attribute [%s]") %
+            _resource_name %
+            _meta_attr_name);
+    } // get_metadata_for_resource
+
     std::map<std::string, std::string> storage_tiering::get_tier_group_resources_and_indices(
         const std::string& _group_name) {
         std::map<std::string, std::string> resc_map;
@@ -337,6 +362,8 @@ namespace irods {
 
     std::map<std::string, std::string> storage_tiering::get_resource_map_for_group(
         const std::string& _group) {
+
+rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
         std::map<std::string, std::string> groups;
         try {
             std::string query_str{
@@ -344,10 +371,14 @@ namespace irods {
                         boost::format("SELECT META_RESC_ATTR_UNITS, RESC_NAME WHERE META_RESC_ATTR_VALUE = '%s' AND META_RESC_ATTR_NAME = '%s'") %
                         _group %
                         config_.group_attribute)};
-            for(const auto& g : query{comm_, query_str}) {
+            query qobj{comm_, query_str};
+rodsLog(LOG_NOTICE, "XXXX - %s:%d - size %d", __FUNCTION__, __LINE__, qobj.size());
+            for(const auto& g : qobj) {
+rodsLog(LOG_NOTICE, "XXXX - %s:%d - resc map [%s] [%s]", __FUNCTION__, __LINE__, g[0].c_str(), g[1].c_str());
                 groups[g[0]] = g[1];
             }
 
+rodsLog(LOG_NOTICE, "XXXX - %s:%d - size %d", __FUNCTION__, __LINE__, qobj.size());
             return groups;
         }
         catch(const std::exception&) {
@@ -381,31 +412,55 @@ namespace irods {
 
     } // get_tier_time_for_resc
 
-    std::string storage_tiering::get_violating_query_string_for_resource(
+    storage_tiering::metadata_results storage_tiering::get_violating_queries_for_resource(
         const std::string& _resource_name) {
+rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
+
         const auto tier_time = get_tier_time_for_resc(_resource_name);
         try {
-            std::string tmp_query_str = get_metadata_for_resource(
-                                            config_.query_attribute,
-                                            _resource_name);
-            size_t start_pos = tmp_query_str.find(config_.time_check_string);
-            if(start_pos != std::string::npos) {
-                tmp_query_str.replace(
-                    start_pos,
-                    config_.time_check_string.length(),
-                    tier_time);
-            }
-            return tmp_query_str;
+            metadata_results results;
+            get_metadata_for_resource(
+                 config_.query_attribute,
+                 _resource_name,
+                 results);
+
+            for(auto& q_itr : results) {
+                auto& query_type_str = q_itr.first;
+                auto& query_string   = q_itr.second;
+                size_t start_pos = query_string.find(config_.time_check_string);
+                if(start_pos != std::string::npos) {
+                    query_string.replace(
+                        start_pos,
+                        config_.time_check_string.length(),
+                        tier_time);
+                }
+
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "custom query for [%s] -  [%s], [%s]",
+                    _resource_name.c_str(),
+                    query_string.c_str(),
+                    query_type_str.c_str());
+            } // for
+
+            return results;
         }
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
-            return boost::str(
-                       boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
-                       config_.access_time_attribute %
-                       tier_time %
-                       leaf_str);
+            metadata_results results;
+            results.push_back(
+                std::make_pair("", boost::str(
+                boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
+                config_.access_time_attribute %
+                tier_time %
+                leaf_str)));
+            rodsLog(
+                config_.data_transfer_log_level_value,
+                "use default query for [%s]",
+                _resource_name.c_str());
+            return results;
         }
-    } // get_violating_query_string_for_resource
+    } // get_violating_queries_for_resource
 
     uint32_t storage_tiering::get_object_limit_for_resource(
         const std::string& _resource_name) {
@@ -438,75 +493,88 @@ namespace irods {
         const std::string& _destination_resource,
         ruleExecInfo_t*    _rei ) {
         try {
-            const auto query_str   = get_violating_query_string_for_resource(_source_resource);
+            const auto query_list  = get_violating_queries_for_resource(_source_resource);
             const auto query_limit = get_object_limit_for_resource(_source_resource);
-            query qobj{comm_, query_str, query_limit};
-            uintmax_t obj_ctr = 0;
-            for(const auto& result : qobj) {
-                using json = nlohmann::json;
+            for(const auto& q_itr : query_list) {
+                const auto  qtype = query::convert_string_to_query_type(q_itr.first);
+                const auto& qstring = q_itr.second;
 
-                // if query_limit is not 'unlimited' then exit the loop if
-                // we have crossed the object limit.
-                if(query_limit != MAX_SQL_ROWS &&
-                   obj_ctr >= query_limit) {
-                    break;
-                }
-                ++obj_ctr;
+                query qobj{comm_, qstring, query_limit, qtype};
+                uintmax_t obj_ctr = 0;
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "found %ld objects for resc [%s] with query [%s] type [%d]",
+                    qobj.size(),
+                    _source_resource.c_str(),
+                    qstring.c_str(),
+                    qtype);
 
-                auto object_path  = result[1];
-                const auto& vps   = get_virtual_path_separator();
-                if( !boost::ends_with(object_path, vps)) {
-                    object_path += vps;
-                }
-                object_path += result[0];
+                for(const auto& result : qobj) {
+                    using json = nlohmann::json;
 
-                json rule_obj;
-                rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-                rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
-                rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
-                rule_obj["source-resource"] = _source_resource;
-                rule_obj["destination-resource"] = _destination_resource;
-                rule_obj["object-path"] = object_path;
+                    // if query_limit is not 'unlimited' then exit the loop if
+                    // we have crossed the object limit.
+                    if(query_limit != MAX_SQL_ROWS &&
+                       obj_ctr >= query_limit) {
+                        break;
+                    }
+                    ++obj_ctr;
 
-                std::string remote_host;
-                rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
-                error ret = get_resource_property<std::string>(
-                                src_resc_id,
-                                RESOURCE_LOCATION,
-                                remote_host);
-                if(!ret.ok()) {
-                    THROW(ret.code(), ret.result());
-                }
+                    auto object_path  = result[1];
+                    const auto& vps   = get_virtual_path_separator();
+                    if( !boost::ends_with(object_path, vps)) {
+                        object_path += vps;
+                    }
+                    object_path += result[0];
 
-                execMyRuleInp_t exec_inp;
-                memset(&exec_inp, 0, sizeof(exec_inp));
-                exec_inp.condInput.len = 0;
-                exec_inp.addr.portNum = 0,
-                rstrcpy(
-                    exec_inp.addr.hostAddr,
-                    remote_host.c_str(),
-                    LONG_NAME_LEN);
-                snprintf(
-                    exec_inp.myRule,
-                    META_STR_LEN,
-                    "%s",
-                    rule_obj.dump().c_str());
+                    json rule_obj;
+                    rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
+                    rule_obj["rule-engine-instance-name"] = config_.instance_name;
+                    rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
+                    rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
+                    rule_obj["source-resource"] = _source_resource;
+                    rule_obj["destination-resource"] = _destination_resource;
+                    rule_obj["object-path"] = object_path;
 
-                msParamArray_t *out_params{nullptr};
-                const auto rem_err = rsExecMyRule(
-                                        _rei->rsComm,
-                                        &exec_inp,
-                                        &out_params);
-                if(rem_err < 0) {
-                    THROW(
-                        rem_err,
-                        boost::format("restage failed for object [%s] from [%s] to [%s]") %
-                        object_path %
-                        _source_resource %
-                        _destination_resource);
-                }
-            }
+                    std::string remote_host;
+                    rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
+                    error ret = get_resource_property<std::string>(
+                                    src_resc_id,
+                                    RESOURCE_LOCATION,
+                                    remote_host);
+                    if(!ret.ok()) {
+                        THROW(ret.code(), ret.result());
+                    }
+
+                    execMyRuleInp_t exec_inp;
+                    memset(&exec_inp, 0, sizeof(exec_inp));
+                    exec_inp.condInput.len = 0;
+                    exec_inp.addr.portNum = 0,
+                    rstrcpy(
+                        exec_inp.addr.hostAddr,
+                        remote_host.c_str(),
+                        LONG_NAME_LEN);
+                    snprintf(
+                        exec_inp.myRule,
+                        META_STR_LEN,
+                        "%s",
+                        rule_obj.dump().c_str());
+
+                    msParamArray_t *out_params{nullptr};
+                    const auto rem_err = rsExecMyRule(
+                                            _rei->rsComm,
+                                            &exec_inp,
+                                            &out_params);
+                    if(rem_err < 0) {
+                        THROW(
+                            rem_err,
+                            boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                            object_path %
+                            _source_resource %
+                            _destination_resource);
+                    } // if
+                } // for result
+            } // for qstr
         }
         catch(const boost::bad_lexical_cast& _e) {
             THROW(
@@ -630,6 +698,7 @@ namespace irods {
     void storage_tiering::apply_storage_tiering_policy(
         const std::string& _group,
         ruleExecInfo_t*    _rei ) {
+rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
         const std::map<std::string, std::string> rescs = get_resource_map_for_group(
                                                              _group);
         if(rescs.empty()) {
