@@ -184,6 +184,31 @@ namespace irods {
             _meta_attr_name);
     } // get_metadata_for_resource
 
+    void storage_tiering::get_metadata_for_resource(
+        const std::string&        _meta_attr_name,
+        const std::string&        _resource_name,
+        std::vector<std::string>& _results ) {
+        std::string query_str {
+            boost::str(
+                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
+                    _meta_attr_name %
+                    _resource_name) };
+        query qobj{comm_, query_str};
+        if(qobj.size() > 0) {
+            for( const auto& r : qobj) {
+                _results.push_back(r[0]);
+            }
+
+            return;
+        }
+
+        THROW(
+            CAT_NO_ROWS_FOUND,
+            boost::format("no results found for resc [%s] with attribute [%s]") %
+            _resource_name %
+            _meta_attr_name);
+    } // get_metadata_for_resource
+
     std::map<std::string, std::string> storage_tiering::get_tier_group_resources_and_indices(
         const std::string& _group_name) {
         std::map<std::string, std::string> resc_map;
@@ -381,31 +406,48 @@ namespace irods {
 
     } // get_tier_time_for_resc
 
-    std::string storage_tiering::get_violating_query_string_for_resource(
+    std::vector<std::string> storage_tiering::get_violating_queries_for_resource(
         const std::string& _resource_name) {
         const auto tier_time = get_tier_time_for_resc(_resource_name);
         try {
-            std::string tmp_query_str = get_metadata_for_resource(
-                                            config_.query_attribute,
-                                            _resource_name);
-            size_t start_pos = tmp_query_str.find(config_.time_check_string);
-            if(start_pos != std::string::npos) {
-                tmp_query_str.replace(
-                    start_pos,
-                    config_.time_check_string.length(),
-                    tier_time);
+            std::vector<std::string> results;
+            get_metadata_for_resource(
+                 config_.query_attribute,
+                 _resource_name,
+                 results);
+            for(auto& query : results) {
+                size_t start_pos = query.find(config_.time_check_string);
+                if(start_pos != std::string::npos) {
+                    query.replace(
+                        start_pos,
+                        config_.time_check_string.length(),
+                        tier_time);
+                }
+
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "custom query for [%s] [%s]",
+                    _resource_name.c_str(),
+                    query.c_str());
             }
-            return tmp_query_str;
+            return results;
         }
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
-            return boost::str(
-                       boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
-                       config_.access_time_attribute %
-                       tier_time %
-                       leaf_str);
+            std::vector<std::string> queries;
+            queries.push_back(boost::str(
+                              boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
+                              config_.access_time_attribute %
+                              tier_time %
+                              leaf_str));
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "use default query for [%s]",
+                    _resource_name.c_str());
+
+            return queries;
         }
-    } // get_violating_query_string_for_resource
+    } // get_violating_queries_for_resource
 
     uint32_t storage_tiering::get_object_limit_for_resource(
         const std::string& _resource_name) {
@@ -438,75 +480,84 @@ namespace irods {
         const std::string& _destination_resource,
         ruleExecInfo_t*    _rei ) {
         try {
-            const auto query_str   = get_violating_query_string_for_resource(_source_resource);
+            const auto query_strs  = get_violating_queries_for_resource(_source_resource);
             const auto query_limit = get_object_limit_for_resource(_source_resource);
-            query qobj{comm_, query_str, query_limit};
-            uintmax_t obj_ctr = 0;
-            for(const auto& result : qobj) {
-                using json = nlohmann::json;
+            for(const auto& qstr : query_strs) {
+                query qobj{comm_, qstr, query_limit};
+                uintmax_t obj_ctr = 0;
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "found %ld objects for resc [%s] with query [%s]",
+                    qobj.size(),
+                    _source_resource.c_str(),
+                    qstr.c_str());
 
-                // if query_limit is not 'unlimited' then exit the loop if
-                // we have crossed the object limit.
-                if(query_limit != MAX_SQL_ROWS &&
-                   obj_ctr >= query_limit) {
-                    break;
-                }
-                ++obj_ctr;
+                for(const auto& result : qobj) {
+                    using json = nlohmann::json;
 
-                auto object_path  = result[1];
-                const auto& vps   = get_virtual_path_separator();
-                if( !boost::ends_with(object_path, vps)) {
-                    object_path += vps;
-                }
-                object_path += result[0];
+                    // if query_limit is not 'unlimited' then exit the loop if
+                    // we have crossed the object limit.
+                    if(query_limit != MAX_SQL_ROWS &&
+                       obj_ctr >= query_limit) {
+                        break;
+                    }
+                    ++obj_ctr;
 
-                json rule_obj;
-                rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-                rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
-                rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
-                rule_obj["source-resource"] = _source_resource;
-                rule_obj["destination-resource"] = _destination_resource;
-                rule_obj["object-path"] = object_path;
+                    auto object_path  = result[1];
+                    const auto& vps   = get_virtual_path_separator();
+                    if( !boost::ends_with(object_path, vps)) {
+                        object_path += vps;
+                    }
+                    object_path += result[0];
 
-                std::string remote_host;
-                rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
-                error ret = get_resource_property<std::string>(
-                                src_resc_id,
-                                RESOURCE_LOCATION,
-                                remote_host);
-                if(!ret.ok()) {
-                    THROW(ret.code(), ret.result());
-                }
+                    json rule_obj;
+                    rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
+                    rule_obj["rule-engine-instance-name"] = config_.instance_name;
+                    rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
+                    rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
+                    rule_obj["source-resource"] = _source_resource;
+                    rule_obj["destination-resource"] = _destination_resource;
+                    rule_obj["object-path"] = object_path;
 
-                execMyRuleInp_t exec_inp;
-                memset(&exec_inp, 0, sizeof(exec_inp));
-                exec_inp.condInput.len = 0;
-                exec_inp.addr.portNum = 0,
-                rstrcpy(
-                    exec_inp.addr.hostAddr,
-                    remote_host.c_str(),
-                    LONG_NAME_LEN);
-                snprintf(
-                    exec_inp.myRule,
-                    META_STR_LEN,
-                    "%s",
-                    rule_obj.dump().c_str());
+                    std::string remote_host;
+                    rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
+                    error ret = get_resource_property<std::string>(
+                                    src_resc_id,
+                                    RESOURCE_LOCATION,
+                                    remote_host);
+                    if(!ret.ok()) {
+                        THROW(ret.code(), ret.result());
+                    }
 
-                msParamArray_t *out_params{nullptr};
-                const auto rem_err = rsExecMyRule(
-                                        _rei->rsComm,
-                                        &exec_inp,
-                                        &out_params);
-                if(rem_err < 0) {
-                    THROW(
-                        rem_err,
-                        boost::format("restage failed for object [%s] from [%s] to [%s]") %
-                        object_path %
-                        _source_resource %
-                        _destination_resource);
-                }
-            }
+                    execMyRuleInp_t exec_inp;
+                    memset(&exec_inp, 0, sizeof(exec_inp));
+                    exec_inp.condInput.len = 0;
+                    exec_inp.addr.portNum = 0,
+                    rstrcpy(
+                        exec_inp.addr.hostAddr,
+                        remote_host.c_str(),
+                        LONG_NAME_LEN);
+                    snprintf(
+                        exec_inp.myRule,
+                        META_STR_LEN,
+                        "%s",
+                        rule_obj.dump().c_str());
+
+                    msParamArray_t *out_params{nullptr};
+                    const auto rem_err = rsExecMyRule(
+                                            _rei->rsComm,
+                                            &exec_inp,
+                                            &out_params);
+                    if(rem_err < 0) {
+                        THROW(
+                            rem_err,
+                            boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                            object_path %
+                            _source_resource %
+                            _destination_resource);
+                    } // if
+                } // for result
+            } // for qstr
         }
         catch(const boost::bad_lexical_cast& _e) {
             THROW(

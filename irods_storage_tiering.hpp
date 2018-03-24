@@ -43,6 +43,11 @@ namespace irods {
             const std::string& _meta_attr_name,
             const std::string& _resource_name);
 
+        void get_metadata_for_resource(
+            const std::string&        _meta_attr_name,
+            const std::string&        _resource_name,
+            std::vector<std::string>& _results);
+
         std::map<std::string, std::string>
         get_tier_group_resources_and_indices(
             const std::string& _group_name);
@@ -68,7 +73,7 @@ namespace irods {
         std::string get_tier_time_for_resc(
             const std::string& _resource_name);
         
-        std::string get_violating_query_string_for_resource(
+        std::vector<std::string> get_violating_queries_for_resource(
             const std::string& _resource_name);
         
         uint32_t get_object_limit_for_resource(
