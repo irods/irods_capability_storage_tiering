@@ -363,7 +363,6 @@ namespace irods {
     std::map<std::string, std::string> storage_tiering::get_resource_map_for_group(
         const std::string& _group) {
 
-rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
         std::map<std::string, std::string> groups;
         try {
             std::string query_str{
@@ -372,13 +371,10 @@ rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
                         _group %
                         config_.group_attribute)};
             query qobj{comm_, query_str};
-rodsLog(LOG_NOTICE, "XXXX - %s:%d - size %d", __FUNCTION__, __LINE__, qobj.size());
             for(const auto& g : qobj) {
-rodsLog(LOG_NOTICE, "XXXX - %s:%d - resc map [%s] [%s]", __FUNCTION__, __LINE__, g[0].c_str(), g[1].c_str());
                 groups[g[0]] = g[1];
             }
 
-rodsLog(LOG_NOTICE, "XXXX - %s:%d - size %d", __FUNCTION__, __LINE__, qobj.size());
             return groups;
         }
         catch(const std::exception&) {
@@ -414,7 +410,6 @@ rodsLog(LOG_NOTICE, "XXXX - %s:%d - size %d", __FUNCTION__, __LINE__, qobj.size(
 
     storage_tiering::metadata_results storage_tiering::get_violating_queries_for_resource(
         const std::string& _resource_name) {
-rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
 
         const auto tier_time = get_tier_time_for_resc(_resource_name);
         try {
@@ -698,7 +693,6 @@ rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
     void storage_tiering::apply_storage_tiering_policy(
         const std::string& _group,
         ruleExecInfo_t*    _rei ) {
-rodsLog(LOG_NOTICE, "XXXX - %s:%d", __FUNCTION__, __LINE__);
         const std::map<std::string, std::string> rescs = get_resource_map_for_group(
                                                              _group);
         if(rescs.empty()) {
