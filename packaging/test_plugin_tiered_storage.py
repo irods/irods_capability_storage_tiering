@@ -659,6 +659,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('''iadmin asq "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs0' and META_DATA_ATTR_NAME = 'archive_object' and META_DATA_ATTR_VALUE = 'yes'" archive_query''')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
 
@@ -668,7 +669,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 80')
 
             admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs0' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
-            admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs0' and META_DATA_ATTR_NAME = 'archive_object' and META_DATA_ATTR_VALUE = 'yes'"''')
+            admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query archive_query specific''')
 
     def tearDown(self):
         with session.make_session_for_existing_admin() as admin_session:
