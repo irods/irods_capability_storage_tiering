@@ -111,3 +111,54 @@ imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAM
 ```
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
+
+Any number queries may be attached in order provide a range of critiera by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as ```archive_object true```.  The tier may then have a query added to support this.
+```
+imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'yes' AND DATA_RESC_ID IN ('10068', '10069')"
+```
+
+Queries may also be provided by using the Specific Query interface within iRODS.  The archive object query may be stored by an iRODS administrator as follows.
+```
+'iadmin asq "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'yes' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
+```
+
+At which point the query attached to the root of a storage tier would require the use of a metadata unit of ```specific```:
+```
+imeta set -R fast_resc irods::storage_tiering::query archive_object specific
+```
+
+
+# **Preserving Replicas for a given Tier**
+
+Some users may not wish to trim a replica from a tier when data is migrated, such as to allow data to be archived and also still available on fast storage.  To preserve a replica on any given tier, attach the following metadata flag to the root resource.
+```
+irods::storage_tiering::preserve_replicas true
+```
+
+# **Limiting the Violating Query results**
+
+When working with large sets of data throttling the amount of data migrated at one time can be helpful.  In order to limit the results of the violating queries attach the following metadata attribute with the value set as the query limit.
+```
+irods::storage_tiering::object_limit DESIRED_QUERY_LIMIT
+```
+
+# **Logging Data Transfer**
+
+In order to log the transfer of data objects from one tier to the next, the storage tiering plugin on the ICAT server can be configured by setting ```"data_transfer_log_level" : "LOG_NOTICE"``` in the plugin_specific_configuraiton. 
+
+```
+{
+    "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
+    "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+    "plugin_specific_configuration": {
+        "data_transfer_log_level" : "LOG_NOTICE"
+    }
+},
+```
+
+# **Flagging a Tier as the Restage Tier**
+
+By default the plugin will restage data that has been fetched to the lowest idexed tier in the tier group.  For some tier groups this is undesireable as the lowest tier may be close to instruments and not appropriate for analysis.  A tier may be flagged as the minimum restage tier by attaching the following metadata.
+```
+irods::storage_tier_minimum_restage_tier true
+```
