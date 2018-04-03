@@ -358,7 +358,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('irm -f ' + filename)
 
 
-
+@unittest.skipIf(False==test.settings.USE_MUNGEFS, "These tests require mungefs")
 class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
