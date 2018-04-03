@@ -65,29 +65,12 @@ def install_build_prerequisites():
     except KeyError:
         irods_python_ci_utilities.raise_not_implemented_for_distribution()
 
-def build_and_install_mungefs():
-    dist = irods_python_ci_utilities.get_distribution()
-    pat = re.compile('^Centos')
-    if pat.match(dist):
-        irods_python_ci_utilities.subprocess_get_output(['sudo', 'groupadd', 'fuse'], check_rc=True)
-        irods_python_ci_utilities.subprocess_get_output(['sudo', 'usermod', '-a', '-G', 'fuse', 'irods'], check_rc=True)
-        irods_python_ci_utilities.subprocess_get_output(['sudo', 'chown', 'root:fuse', '/dev/fuse'], check_rc=True)
-        irods_python_ci_utilities.subprocess_get_output(['sudo', 'chmod', 'g+rwx', '/dev/fuse'], check_rc=True)
-
-    source_directory = tempfile.mkdtemp(prefix='irods_mungefs_source_directory')
-    irods_python_ci_utilities.subprocess_get_output(['git', 'clone', 'https://github.com/irods/mungefs', source_directory], check_rc=True)
-
-    build_directory = tempfile.mkdtemp(prefix='irods_mungefs_build_directory')
-    irods_python_ci_utilities.subprocess_get_output(['cmake', source_directory], check_rc=True, cwd=build_directory)
-    irods_python_ci_utilities.subprocess_get_output(['make', '-j', str(multiprocessing.cpu_count()), 'package'], check_rc=True, cwd=build_directory)
-
-    package_suffix = irods_python_ci_utilities.get_package_suffix()
-    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(build_directory, 'mungefs-*.{0}'.format(package_suffix))))
-
 def main():
     parser = optparse.OptionParser()
     parser.add_option('--output_root_directory')
     parser.add_option('--built_packages_root_directory')
+    parser.add_option('--mungefs_packages_dir')
+
     options, _ = parser.parse_args()
 
     output_root_directory = options.output_root_directory
@@ -101,14 +84,13 @@ def main():
     install_build_prerequisites()
 
     time.sleep(10)
-
-    build_and_install_mungefs()
+    irods_python_ci_utilities.subprocess_get_output(['sudo', 'chmod', 'g+rwx', '/dev/fuse'], check_rc=True)
 
     time.sleep(10)
 
     try:
         test_output_file = 'log/test_output.log'
-        irods_python_ci_utilities.subprocess_get_output(['sudo', 'su', '-', 'irods', '-c', 'python2 scripts/run_tests.py --xml_output --run_s test_plugin_tiered_storage 2>&1 | tee {0}; exit $PIPESTATUS'.format(test_output_file)], check_rc=True)
+        irods_python_ci_utilities.subprocess_get_output(['sudo', 'su', '-', 'irods', '-c', 'python2 scripts/run_tests.py --xml_output --use_mungefs --run_s test_plugin_tiered_storage 2>&1 | tee {0}; exit $PIPESTATUS'.format(test_output_file)], check_rc=True)
     finally:
         if output_root_directory:
             irods_python_ci_utilities.gather_files_satisfying_predicate('/var/lib/irods/log', output_root_directory, lambda x: True)
