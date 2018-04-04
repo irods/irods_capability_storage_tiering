@@ -166,8 +166,8 @@ namespace irods {
 
             int fetch_page() {
                 if(gen_output_) {
-                    freeGenQueryOut(&gen_output_);
                     gen_input_.continueInx = gen_output_->continueInx;
+                    freeGenQueryOut(&gen_output_);
                 }
 
                 int ret = query_helper::gen_query_fcn(
@@ -207,8 +207,8 @@ namespace irods {
 
             int fetch_page() {
                 if(gen_output_) {
-                    freeGenQueryOut(&gen_output_);
                     spec_input_.continueInx = gen_output_->continueInx;
+                    freeGenQueryOut(&gen_output_);
                 }
 
                 int ret = query_helper::spec_query_fcn(

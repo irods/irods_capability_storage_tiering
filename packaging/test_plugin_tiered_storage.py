@@ -95,6 +95,7 @@ def tiered_storage_configured_with_log(arg=None):
 class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -170,6 +171,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -279,6 +281,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -362,6 +365,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             # configure mungefs
             self.munge_mount=tempfile.mkdtemp(prefix='munge_mount_')
             self.munge_target=tempfile.mkdtemp(prefix='munge_target_')
@@ -470,6 +474,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -507,6 +512,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -551,6 +557,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -598,6 +605,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -659,7 +667,9 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
-            admin_session.assert_icommand('''iadmin asq "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs0' and META_DATA_ATTR_NAME = 'archive_object' and META_DATA_ATTR_VALUE = 'yes'" archive_query''')
+            admin_session.assert_icommand('iqdel -a')
+            admin_session.assert_icommand('''iadmin asq "select distinct R_DATA_MAIN.data_name, R_COLL_MAIN.coll_name, R_DATA_MAIN.resc_id from R_DATA_MAIN, R_COLL_MAIN, R_RESC_MAIN, R_OBJT_METAMAP r_data_metamap, R_META_MAIN r_data_meta_main where R_RESC_MAIN.resc_name = 'ufs0' AND r_data_meta_main.meta_attr_name = 'archive_object' AND r_data_meta_main.meta_attr_value = 'yes' AND R_COLL_MAIN.coll_id = R_DATA_MAIN.coll_id AND R_RESC_MAIN.resc_id = R_DATA_MAIN.resc_id AND R_DATA_MAIN.data_id = r_data_metamap.object_id AND r_data_metamap.meta_id = r_data_meta_main.meta_id order by R_COLL_MAIN.coll_name, R_DATA_MAIN.data_name" archive_query''')
+
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
 
@@ -677,11 +687,11 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rmresc ufs0')
             admin_session.assert_icommand('iadmin rmresc ufs1')
             admin_session.assert_icommand('iadmin rum')
+            admin_session.assert_icommand('iadmin rsq archive_query')
 
     def test_put_and_get(self):
-        with tiered_storage_configured_with_log():
+        with tiered_storage_configured():
             with session.make_session_for_existing_admin() as admin_session:
-                initial_log_size = lib.get_file_size_by_path(paths.server_log_path())
 
                 filename  = 'test_put_file'
                 filename2 = 'test_put_file2'

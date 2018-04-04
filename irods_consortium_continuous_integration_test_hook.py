@@ -69,7 +69,7 @@ def main():
     parser = optparse.OptionParser()
     parser.add_option('--output_root_directory')
     parser.add_option('--built_packages_root_directory')
-    parser.add_option('--mungefs_packages_dir')
+    parser.add_option('--mungefs_packages_dirrectory')
 
     options, _ = parser.parse_args()
 

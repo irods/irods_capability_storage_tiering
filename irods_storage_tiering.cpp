@@ -190,13 +190,13 @@ namespace irods {
         metadata_results&   _results ) {
         std::string query_str {
             boost::str(
-                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
+                    boost::format("SELECT META_RESC_ATTR_VALUE, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
                     _meta_attr_name %
                     _resource_name) };
         query qobj{comm_, query_str};
         if(qobj.size() > 0) {
             for( const auto& r : qobj) {
-                _results.push_back(std::make_pair("", r[0]));
+                _results.push_back(std::make_pair(r[0], r[1]));
             }
 
             return;
@@ -420,8 +420,8 @@ namespace irods {
                  results);
 
             for(auto& q_itr : results) {
-                auto& query_type_str = q_itr.first;
-                auto& query_string   = q_itr.second;
+                auto& query_string   = q_itr.first;
+                auto& query_type_str = q_itr.second;
                 size_t start_pos = query_string.find(config_.time_check_string);
                 if(start_pos != std::string::npos) {
                     query_string.replace(
@@ -444,11 +444,11 @@ namespace irods {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
             metadata_results results;
             results.push_back(
-                std::make_pair("", boost::str(
+                std::make_pair(boost::str(
                 boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
                 config_.access_time_attribute %
                 tier_time %
-                leaf_str)));
+                leaf_str), ""));
             rodsLog(
                 config_.data_transfer_log_level_value,
                 "use default query for [%s]",
@@ -491,8 +491,8 @@ namespace irods {
             const auto query_list  = get_violating_queries_for_resource(_source_resource);
             const auto query_limit = get_object_limit_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
-                const auto  qtype = query::convert_string_to_query_type(q_itr.first);
-                const auto& qstring = q_itr.second;
+                const auto  qtype = query::convert_string_to_query_type(q_itr.second);
+                const auto& qstring = q_itr.first;
 
                 query qobj{comm_, qstring, query_limit, qtype};
                 uintmax_t obj_ctr = 0;
