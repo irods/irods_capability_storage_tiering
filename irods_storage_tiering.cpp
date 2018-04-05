@@ -112,6 +112,9 @@ namespace irods {
                                     plugin_spec_cfg.at(data_transfer_log_level_key));
                             if("LOG_NOTICE" == val) {
                                 data_transfer_log_level_value = LOG_NOTICE;
+                                rodsLog(
+                                    data_transfer_log_level_value,
+                                    "Setting log level to LOG_NOTICE");
                             }
                         }
                     }
@@ -494,95 +497,107 @@ namespace irods {
                 const auto  qtype = query::convert_string_to_query_type(q_itr.second);
                 const auto& qstring = q_itr.first;
 
-                query qobj{comm_, qstring, query_limit, qtype};
-                uintmax_t obj_ctr = 0;
-                rodsLog(
-                    config_.data_transfer_log_level_value,
-                    "found %ld objects for resc [%s] with query [%s] type [%d]",
-                    qobj.size(),
-                    _source_resource.c_str(),
-                    qstring.c_str(),
-                    qtype);
+                try {
+                    query qobj{comm_, qstring, query_limit, qtype};
+                    uintmax_t obj_ctr = 0;
+                    rodsLog(
+                        config_.data_transfer_log_level_value,
+                        "found %ld objects for resc [%s] with query [%s] type [%d]",
+                        qobj.size(),
+                        _source_resource.c_str(),
+                        qstring.c_str(),
+                        qtype);
 
-                for(const auto& result : qobj) {
-                    using json = nlohmann::json;
+                    for(const auto& result : qobj) {
+                        using json = nlohmann::json;
 
-                    // if query_limit is not 'unlimited' then exit the loop if
-                    // we have crossed the object limit.
-                    if(query_limit != MAX_SQL_ROWS &&
-                       obj_ctr >= query_limit) {
-                        break;
+                        // if query_limit is not 'unlimited' then exit the loop if
+                        // we have crossed the object limit.
+                        if(query_limit != MAX_SQL_ROWS &&
+                           obj_ctr >= query_limit) {
+                            break;
+                        }
+                        ++obj_ctr;
+
+                        auto object_path  = result[1];
+                        const auto& vps   = get_virtual_path_separator();
+                        if( !boost::ends_with(object_path, vps)) {
+                            object_path += vps;
+                        }
+                        object_path += result[0];
+
+                        json rule_obj;
+                        rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
+                        rule_obj["rule-engine-instance-name"] = config_.instance_name;
+                        rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
+                        rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
+                        rule_obj["source-resource"] = _source_resource;
+                        rule_obj["destination-resource"] = _destination_resource;
+                        rule_obj["object-path"] = object_path;
+
+                        std::string remote_host;
+                        try {
+                            rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
+                            error ret = get_resource_property<std::string>(
+                                            src_resc_id,
+                                            RESOURCE_LOCATION,
+                                            remote_host);
+                            if(!ret.ok()) {
+                                THROW(ret.code(), ret.result());
+                            }
+                        }
+                        catch(const boost::bad_lexical_cast& _e) {
+                            THROW(
+                                INVALID_LEXICAL_CAST,
+                                _e.what());
+                        }
+
+                        execMyRuleInp_t exec_inp;
+                        memset(&exec_inp, 0, sizeof(exec_inp));
+                        exec_inp.condInput.len = 0;
+                        exec_inp.addr.portNum = 0,
+                        rstrcpy(
+                            exec_inp.addr.hostAddr,
+                            remote_host.c_str(),
+                            LONG_NAME_LEN);
+                        snprintf(
+                            exec_inp.myRule,
+                            META_STR_LEN,
+                            "%s",
+                            rule_obj.dump().c_str());
+
+                        msParamArray_t *out_params{nullptr};
+                        const auto rem_err = rsExecMyRule(
+                                                _rei->rsComm,
+                                                &exec_inp,
+                                                &out_params);
+                        if(rem_err < 0) {
+                            THROW(
+                                rem_err,
+                                boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                                object_path %
+                                _source_resource %
+                                _destination_resource);
+                        } // if
+                    } // for result
+                }
+                catch(const exception& _e) {
+                    // if nothing of interest is found, thats not an error
+                    if(CAT_NO_ROWS_FOUND == _e.code()) {
+                        rodsLog(
+                            config_.data_transfer_log_level_value,
+                            "no object found resc [%s] with query [%s] type [%d]",
+                            _source_resource.c_str(),
+                            qstring.c_str(),
+                            qtype);
+
+                        continue;
                     }
-                    ++obj_ctr;
-
-                    auto object_path  = result[1];
-                    const auto& vps   = get_virtual_path_separator();
-                    if( !boost::ends_with(object_path, vps)) {
-                        object_path += vps;
+                    else {
+                        irods::log(_e);
                     }
-                    object_path += result[0];
-
-                    json rule_obj;
-                    rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-                    rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                    rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
-                    rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
-                    rule_obj["source-resource"] = _source_resource;
-                    rule_obj["destination-resource"] = _destination_resource;
-                    rule_obj["object-path"] = object_path;
-
-                    std::string remote_host;
-                    rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
-                    error ret = get_resource_property<std::string>(
-                                    src_resc_id,
-                                    RESOURCE_LOCATION,
-                                    remote_host);
-                    if(!ret.ok()) {
-                        THROW(ret.code(), ret.result());
-                    }
-
-                    execMyRuleInp_t exec_inp;
-                    memset(&exec_inp, 0, sizeof(exec_inp));
-                    exec_inp.condInput.len = 0;
-                    exec_inp.addr.portNum = 0,
-                    rstrcpy(
-                        exec_inp.addr.hostAddr,
-                        remote_host.c_str(),
-                        LONG_NAME_LEN);
-                    snprintf(
-                        exec_inp.myRule,
-                        META_STR_LEN,
-                        "%s",
-                        rule_obj.dump().c_str());
-
-                    msParamArray_t *out_params{nullptr};
-                    const auto rem_err = rsExecMyRule(
-                                            _rei->rsComm,
-                                            &exec_inp,
-                                            &out_params);
-                    if(rem_err < 0) {
-                        THROW(
-                            rem_err,
-                            boost::format("restage failed for object [%s] from [%s] to [%s]") %
-                            object_path %
-                            _source_resource %
-                            _destination_resource);
-                    } // if
-                } // for result
+                }
             } // for qstr
-        }
-        catch(const boost::bad_lexical_cast& _e) {
-            THROW(
-                INVALID_LEXICAL_CAST,
-                _e.what());
-        }
-        catch(const exception& _e) {
-            // if nothing of interest is found, thats not an error
-            if(CAT_NO_ROWS_FOUND == _e.code()) {
-                return;
-            }
-
-            throw;
         }
         catch(const std::out_of_range& _e) {
             THROW(

@@ -87,6 +87,7 @@ def tiered_storage_configured_with_log(arg=None):
             }
         )
         irods_config.commit(irods_config.server_config, irods_config.server_config_path)
+
         try:
             yield
         finally:
