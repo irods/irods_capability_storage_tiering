@@ -155,10 +155,3 @@ In order to log the transfer of data objects from one tier to the next, the stor
     }
 },
 ```
-
-# **Flagging a Tier as the Restage Tier**
-
-By default the plugin will restage data that has been fetched to the lowest idexed tier in the tier group.  For some tier groups this is undesireable as the lowest tier may be close to instruments and not appropriate for analysis.  A tier may be flagged as the minimum restage tier by attaching the following metadata.
-```
-irods::storage_tier_minimum_restage_tier true
-```
