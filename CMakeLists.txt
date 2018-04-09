@@ -10,7 +10,7 @@ set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 
-project(irods_rule_engine_plugin_tiered_storage C CXX)
+project(irods_rule_engine_plugin_storage_tiering C CXX)
 
 include(${IRODS_TARGETS_PATH})
 
@@ -68,13 +68,13 @@ set(
 
 set(
   PLUGIN
-  irods_rule_engine_plugin-tiered_storage
+  irods_rule_engine_plugin-storage_tiering
   )
 
   add_library(
       ${PLUGIN}
       MODULE
-      ${CMAKE_SOURCE_DIR}/libirods_rule_engine_plugin-tiered_storage.cpp
+      ${CMAKE_SOURCE_DIR}/libirods_rule_engine_plugin-storage_tiering.cpp
       ${CMAKE_SOURCE_DIR}/irods_object_migrator.cpp
       ${CMAKE_SOURCE_DIR}/irods_storage_tiering.cpp
       )
@@ -115,21 +115,14 @@ install(
 
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/packaging/test_plugin_tiered_storage.py
+  ${CMAKE_SOURCE_DIR}/packaging/test_plugin_storage_tiering.py
   DESTINATION ${IRODS_HOME_DIRECTORY}/scripts/irods/test
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   )
 
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/packaging/test_plugin_tiered_storage_server_config.json
-  DESTINATION ${IRODS_HOME_DIRECTORY}/scripts/irods/test
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-  )
-
-install(
-  FILES
-  ${CMAKE_SOURCE_DIR}/packaging/run_tiered_storage_plugin_test.py
+  ${CMAKE_SOURCE_DIR}/packaging/run_storage_tiering_plugin_test.py
   DESTINATION ${IRODS_HOME_DIRECTORY}/scripts
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   )
@@ -142,7 +135,7 @@ install(
   )
 
 set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_MINOR}.${IRODS_PLUGIN_VERSION_PATCH}")
-set(CPACK_PACKAGE_FILE_NAME "irods-rule-engine-plugin-tiered-storage-${IRODS_PLUGIN_VERSION}-${IRODS_LINUX_DISTRIBUTION_NAME}${IRODS_LINUX_DISTRIBUTION_VERSION_MAJOR}-${CMAKE_SYSTEM_PROCESSOR}")
+set(CPACK_PACKAGE_FILE_NAME "irods-rule-engine-plugin-storage_tiering-${IRODS_PLUGIN_VERSION}-${IRODS_LINUX_DISTRIBUTION_NAME}${IRODS_LINUX_DISTRIBUTION_VERSION_MAJOR}-${CMAKE_SYSTEM_PROCESSOR}")
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_COMPONENTS_GROUPING IGNORE)
@@ -162,6 +155,8 @@ set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://irods.org")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/packaging/postinst;")
+set(CPACK_DEBIAN_PACKAGE_BREAKS "irods-rule-engine-plugin-tiered_storage")
+set(CPACK_DEBIAN_PACKAGE_REPLACES "irods-rule-engine-plugin-tiered_storage")
 
 set(CPACK_RPM_COMPONENT_INSTALL OFF)
 set(CPACK_RPM_PACKAGE_RELEASE "1")
@@ -171,13 +166,14 @@ set(CPACK_RPM_PACKAGE_URL "https://irods.org")
 set(CPACK_RPM_PACKAGE_AUTOREQ 0)
 set(CPACK_RPM_PACKAGE_AUTOPROV 0)
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/postinst")
+set(CPACK_RPM_PACKAGE_OBSOLETES "irods-rule-engine-plugin-tiered_storage")
 
 set(CPACK_ARCHIVE_COMPONENT_INSTALL OFF)
 
-set(CPACK_DEBIAN_PACKAGE_NAME "irods-rule-engine-plugin-tiered-storage")
+set(CPACK_DEBIAN_PACKAGE_NAME "irods-rule-engine-plugin-storage-tiering")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "${IRODS_PACKAGE_DEPENDENCIES_STRING}, irods-server (= ${IRODS_VERSION}), irods-runtime (= ${IRODS_VERSION}), libc6")
 
-set(CPACK_RPM_PACKAGE_NAME "irods-rule-engine-plugin-tiered-storage")
+set(CPACK_RPM_PACKAGE_NAME "irods-rule-engine-plugin-storage-tiering")
 if (IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "centos" OR IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "centos linux")
   set(CPACK_RPM_PACKAGE_REQUIRES "${IRODS_PACKAGE_DEPENDENCIES_STRING}, irods-server = ${IRODS_VERSION}, irods-runtime = ${IRODS_VERSION}, openssl")
 elseif (IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "opensuse")

@@ -10,12 +10,12 @@ The example diagram below shows a configuration with three tiers.
 
 # **Rulebase Configuration**
 
-To configure the storage tiering capability the rule engine plugin must be added as a new json object within the "rule_engines" array of the ```server_config.json``` file.  The ```plugin_name``` must be **irods_rule_engine_plugin-tiered_storage** and each instance name of the plugin must be unique.  By convention the plugin name plus the word **instance** is used.  Please note that the same instance name must be used across all servers which participate in tiering groups.  Data movement is delegated to the server hosting the source resource, and by convention remote rule calls are directed at specific plugin instances.
+To configure the storage tiering capability the rule engine plugin must be added as a new json object within the "rule_engines" array of the ```server_config.json``` file.  The ```plugin_name``` must be **irods_rule_engine_plugin-storage_tiering** and each instance name of the plugin must be unique.  By convention the plugin name plus the word **instance** is used.  Please note that the same instance name must be used across all servers which participate in tiering groups.  Data movement is delegated to the server hosting the source resource, and by convention remote rule calls are directed at specific plugin instances.
 ```
 "rule_engines": [
     {
-         "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
-         "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+         "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+         "plugin_name": "irods_rule_engine_plugin-storage_tiering",
          "plugin_specific_configuration": {
          }
     },
@@ -148,8 +148,8 @@ In order to log the transfer of data objects from one tier to the next, the stor
 
 ```
 {
-    "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
-    "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+    "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+    "plugin_name": "irods_rule_engine_plugin-storage_tiering",
     "plugin_specific_configuration": {
         "data_transfer_log_level" : "LOG_NOTICE"
     }

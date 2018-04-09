@@ -84,7 +84,7 @@ def main(output_root_directory, irods_packages_root_directory):
     install_build_prerequisites()
     if irods_packages_root_directory:
         install_irods_dev_and_runtime_packages(irods_packages_root_directory)
-    build_directory = tempfile.mkdtemp(prefix='irods_tiered_storage_plugin_build_directory')
+    build_directory = tempfile.mkdtemp(prefix='irods_storage_tiering_plugin_build_directory')
     irods_python_ci_utilities.subprocess_get_output(['cmake', os.path.dirname(os.path.realpath(__file__))], check_rc=True, cwd=build_directory)
     irods_python_ci_utilities.subprocess_get_output(['make', '-j', str(multiprocessing.cpu_count()), 'package'], check_rc=True, cwd=build_directory)
     if output_root_directory:

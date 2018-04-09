@@ -20,7 +20,7 @@ from .. import paths
 from .. import lib
 
 @contextlib.contextmanager
-def tiered_storage_configured_custom(arg=None):
+def storage_tiering_configured_custom(arg=None):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
@@ -28,8 +28,8 @@ def tiered_storage_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name" : "irods_rule_engine_plugin-tiered_storage-instance",
-                "plugin_name" : "irods_rule_engine_plugin-tiered_storage",
+                "instance_name" : "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name" : "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration" : {
                     "access_time_attribute" : "irods::custom_access_time",
                     "group_attribute" : "irods::custom_storage_tiering::group",
@@ -50,7 +50,7 @@ def tiered_storage_configured_custom(arg=None):
             pass
 
 @contextlib.contextmanager
-def tiered_storage_configured(arg=None):
+def storage_tiering_configured(arg=None):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
@@ -58,8 +58,8 @@ def tiered_storage_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
-                "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                 }
             }
@@ -71,7 +71,7 @@ def tiered_storage_configured(arg=None):
             pass
 
 @contextlib.contextmanager
-def tiered_storage_configured_with_log(arg=None):
+def storage_tiering_configured_with_log(arg=None):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
@@ -79,8 +79,8 @@ def tiered_storage_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods_rule_engine_plugin-tiered_storage-instance",
-                "plugin_name": "irods_rule_engine_plugin-tiered_storage",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                     "data_transfer_log_level": "LOG_NOTICE"
                 }
@@ -142,7 +142,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 filepath = lib.create_local_testfile(filename)
@@ -152,13 +152,13 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                 # test stage to tier 2
                 sleep(10)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -236,7 +236,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 print("yep")
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
@@ -256,14 +256,14 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
                 admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs1g2')
 
                 # test stage to tier 2
                 sleep(10)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
                 admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs2g2')
@@ -329,7 +329,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
 
     def test_put_and_get(self):
-        with tiered_storage_configured_custom():
+        with storage_tiering_configured_custom():
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 filepath = lib.create_local_testfile(filename)
@@ -339,7 +339,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -347,7 +347,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 2
                 sleep(25)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(60)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -392,7 +392,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
     @classmethod
     def test_put_verify_filesystem(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 # configure mungefs to report an invalid file size
                 assert_command('mungefsctl --operations "getattr" --corrupt_size')
@@ -412,7 +412,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                 # test stage to tier 1
                 sleep(5)
                 initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 log_cnt = lib.count_occurrences_of_string_in_log(
                         paths.server_log_path(),
@@ -431,7 +431,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
     @classmethod
     def test_put_verify_checksum(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 # configure mungefs to report an invalid file size
                 assert_command('mungefsctl --operations "read" --corrupt_data')
@@ -451,7 +451,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                 # test stage to tier 1
                 sleep(5)
                 initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
@@ -495,7 +495,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 filepath = lib.create_local_testfile(filename)
@@ -536,7 +536,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 filepath = lib.create_local_testfile(filename)
@@ -545,7 +545,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, look for both replicas
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -581,7 +581,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 filename  = 'test_put_file'
                 filename2 = 'test_put_file2'
@@ -592,7 +592,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, look for both replicas
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -626,7 +626,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
-        with tiered_storage_configured_with_log():
+        with storage_tiering_configured_with_log():
             with session.make_session_for_existing_admin() as admin_session:
                 initial_log_size = lib.get_file_size_by_path(paths.server_log_path())
 
@@ -638,7 +638,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -646,7 +646,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 2
                 sleep(25)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(60)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -690,7 +690,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rsq archive_query')
 
     def test_put_and_get(self):
-        with tiered_storage_configured():
+        with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
 
                 filename  = 'test_put_file'
@@ -704,7 +704,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('imeta ls -d ' + filename2, 'STDOUT_SINGLELINE', 'AVU')
 
                 # test stage to tier 1
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -713,7 +713,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
                 sleep(40)
 
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-tiered_storage-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs1')
