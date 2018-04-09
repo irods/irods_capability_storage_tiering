@@ -1,4 +1,3 @@
-import os
 import sys
 import shutil
 import contextlib
@@ -145,7 +144,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
         with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
-                filepath = lib.create_local_testfile(filename)
+                lib.create_local_testfile(filename)
                 admin_session.assert_icommand('iput -R rnd0 ' + filename)
                 admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)

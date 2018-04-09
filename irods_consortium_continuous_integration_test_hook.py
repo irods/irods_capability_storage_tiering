@@ -1,13 +1,10 @@
 from __future__ import print_function
 
-import multiprocessing
 import optparse
 import os
 import shutil
 import glob
 import time
-import tempfile
-import re
 import irods_python_ci_utilities
 
 def install_cmake_and_add_to_front_of_path():
