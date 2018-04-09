@@ -661,7 +661,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 
                 log_count = lib.count_occurrences_of_string_in_log(paths.server_log_path(), 'storage_tiering::migrating', start_index=initial_log_size)
                 print("LOG COUNT: "+str(log_count))
-                assert 3 == log_count
+                self.assertTrue(3 == log_count)
 
 class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
     def setUp(self):
