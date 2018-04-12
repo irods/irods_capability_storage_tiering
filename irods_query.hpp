@@ -274,7 +274,12 @@ namespace irods {
                 explicit iterator(
                     std::shared_ptr<query_impl_base> _qimp) :
                     query_impl_(_qimp),
+                    comm_{},
+                    query_string_{},
+                    max_rows_{},
                     row_idx_{},
+                    gen_input_{},
+                    gen_output_{},
                     end_iteration_state_{false} {
                 }
 

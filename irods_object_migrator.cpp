@@ -20,6 +20,7 @@ namespace irods {
 
     object_migrator::object_migrator() :
         comm_{nullptr},
+        preserve_replicas_{},
         verification_type_{},
         source_resource_{},
         destination_resource_{},
@@ -43,6 +44,7 @@ namespace irods {
 
     object_migrator::object_migrator(const object_migrator& _rhs) :
             comm_{_rhs.comm_},
+            preserve_replicas_{_rhs.preserve_replicas_},
             verification_type_{_rhs.verification_type_},
             source_resource_{_rhs.source_resource_},
             destination_resource_{_rhs.destination_resource_},
@@ -288,7 +290,7 @@ namespace irods {
         const std::string& _data_checksum) {
 
         try {
-            if(_verification_type.size() <= 0 || VERIFY_CATALOG == _verification_type) {
+            if(_verification_type.size() == 0 || VERIFY_CATALOG == _verification_type) {
                 // default verification type is 'catalog', were done as the query worked
                 return true;
             }
