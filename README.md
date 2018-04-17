@@ -94,7 +94,7 @@ imeta add -R slow_resc irods::storage_tiering::verification checksum
 
 # **Restaging Tiered Data**
 
-After data has been migrated within the system a user may wish to retrieve the data at a future time.  When this happens the data is immediately returned to the user, and an asynchrpnous job is submitted to restage the data to the lowest tier index in the tier group.  In the case where an administrator may not with the data to be returned to the lowest teir, such as when data is automatically ingested, the minimum tier may be indicated with a flag.  In this case the storage tiering plugin will restage the data to the indicated tier within the tier group.  To configure this option add the following flag to a root resource within the tier group:
+After data has been migrated within the system a user may wish to retrieve the data at a future time.  When this happens the data is immediately returned to the user, and an asynchronous job is submitted to restage the data to the lowest tier index in the tier group.  In the case where an administrator may not with the data to be returned to the lowest teir, such as when data is automatically ingested, the minimum tier may be indicated with a flag.  In this case the storage tiering plugin will restage the data to the indicated tier within the tier group.  To configure this option add the following flag to a root resource within the tier group:
 
 ```
 imeta add -R medium_resc irods::storage_tiering::minimum_restage_tier true
@@ -112,7 +112,7 @@ imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAM
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
 
-Any number queries may be attached in order provide a range of critiera by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as ```archive_object true```.  The tier may then have a query added to support this.
+Any number of queries may be attached in order provide a range of criteria by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as ```archive_object true```.  The tier may then have a query added to support this.
 ```
 imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'yes' AND DATA_RESC_ID IN ('10068', '10069')"
 ```
