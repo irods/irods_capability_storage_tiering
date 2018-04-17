@@ -114,17 +114,17 @@ The example above implements the default query.  Note that the string `TIME_CHEC
 
 Any number of queries may be attached in order provide a range of criteria by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as ```archive_object true```.  The tier may then have a query added to support this.
 ```
-imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'yes' AND DATA_RESC_ID IN ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')"
 ```
 
 Queries may also be provided by using the Specific Query interface within iRODS.  The archive object query may be stored by an iRODS administrator as follows.
 ```
-'iadmin asq "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'yes' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
+'iadmin asq "SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
 ```
 
 At which point the query attached to the root of a storage tier would require the use of a metadata unit of ```specific```:
 ```
-imeta set -R fast_resc irods::storage_tiering::query archive_object specific
+imeta set -R fast_resc irods::storage_tiering::query archive_query specific
 ```
 
 
