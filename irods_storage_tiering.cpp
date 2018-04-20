@@ -221,7 +221,7 @@ namespace irods {
         std::string query_str{
             boost::str(
                     boost::format(
-                        "SELECT RESC_NAME, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = '%s'") %
+                        "SELECT RESC_ID, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = '%s'") %
                     config_.group_attribute %
                     _group_name) };
         for(auto row : query{comm_, query_str}) {
@@ -329,7 +329,7 @@ namespace irods {
         std::string query_str{
             boost::str(
                     boost::format(
-                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = 'true' and RESC_NAME IN (%s)") %
+                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = 'true' and RESC_ID IN (%s)") %
                     config_.minimum_restage_tier %
                     resc_list) };
         query qobj{comm_, query_str, 1};
@@ -691,25 +691,26 @@ namespace irods {
             if(!coll_type) {
                 update_access_time_for_data_object(obj_inp->objPath);
             }
+            else {
+                // register a collection
+                collInp_t coll_inp;
+                memset(&coll_inp, 0, sizeof(coll_inp));
+                rstrcpy(
+                    coll_inp.collName,
+                    obj_inp->objPath,
+                    MAX_NAME_LEN);
+                int handle = rsOpenCollection(
+                                 _comm,
+                                 &coll_inp);
+                if(handle < 0) {
+                    THROW(
+                        handle,
+                        boost::format("failed to open collection [%s]") %
+                        obj_inp->objPath);
+                }
 
-            // register a collection
-            collInp_t coll_inp;
-            memset(&coll_inp, 0, sizeof(coll_inp));
-            rstrcpy(
-                coll_inp.collName,
-                obj_inp->objPath,
-                MAX_NAME_LEN);
-            int handle = rsOpenCollection(
-                             _comm,
-                             &coll_inp);
-            if(handle < 0) {
-                THROW(
-                    handle,
-                    boost::format("failed to open collection [%s]") %
-                    obj_inp->objPath);
+                apply_access_time_to_collection(_comm, handle);
             }
-
-            apply_access_time_to_collection(_comm, handle);
         }
         catch(const boost::bad_any_cast& _e) {
             THROW( INVALID_ANY_CAST, _e.what() );
