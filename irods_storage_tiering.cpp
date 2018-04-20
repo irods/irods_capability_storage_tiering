@@ -700,8 +700,13 @@ namespace irods {
                     object_path,
                     _rei);
         }
-        catch(const boost::bad_any_cast& _e) {
-            THROW(INVALID_ANY_CAST, _e.what());
+        catch(const exception& _e) {
+            if(CAT_NO_ROWS_FOUND == _e.code()) {
+                rodsLog(
+                    config_.data_transfer_log_level_value,
+                    "[%s] is not in a tier group",
+                    source_resource.c_str());
+            }
         }
     } // restage_object_to_lowest_tier
 
