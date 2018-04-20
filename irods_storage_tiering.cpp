@@ -11,6 +11,9 @@
 
 #include "rsModAVUMetadata.hpp"
 #include "rsExecMyRule.hpp"
+#include "rsOpenCollection.hpp"
+#include "rsReadCollection.hpp"
+#include "rsCloseCollection.hpp"
 
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
@@ -639,29 +642,40 @@ namespace irods {
         }
     } // queue_data_movement
 
-   // =-=-=-=-=-=-=-
-   // Application Functions
-    void storage_tiering::apply_access_time(
-            std::list<boost::any>& _args) {
-        try {
-            // NOTE:: 3rd parameter is the dataObjInp_t
-            auto it = _args.begin();
-            std::advance(it, 2);
-            if(_args.end() == it) {
-                THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
+    void storage_tiering::apply_access_time_to_collection(
+        rsComm_t* _comm,
+        int       _handle) {
+        collEnt_t* coll_ent{nullptr};
+        int err = rsReadCollection(_comm, &_handle, &coll_ent);
+        while(err >= 0) {
+            if(DATA_OBJ_T == coll_ent->objType) {
+                const auto& vps = get_virtual_path_separator();
+                std::string lp{coll_ent->collName};
+                lp += vps;
+                lp += coll_ent->dataName;
+                update_access_time_for_data_object(lp);
+            }
+            else if(COLL_OBJ_T == coll_ent->objType) {
+                collInp_t coll_inp;
+                memset(&coll_inp, 0, sizeof(coll_inp));
+                rstrcpy(
+                    coll_inp.collName,
+                    coll_ent->collName,
+                    MAX_NAME_LEN);
+                int handle = rsOpenCollection(_comm, &coll_inp);
+                apply_access_time_to_collection(_comm, handle);
+                rsCloseCollection(_comm, &handle);
             }
 
-            auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            update_access_time_for_data_object(obj_inp->objPath);
-        }
-        catch(const boost::bad_any_cast& _e) {
-            THROW( INVALID_ANY_CAST, _e.what() );
-        }
-    } // apply_access_time
+            err = rsReadCollection(_comm, &_handle, &coll_ent);
+        } // while
+    } // apply_access_time_to_collection
 
-    void storage_tiering::restage_object_to_lowest_tier(
-        std::list<boost::any>& _args,
-        ruleExecInfo_t*        _rei) {
+    // =-=-=-=-=-=-=-
+    // Application Functions
+    void storage_tiering::apply_access_time(
+            rsComm_t*              _comm,
+            std::list<boost::any>& _args) {
         try {
             // NOTE:: 3rd parameter is the dataObjInp_t
             auto it = _args.begin();
@@ -673,14 +687,64 @@ namespace irods {
             }
 
             auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            const char* object_path = obj_inp->objPath;
-            const char* source_resource_hier = getValByKey(
-                                                   &obj_inp->condInput,
-                                                   RESC_HIER_STR_KW);
+            const char* coll_type = getValByKey(&obj_inp->condInput, COLLECTION_KW);
+            if(!coll_type) {
+                update_access_time_for_data_object(obj_inp->objPath);
+            }
 
+            // register a collection
+            collInp_t coll_inp;
+            memset(&coll_inp, 0, sizeof(coll_inp));
+            rstrcpy(
+                coll_inp.collName,
+                obj_inp->objPath,
+                MAX_NAME_LEN);
+            int handle = rsOpenCollection(
+                             _comm,
+                             &coll_inp);
+            if(handle < 0) {
+                THROW(
+                    handle,
+                    boost::format("failed to open collection [%s]") %
+                    obj_inp->objPath);
+            }
+
+            apply_access_time_to_collection(_comm, handle);
+        }
+        catch(const boost::bad_any_cast& _e) {
+            THROW( INVALID_ANY_CAST, _e.what() );
+        }
+    } // apply_access_time
+
+    void storage_tiering::restage_object_to_lowest_tier(
+        std::list<boost::any>& _args,
+        ruleExecInfo_t*        _rei) {
+        const char* object_path{nullptr};
+        const char* source_resource_hier{nullptr};
+        try {
+            // NOTE:: 3rd parameter is the dataObjInp_t
+            auto it = _args.begin();
+            std::advance(it, 2);
+            if(_args.end() == it) {
+                THROW(
+                    SYS_INVALID_INPUT_PARAM,
+                    "invalid number of arguments");
+            }
+
+            auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+            object_path = obj_inp->objPath;
+            source_resource_hier = getValByKey(
+                                       &obj_inp->condInput,
+                                       RESC_HIER_STR_KW);
+        }
+        catch(const boost::bad_any_cast& _e) {
+            THROW(INVALID_ANY_CAST, _e.what());
+        }
+
+        std::string source_resource;
+        try {
             hierarchy_parser h_parse;
             h_parse.set_string(source_resource_hier);
-            std::string source_resource;
             h_parse.first_resc(source_resource);
 
             const auto group_name = get_metadata_for_resource(

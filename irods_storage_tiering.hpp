@@ -90,7 +90,12 @@ namespace irods {
             rsComm_t*          _comm,
             const std::string& _instance_name);
 
+        void apply_access_time_to_collection(
+            rsComm_t*,
+            int);
+
         void apply_access_time(
+            rsComm_t*,
             std::list<boost::any>& _args);
 
         void restage_object_to_lowest_tier(

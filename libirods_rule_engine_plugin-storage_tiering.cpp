@@ -34,7 +34,7 @@ irods::error start(
     irods::default_re_ctx&,
     const std::string& _instance_name ) {
     instance_name = _instance_name;
-    RuleExistsHelper::Instance()->registerRuleRegex("pep_api_data_obj_.*");
+    RuleExistsHelper::Instance()->registerRuleRegex("pep_api_.*");
 
     return SUCCESS();
 }
@@ -76,7 +76,7 @@ irods::error exec_rule(
 
     try {
         irods::storage_tiering st{rei->rsComm, instance_name};
-        st.apply_access_time(_args);
+        st.apply_access_time(rei->rsComm, _args);
 
         if("pep_api_data_obj_get_post" == _rn) {
             st.restage_object_to_lowest_tier(_args, rei);
