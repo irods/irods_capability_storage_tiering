@@ -359,7 +359,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
                 admin_session.assert_icommand('irm -f ' + filename)
 
-
+@unittest.skipIf(False == test.settings.USE_MUNGEFS, "These tests require mungefs")
 class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
     def setUp(self):
         with session.make_session_for_existing_admin() as admin_session:
@@ -718,3 +718,71 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
                 admin_session.assert_icommand('irm -f ' + filename)
                 admin_session.assert_icommand('irm -f ' + filename2)
+
+class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
+    def setUp(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
+            admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group 1')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
+
+    def tearDown(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iadmin rmresc ufs0')
+            admin_session.assert_icommand('iadmin rmresc ufs1')
+            admin_session.assert_icommand('iadmin rum')
+
+    def test_file_registration(self):
+        with storage_tiering_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+
+                filename  = 'test_put_file'
+                filepath  = lib.create_local_testfile(filename)
+                ipwd, _, _ = admin_session.run_icommand('ipwd')
+                ipwd = ipwd.rstrip()
+                dest_path = ipwd + '/' + filename
+
+                admin_session.assert_icommand('ipwd', 'STDOUT_SINGLELINE', 'rods')
+                admin_session.assert_icommand('ireg -R ufs0 ' + filepath + ' ' + dest_path)
+                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
+
+                # test stage to tier 1
+                sleep(5)
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
+                sleep(40)
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
+
+                admin_session.assert_icommand('irm -f ' + filename)
+
+    def test_directory_registration(self):
+        with storage_tiering_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                local_dir_name = '/tmp/test_directory_registration_dir'
+                shutil.rmtree(local_dir_name, ignore_errors=True)
+                local_tree = lib.make_deep_local_tmp_dir(local_dir_name, 3, 10, 5)
+
+                dest_path = '/tempZone/home/rods/reg_coll'
+                admin_session.assert_icommand('ireg -CR ufs0 ' + local_dir_name + ' ' + dest_path)
+                admin_session.assert_icommand('ils -rL ' + dest_path, 'STDOUT_SINGLELINE', dest_path)
+
+                # test stage to tier 1
+                sleep(5)
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
+                sleep(40)
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
+                admin_session.assert_icommand('ils -rL ' + dest_path, 'STDOUT_SINGLELINE', 'ufs1')
+
+                admin_session.assert_icommand('irm -rf ' + dest_path)
+
+
+
+
