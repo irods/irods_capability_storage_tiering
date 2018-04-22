@@ -215,9 +215,9 @@ namespace irods {
             _meta_attr_name);
     } // get_metadata_for_resource
 
-    std::map<std::string, std::string> storage_tiering::get_tier_group_resources_and_indices(
+    resource_index_map storage_tiering::get_tier_group_resource_ids_and_indices(
         const std::string& _group_name) {
-        std::map<std::string, std::string> resc_map;
+        resource_index_map resc_map;
         std::string query_str{
             boost::str(
                     boost::format(
@@ -251,7 +251,7 @@ namespace irods {
         } // for row
 
         return resc_map;
-    } // get_tier_group_resources_and_indices
+    } // get_tier_group_resource_ids_and_indices
 
     std::string storage_tiering::get_leaf_resources_string(
             const std::string& _resource_name) {
@@ -319,7 +319,7 @@ namespace irods {
 
     std::string storage_tiering::get_restage_tier_resource_name(
         const std::string& _group_name) {
-        const auto idx_resc_map = get_tier_group_resources_and_indices(
+        const auto idx_resc_map = get_tier_group_resource_ids_and_indices(
                                       _group_name);
         std::string resc_list;
         for(const auto& itr : idx_resc_map) {
@@ -346,7 +346,17 @@ namespace irods {
             return result[0];
         }
         else {
-            return idx_resc_map.begin()->second;
+            std::string resc_name;
+            irods::error err = resc_mgr.leaf_id_to_hier(
+                                   std::strtoll(idx_resc_map.begin()->second.c_str(), 0, 0),
+                                   resc_name);
+            if(!err.ok()) {
+                THROW(
+                    err.code(),
+                    err.result());
+            }
+
+            return resc_name;
         }
 
     } // get_restage_tier_resource_name
@@ -366,10 +376,10 @@ namespace irods {
 
     } // get_restage_delay_param_for_resc
 
-    std::map<std::string, std::string> storage_tiering::get_resource_map_for_group(
+    resource_index_map storage_tiering::get_resource_map_for_group(
         const std::string& _group) {
 
-        std::map<std::string, std::string> groups;
+        resource_index_map groups;
         try {
             std::string query_str{
                 boost::str(
@@ -778,8 +788,8 @@ namespace irods {
     void storage_tiering::apply_storage_tiering_policy(
         const std::string& _group,
         ruleExecInfo_t*    _rei ) {
-        const std::map<std::string, std::string> rescs = get_resource_map_for_group(
-                                                             _group);
+        const resource_index_map rescs = get_resource_map_for_group(
+                                             _group);
         if(rescs.empty()) {
             rodsLog(
                 LOG_ERROR,

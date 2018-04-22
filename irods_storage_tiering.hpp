@@ -32,6 +32,7 @@ namespace irods {
         explicit storage_tiering_configuration(const std::string& _instance_name);
     };
 
+    using resource_index_map = std::map<std::string, std::string>;
     class storage_tiering {
         rsComm_t*                     comm_;
         storage_tiering_configuration config_;
@@ -49,8 +50,8 @@ namespace irods {
             const std::string& _resource_name,
             metadata_results&  _results);
 
-        std::map<std::string, std::string>
-        get_tier_group_resources_and_indices(
+        resource_index_map
+        get_tier_group_resource_ids_and_indices(
             const std::string& _group_name);
 
         std::string get_leaf_resources_string(
@@ -68,7 +69,8 @@ namespace irods {
         std::string get_restage_delay_param_for_resc(
             const std::string& _resource_name);
 
-        std::map<std::string, std::string> get_resource_map_for_group(
+        resource_index_map
+        get_resource_map_for_group(
             const std::string& _group);
         
         std::string get_tier_time_for_resc(
