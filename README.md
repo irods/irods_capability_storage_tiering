@@ -132,14 +132,14 @@ imeta set -R fast_resc irods::storage_tiering::query archive_query specific
 
 Some users may not wish to trim a replica from a tier when data is migrated, such as to allow data to be archived and also still available on fast storage.  To preserve a replica on any given tier, attach the following metadata flag to the root resource.
 ```
-irods::storage_tiering::preserve_replicas true
+imeta set -R medium_resc irods::storage_tiering::preserve_replicas true
 ```
 
 # **Limiting the Violating Query results**
 
 When working with large sets of data throttling the amount of data migrated at one time can be helpful.  In order to limit the results of the violating queries attach the following metadata attribute with the value set as the query limit.
 ```
-irods::storage_tiering::object_limit DESIRED_QUERY_LIMIT
+imeta set -R medium_resc irods::storage_tiering::object_limit DESIRED_QUERY_LIMIT
 ```
 
 # **Logging Data Transfer**
