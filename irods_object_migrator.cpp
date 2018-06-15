@@ -167,9 +167,12 @@ namespace irods {
         data_obj_inp.createMode = getDefFileMode();
         addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW,      _source_resource.c_str());
         addKeyVal(&data_obj_inp.condInput, DEST_RESC_NAME_KW, _destination_resource.c_str());
-        addKeyVal(&data_obj_inp.condInput, ADMIN_KW,          "" );
         if(VERIFY_CHECKSUM == _verification_type) {
             addKeyVal(&data_obj_inp.condInput, VERIFY_CHKSUM_KW, "" );
+        }
+
+        if(comm_->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(&data_obj_inp.condInput, ADMIN_KW, "true" );
         }
 
         transferStat_t* trans_stat{};
@@ -337,6 +340,12 @@ namespace irods {
             &obj_inp.condInput,
             COPIES_KW,
             "1");
+        if(comm_->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(
+                &obj_inp.condInput,
+                ADMIN_KW,
+                "true" );
+        }
 
         const auto trim_err = rsDataObjTrim(comm_, &obj_inp);
         if(trim_err < 0) {

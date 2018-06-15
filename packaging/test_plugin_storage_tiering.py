@@ -94,6 +94,7 @@ def storage_tiering_configured_with_log(arg=None):
 
 class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPlugin, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -120,6 +121,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
+        super(TestStorageTieringPlugin, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmchildfromresc rnd0 ufs0')
@@ -142,34 +144,37 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured():
+            zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
-                filename = 'test_put_file'
-                lib.create_local_testfile(filename)
-                admin_session.assert_icommand('iput -R rnd0 ' + filename)
-                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
+                with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
+                    filename = 'test_put_file'
+                    lib.create_local_testfile(filename)
+                    alice_session.assert_icommand('iput -R rnd0 ' + filename)
+                    alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
+                    alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
 
-                # test stage to tier 1
-                sleep(5)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
-                sleep(60)
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
+                    # test stage to tier 1
+                    sleep(5)
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    sleep(60)
+                    alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
-                # test stage to tier 2
-                sleep(10)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
-                sleep(60)
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
+                    # test stage to tier 2
+                    sleep(10)
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    sleep(60)
+                    alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
-                # test restage to tier 0
-                admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
-                sleep(40)
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0')
+                    # test restage to tier 0
+                    alice_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
+                    sleep(40)
+                    alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0')
 
-                admin_session.assert_icommand('irm -f ' + filename)
+                    alice_session.assert_icommand('irm -f ' + filename)
 
 class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginMultiGroup, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -209,6 +214,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
+        super(TestStorageTieringPluginMultiGroup, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmchildfromresc rnd0 ufs0')
@@ -280,6 +286,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginCustomMetadata, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -306,6 +313,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tiering::query "select DATA_NAME, COLL_NAME, DATA_RESC_ID where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
 
     def tearDown(self):
+        super(TestStorageTieringPluginCustomMetadata, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmchildfromresc rnd0 ufs0')
@@ -361,6 +369,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginWithMungefs, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             # configure mungefs
@@ -378,6 +387,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
 
     def tearDown(self):
+        super(TestStorageTieringPluginWithMungefs, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
             assert_command('fusermount -u '+self.munge_mount)
             shutil.rmtree(self.munge_mount, ignore_errors=True)
@@ -470,6 +480,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginWithMinimumRestage, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -484,6 +495,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
 
     def tearDown(self):
+        super(TestStorageTieringPluginWithMinimumRestage, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -508,6 +520,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginWithPreserveReplica, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -525,6 +538,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::preserve_replicas true')
 
     def tearDown(self):
+        super(TestStorageTieringPluginWithPreserveReplica, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -553,6 +567,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginObjectLimit, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -570,6 +585,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 1')
 
     def tearDown(self):
+        super(TestStorageTieringPluginObjectLimit, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -601,6 +617,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginLogMigration, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -615,6 +632,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 65')
 
     def tearDown(self):
+        super(TestStorageTieringPluginLogMigration, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -663,6 +681,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringMultipleQueries, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('''iadmin asq "select distinct R_DATA_MAIN.data_name, R_COLL_MAIN.coll_name, R_DATA_MAIN.resc_id from R_DATA_MAIN, R_COLL_MAIN, R_RESC_MAIN, R_OBJT_METAMAP r_data_metamap, R_META_MAIN r_data_meta_main where R_RESC_MAIN.resc_name = 'ufs0' AND r_data_meta_main.meta_attr_name = 'archive_object' AND r_data_meta_main.meta_attr_value = 'yes' AND R_COLL_MAIN.coll_id = R_DATA_MAIN.coll_id AND R_RESC_MAIN.resc_id = R_DATA_MAIN.resc_id AND R_DATA_MAIN.data_id = r_data_metamap.object_id AND r_data_metamap.meta_id = r_data_meta_main.meta_id order by R_COLL_MAIN.coll_name, R_DATA_MAIN.data_name" archive_query''')
@@ -679,6 +698,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query archive_query specific''')
 
     def tearDown(self):
+        super(TestStorageTieringMultipleQueries, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -720,6 +740,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
     def setUp(self):
+        super(TestStorageTieringPluginRegistration, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -731,6 +752,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
 
     def tearDown(self):
+        super(TestStorageTieringPluginRegistration, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iadmin rmresc ufs0')
             admin_session.assert_icommand('iadmin rmresc ufs1')
