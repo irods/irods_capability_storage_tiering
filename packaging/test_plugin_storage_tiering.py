@@ -480,7 +480,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
     def setUp(self):
-        super(TestStorageTieringPluginWithMinimumRestage, self).setUp()
+        super(TestStorageTieringPluginMinimumRestage, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -495,7 +495,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
 
     def tearDown(self):
-        super(TestStorageTieringPluginWithMinimumRestage, self).tearDown()
+        super(TestStorageTieringPluginMinimumRestage, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
@@ -520,7 +520,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
 
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
     def setUp(self):
-        super(TestStorageTieringPluginWithPreserveReplica, self).setUp()
+        super(TestStorageTieringPluginPreserveReplica, self).setUp()
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -538,7 +538,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::preserve_replicas true')
 
     def tearDown(self):
-        super(TestStorageTieringPluginWithPreserveReplica, self).tearDown()
+        super(TestStorageTieringPluginPreserveReplica, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
 
             admin_session.assert_icommand('iadmin rmresc ufs0')
