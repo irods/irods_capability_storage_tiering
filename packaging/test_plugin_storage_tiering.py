@@ -715,10 +715,10 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                 filepath  = lib.create_local_testfile(filename)
                 admin_session.assert_icommand('iput -R ufs0 ' + filename)
                 admin_session.assert_icommand('imeta add -d ' + filename + ' archive_object yes')
-                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', 'AVU')
+                admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', 'irods::access_time')
 
                 admin_session.assert_icommand('iput -R ufs0 ' + filename + ' ' + filename2)
-                admin_session.assert_icommand('imeta ls -d ' + filename2, 'STDOUT_SINGLELINE', 'AVU')
+                admin_session.assert_icommand('imeta ls -d ' + filename2, 'STDOUT_SINGLELINE', 'irods::access_time')
 
                 # test stage to tier 1
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
@@ -726,7 +726,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
-                admin_session.assert_icommand_fail('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs1')
+                admin_session.assert_icommand('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs0')
 
                 sleep(40)
 

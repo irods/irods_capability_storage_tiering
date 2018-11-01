@@ -81,11 +81,6 @@ irods::error exec_rule(
         if("pep_api_data_obj_get_post" == _rn) {
             st.restage_object_to_lowest_tier(_args, rei);
         }
-        else {
-            return ERROR(
-                       SYS_NOT_SUPPORTED,
-                       _rn);
-        }
     }
     catch(const  std::invalid_argument& _e) {
         irods::log(LOG_ERROR, _e.what());
