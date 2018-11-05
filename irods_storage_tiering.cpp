@@ -504,8 +504,12 @@ namespace irods {
         const std::string& _destination_resource,
         ruleExecInfo_t*    _rei ) {
         try {
-            const auto query_list  = get_violating_queries_for_resource(_source_resource);
             const auto query_limit = get_object_limit_for_resource(_source_resource);
+            if (query_limit <= 0) {
+                return;
+            }
+
+            const auto query_list  = get_violating_queries_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
                 const auto  qtype = query::convert_string_to_query_type(q_itr.second);
                 const auto& qstring = q_itr.first;
@@ -523,14 +527,6 @@ namespace irods {
 
                     for(const auto& result : qobj) {
                         using json = nlohmann::json;
-
-                        // if query_limit is not 'unlimited' then exit the loop if
-                        // we have crossed the object limit.
-                        if(query_limit != MAX_SQL_ROWS &&
-                           obj_ctr >= query_limit) {
-                            break;
-                        }
-                        ++obj_ctr;
 
                         auto object_path  = result[1];
                         const auto& vps   = get_virtual_path_separator();
@@ -592,6 +588,15 @@ namespace irods {
                                 _source_resource %
                                 _destination_resource);
                         } // if
+
+                        // if query_limit is not 'unlimited' then exit the loop if
+                        // we have crossed the object limit.
+                        ++obj_ctr;
+                        if(query_limit != MAX_SQL_ROWS &&
+                           obj_ctr >= query_limit) {
+                            rodsLog(LOG_NOTICE, "[%s] - query limit [%d] reached", __FUNCTION__, query_limit);
+                            break;
+                        }
                     } // for result
                 }
                 catch(const exception& _e) {
