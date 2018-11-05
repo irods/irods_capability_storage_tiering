@@ -143,7 +143,6 @@ namespace irods {
 
             virtual int fetch_page() = 0;
             virtual ~query_impl_base() {
-                freeGenQueryOut(&gen_output_);
             }
 
             query_impl_base(
@@ -162,6 +161,23 @@ namespace irods {
         class gen_query_impl : public query_impl_base {
             public:
             virtual ~gen_query_impl() {
+                // Close all statements for this query
+                gen_input_.continueInx = gen_output_->continueInx + 1;
+                freeGenQueryOut(&gen_output_);
+                gen_input_.maxRows = 0;
+                while (gen_input_.continueInx > 0) {
+                    auto err = query_helper::gen_query_fcn(
+                                   comm_,
+                                   &gen_input_,
+                                   &gen_output_);
+                    if (err < 0) {
+                        irods::log(ERROR(err, (boost::format(
+                                    "[%s] - Failed to close statement with continueInx [%d]") %
+                                    __FUNCTION__ % gen_input_.continueInx).str()));
+                        break;
+                    }
+                    gen_input_.continueInx--;
+                }
             }
 
             int fetch_page() {
@@ -203,6 +219,24 @@ namespace irods {
         class spec_query_impl : public query_impl_base {
             public:
             virtual ~spec_query_impl() {
+                // Close all statements for this query
+                spec_input_.continueInx = gen_output_->continueInx + 1;
+                freeGenQueryOut(&gen_output_);
+                spec_input_.maxRows = 0;
+                while (spec_input_.continueInx > 0) {
+                    auto err = query_helper::spec_query_fcn(
+                                   comm_,
+                                   &spec_input_,
+                                   &gen_output_);
+                    if (err < 0) {
+                        irods::log(ERROR(
+                                    err, (boost::format(
+                                    "[%s] - Failed to close statement with continueInx [%d]") %
+                                    __FUNCTION__ % spec_input_.continueInx).str()));
+                        break;
+                    }
+                    spec_input_.continueInx--;
+                }
             }
 
             int fetch_page() {
