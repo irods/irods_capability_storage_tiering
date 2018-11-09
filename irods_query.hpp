@@ -28,8 +28,8 @@ namespace irods {
                     gen_query_fcn{rsGenQuery};
         static const std::function<
             int(rsComm_t*,
-                specificQueryInp_t *specificQueryInp,
-                genQueryOut_t **)>
+                specificQueryInp_t*,
+                genQueryOut_t**)>
                     spec_query_fcn{rsSpecificQuery};
 #else
         typedef rcComm_t comm_type;
@@ -37,11 +37,11 @@ namespace irods {
             int(rcComm_t*,
                 genQueryInp_t*,
                 genQueryOut_t**)>
-            gen_query_fcn{rcGenQuery};
+                    gen_query_fcn{rcGenQuery};
         static const std::function<
             int(rcComm_t*,
-                specificQueryInp_t *specificQueryInp,
-                genQueryOut_t **)>
+                specificQueryInp_t*,
+                genQueryOut_t**)>
                     spec_query_fcn{rcSpecificQuery};
 #endif
     };
@@ -278,121 +278,122 @@ namespace irods {
             specificQueryInp_t spec_input_; 
         }; // class spec_query_impl
 
-        class iterator: public std::iterator<
-            std::forward_iterator_tag,// iterator_category
-            value_type,               // value_type
-            value_type,               // difference_type
-            const value_type*,        // pointer
-            value_type> {             // reference
-                query_helper::comm_type* comm_;
-                const std::string query_string_;
-                uintmax_t max_rows_;//const uintmax_t max_rows_;
-                uint32_t row_idx_;
-                genQueryInp_t* gen_input_; 
-                genQueryOut_t* gen_output_; 
-                bool end_iteration_state_;
+        class iterator {
+            query_helper::comm_type* comm_;
+            const std::string query_string_;
+            uintmax_t max_rows_;//const uintmax_t max_rows_;
+            uint32_t row_idx_;
+            genQueryInp_t* gen_input_; 
+            genQueryOut_t* gen_output_; 
+            bool end_iteration_state_;
 
-                std::shared_ptr<query_impl_base> query_impl_;
+            std::shared_ptr<query_impl_base> query_impl_;
 
-                public:
-                explicit iterator () :
-                    comm_{},
-                    query_string_{},
-                    max_rows_{},
-                    row_idx_{},
-                    gen_input_{},
-                    gen_output_{},
-                    end_iteration_state_{true} {
+            public:
+            using value_type        = value_type;
+            using pointer           = const value_type*;
+            using reference         = value_type;
+            using difference_type   = value_type;
+            using iterator_category = std::forward_iterator_tag;
+
+            explicit iterator() :
+                comm_{},
+                query_string_{},
+                max_rows_{},
+                row_idx_{},
+                gen_input_{},
+                gen_output_{},
+                end_iteration_state_{true},
+                query_impl_{} {
+            }
+
+            explicit iterator(std::shared_ptr<query_impl_base> _qimp) :
+                comm_{},
+                query_string_{},
+                max_rows_{},
+                row_idx_{},
+                gen_input_{},
+                gen_output_{},
+                end_iteration_state_{false},
+                query_impl_(_qimp) {
+            }
+
+            explicit iterator(
+                query_helper::comm_type* _comm,
+                const std::string&       _query_string,
+                const uintmax_t&         _max_rows,
+                genQueryInp_t*           _gen_input,
+                genQueryOut_t*           _gen_output) :
+                comm_{_comm},
+                query_string_{_query_string},
+                max_rows_{_max_rows},
+                row_idx_{},
+                gen_input_{_gen_input},
+                gen_output_{_gen_output},
+                end_iteration_state_{false},
+                query_impl_{} {
+            } // ctor
+
+            iterator operator++() {
+                advance_query();
+                return *this;
+            }
+            
+            iterator operator++(int) {
+                iterator ret = *this;
+                ++(*this);
+                return ret;
+            }
+
+            bool operator==(const iterator& _rhs) const {
+                if(end_iteration_state_ && _rhs.end_iteration_state_) {
+                    return true;
+                }
+                //return (query_string_ == _rhs.query_string_);
+                return (query_impl_->query_string() == _rhs.query_string_);
+            }
+           
+            bool operator!=(const iterator& _rhs) const {
+                bool val = !(*this == _rhs);
+                return val;
+            }
+
+            value_type operator*() {
+                return capture_results();
+            }
+
+            void advance_query() {
+                row_idx_++;
+
+                if(query_impl_->page_in_flight(row_idx_)) {
+                    return;
                 }
 
-                explicit iterator(
-                    std::shared_ptr<query_impl_base> _qimp) :
-                    query_impl_(_qimp),
-                    comm_{},
-                    query_string_{},
-                    max_rows_{},
-                    row_idx_{},
-                    gen_input_{},
-                    gen_output_{},
-                    end_iteration_state_{false} {
+                if(query_impl_->query_complete()) {
+                    end_iteration_state_ = true;
+                    return;
                 }
 
-                explicit iterator(
-                    query_helper::comm_type* _comm,
-                    const std::string&       _query_string,
-                    const uintmax_t&         _max_rows,
-                    genQueryInp_t*           _gen_input,
-                    genQueryOut_t*           _gen_output) :
-                    comm_{_comm},
-                    query_string_{_query_string},
-                    max_rows_{_max_rows},
-                    row_idx_{},
-                    gen_input_{_gen_input},
-                    gen_output_{_gen_output},
-                    end_iteration_state_{false} {
-                } // ctor
-
-                iterator operator++() {
-                    advance_query();
-                    return *this;
-                }
-                
-                iterator operator++(int) {
-                    iterator ret = *this;
-                    ++(*this);
-                    return ret;
-                }
-
-                bool operator==(const iterator& _rhs) const {
-                    if(end_iteration_state_ && _rhs.end_iteration_state_) {
-                        return true;
+                const int query_err = query_impl_->fetch_page();
+                if(query_err < 0) {
+                    if(CAT_NO_ROWS_FOUND != query_err) {
+                        THROW(
+                            query_err,
+                            boost::format("gen query failed for [%s] on idx %d") %
+                            query_string_ %
+                            gen_input_->continueInx);
                     }
-                    //return (query_string_ == _rhs.query_string_);
-                    return (query_impl_->query_string() == _rhs.query_string_);
-                }
-               
-                bool operator!=(const iterator& _rhs) const {
-                    bool val = !(*this == _rhs);
-                    return val;
-                }
 
-                value_type operator*() {
-                    return capture_results();
-                }
+                   end_iteration_state_ = true;
+            
+                } // if
 
-                void advance_query() {
-                    row_idx_++;
+            } // advance_query 
 
-                    if(query_impl_->page_in_flight(row_idx_)) {
-                        return;
-                    }
-
-                    if(query_impl_->query_complete()) {
-                        end_iteration_state_ = true;
-                        return;
-                    }
-
-                    const int query_err = query_impl_->fetch_page();
-                    if(query_err < 0) {
-                        if(CAT_NO_ROWS_FOUND != query_err) {
-                            THROW(
-                                query_err,
-                                boost::format("gen query failed for [%s] on idx %d") %
-                                query_string_ %
-                                gen_input_->continueInx);
-                        }
-
-                       end_iteration_state_ = true;
-                
-                    } // if
-
-                } // advance_query 
-
-                value_type capture_results() {
-                    return query_impl_->capture_results(row_idx_);
-                }
-
-         }; // class iterator
+            value_type capture_results() {
+                return query_impl_->capture_results(row_idx_);
+            }
+        }; // class iterator
         
         explicit query(
             query_helper::comm_type* _comm,
