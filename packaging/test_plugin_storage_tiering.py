@@ -12,6 +12,7 @@ else:
     import unittest2 as unittest
 
 from ..configuration import IrodsConfig
+from ..controller import IrodsController
 from .resource_suite import ResourceBase
 from ..test.command import assert_command
 from . import session
@@ -399,8 +400,8 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rmresc ufs1')
             admin_session.assert_icommand('iadmin rum')
 
-    @classmethod
     def test_put_verify_filesystem(self):
+        IrodsController().restart()
         with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 # configure mungefs to report an invalid file size
@@ -428,18 +429,17 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                         'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
                         start_index=initial_size_of_server_log)
 
-                if not 1 == log_cnt:
-                    print('log_cnt: '+str(log_cnt))
-                    raise AssertionError()
-
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
 
                 # clean up
                 assert_command('mungefsctl --operations "getattr"')
                 admin_session.assert_icommand('irm -f ' + filename)
 
-    @classmethod
+                self.assertTrue(1 == log_cnt, msg='log_cnt:{}'.format(log_cnt))
+
+
     def test_put_verify_checksum(self):
+        IrodsController().restart()
         with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 # configure mungefs to report an invalid file size
@@ -469,16 +469,14 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                         'failed to migrate [/tempZone/home/rods/test_put_file] to [ufs1]',
                         start_index=initial_size_of_server_log)
 
-                if not 1 == log_cnt:
-                    print('log_cnt: '+str(log_cnt))
-                    raise AssertionError()
-
-
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
 
                 # clean up
                 assert_command('mungefsctl --operations "read"')
                 admin_session.assert_icommand('irm -f ' + filename)
+
+                self.assertTrue(1 == log_cnt, msg='log_cnt:{}'.format(log_cnt))
+
 
 class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
     def setUp(self):
@@ -667,6 +665,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('iadmin rum')
 
     def test_put_and_get(self):
+        IrodsController().restart()
         with storage_tiering_configured_with_log():
             with session.make_session_for_existing_admin() as admin_session:
                 initial_log_size = lib.get_file_size_by_path(paths.server_log_path())
@@ -923,3 +922,26 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 # cleanup
                 admin_session.assert_icommand(['irm', '-f', '-r', dirname])
                 shutil.rmtree(dirname, ignore_errors=True)
+
+    def test_put_multi_fetch_page(self):
+        with storage_tiering_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                # Put enough objects to force results paging more than once
+                file_count = (self.max_sql_rows * 2) + 1
+                dirname = 'test_put_gt_max_sql_rows'
+                lib.make_large_local_tmp_dir(dirname, file_count, 1)
+                admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname], 'STDOUT_SINGLELINE', ustrings.recurse_ok_string())
+
+                # stage to tier 1, everything should have been tiered out
+                sleep(5)
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
+                sleep(80)
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
+                admin_session.assert_icommand(['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
+                admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
+
+                # cleanup
+                admin_session.assert_icommand(['irm', '-f', '-r', dirname])
+                shutil.rmtree(dirname, ignore_errors=True)
+
