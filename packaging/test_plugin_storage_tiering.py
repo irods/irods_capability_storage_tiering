@@ -582,6 +582,9 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 65')
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
 
+            self.filename  = 'test_put_file'
+            self.filename2 = 'test_put_file2'
+
     def tearDown(self):
         super(TestStorageTieringPluginObjectLimit, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
@@ -596,11 +599,9 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
             with session.make_session_for_existing_admin() as admin_session:
                 admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 1')
 
-                filename  = 'test_put_file'
-                filename2 = 'test_put_file2'
-                filepath  = lib.create_local_testfile(filename)
-                admin_session.assert_icommand('iput -R ufs0 ' + filename)
-                admin_session.assert_icommand('iput -R ufs0 ' + filename + " " + filename2)
+                filepath  = lib.create_local_testfile(self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename + " " + self.filename2)
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                 # stage to tier 1, look for both replicas (only one should move)
@@ -609,35 +610,53 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
-                admin_session.assert_icommand('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs0')
+                admin_session.assert_icommand('ils -L ' + self.filename, 'STDOUT_SINGLELINE', 'ufs1')
+                admin_session.assert_icommand('ils -L ' + self.filename2, 'STDOUT_SINGLELINE', 'ufs0')
 
-                admin_session.assert_icommand('irm -f ' + filename)
-                admin_session.assert_icommand('irm -f ' + filename2)
+                admin_session.assert_icommand('irm -f ' + self.filename)
+                admin_session.assert_icommand('irm -f ' + self.filename2)
 
-    def test_put_and_get_limit_0(self):
+    def test_put_and_get_no_limit_zero(self):
         with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
                 admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 0')
 
-                filename  = 'test_put_file'
-                filename2 = 'test_put_file2'
-                filepath  = lib.create_local_testfile(filename)
-                admin_session.assert_icommand('iput -R ufs0 ' + filename)
-                admin_session.assert_icommand('iput -R ufs0 ' + filename + " " + filename2)
+                filepath  = lib.create_local_testfile(self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename + " " + self.filename2)
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
-                # stage to tier 1, nothing should move
+                # stage to tier 1, everything should move
                 sleep(5)
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
-                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
-                admin_session.assert_icommand('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs0')
+                admin_session.assert_icommand('ils -L ' + self.filename, 'STDOUT_SINGLELINE', 'ufs1')
+                admin_session.assert_icommand('ils -L ' + self.filename2, 'STDOUT_SINGLELINE', 'ufs1')
 
-                admin_session.assert_icommand('irm -f ' + filename)
-                admin_session.assert_icommand('irm -f ' + filename2)
+                admin_session.assert_icommand('irm -f ' + self.filename)
+                admin_session.assert_icommand('irm -f ' + self.filename2)
+
+    def test_put_and_get_no_limit_default(self):
+        with storage_tiering_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                filepath  = lib.create_local_testfile(self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename)
+                admin_session.assert_icommand('iput -R ufs0 ' + self.filename + " " + self.filename2)
+                admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
+
+                # stage to tier 1, everything should move
+                sleep(5)
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'apply')
+                sleep(40)
+                admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
+                admin_session.assert_icommand('ils -L ' + self.filename, 'STDOUT_SINGLELINE', 'ufs1')
+                admin_session.assert_icommand('ils -L ' + self.filename2, 'STDOUT_SINGLELINE', 'ufs1')
+
+                admin_session.assert_icommand('irm -f ' + self.filename)
+                admin_session.assert_icommand('irm -f ' + self.filename2)
 
 class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
     def setUp(self):
