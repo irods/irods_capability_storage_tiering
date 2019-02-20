@@ -36,114 +36,19 @@ int _delayExec(
 
 
 namespace irods {
+    const std::string storage_tiering::policy::storage_tiering{"irods_policy_storage_tiering"};
+    const std::string storage_tiering::policy::data_movement{"irods_policy_data_movement"};
+    const std::string storage_tiering::policy::access_time{"irods_policy_apply_access_time"};
 
-    storage_tiering_configuration::storage_tiering_configuration(
-        const std::string& _instance_name )
-        : instance_name{_instance_name} {
-        bool success_flag = false;
-
-        try {
-            const auto& rule_engines = get_server_property<
-                const std::vector<boost::any>&>(
-                        std::vector<std::string>{
-                        CFG_PLUGIN_CONFIGURATION_KW,
-                        PLUGIN_TYPE_RULE_ENGINE});
-            for ( const auto& elem : rule_engines ) {
-                const auto& rule_engine = boost::any_cast< const std::unordered_map< std::string, boost::any >& >( elem );
-                const auto& inst_name   = boost::any_cast< const std::string& >( rule_engine.at( CFG_INSTANCE_NAME_KW ) );
-                if ( inst_name == _instance_name ) {
-                    if(rule_engine.count(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW) > 0) {
-                        const auto& plugin_spec_cfg = boost::any_cast<const std::unordered_map<std::string, boost::any>&>(
-                                rule_engine.at(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW));
-                        if(plugin_spec_cfg.find("access_time_attribute") != plugin_spec_cfg.end()) {
-                            access_time_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("access_time_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("group_attribute") != plugin_spec_cfg.end()) {
-                            group_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("group_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("time_attribute") != plugin_spec_cfg.end()) {
-                            time_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("time_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("query_attribute") != plugin_spec_cfg.end()) {
-                            query_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("query_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("verification_attribute") != plugin_spec_cfg.end()) {
-                            verification_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("verification_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("restage_delay_attribute") != plugin_spec_cfg.end()) {
-                            restage_delay_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("restage_delay_attribute"));
-                        }
-
-                        if(plugin_spec_cfg.find("minimum_restage_tier") != plugin_spec_cfg.end()) {
-                            minimum_restage_tier = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("minimum_restage_tier"));
-                        }
-
-                        if(plugin_spec_cfg.find("preserve_replicas") != plugin_spec_cfg.end()) {
-                            preserve_replicas = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("preserve_replicas"));
-                        }
-
-                        if(plugin_spec_cfg.find("object_limit") != plugin_spec_cfg.end()) {
-                            object_limit = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("object_limit"));
-                        }
-
-                        if(plugin_spec_cfg.find("default_restage_delay_parameters") != plugin_spec_cfg.end()) {
-                            default_restage_delay_parameters = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("default_restage_delay_parameters"));
-                        }
-
-                        if(plugin_spec_cfg.find("time_check_string") != plugin_spec_cfg.end()) {
-                            time_check_string = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("time_check_string"));
-                        }
-
-                        if(plugin_spec_cfg.find(data_transfer_log_level_key) != plugin_spec_cfg.end()) {
-                            const std::string val = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at(data_transfer_log_level_key));
-                            if("LOG_NOTICE" == val) {
-                                data_transfer_log_level_value = LOG_NOTICE;
-                                rodsLog(
-                                    data_transfer_log_level_value,
-                                    "Setting log level to LOG_NOTICE");
-                            }
-                        }
-                    }
-
-                    success_flag = true;
-                } // if inst_name
-            } // for rule_engines
-        } catch ( const boost::bad_any_cast& e ) {
-            THROW( INVALID_ANY_CAST, e.what() );
-        } catch ( const std::out_of_range& e ) {
-            THROW( KEY_NOT_FOUND, e.what() );
-        }
-
-        if(!success_flag) {
-            THROW(
-                SYS_INVALID_INPUT_PARAM,
-                boost::format("failed to find configuration for storage_tiering plugin [%s]") %
-                _instance_name);
-        }
-    } // ctor storage_tiering_configuration
+    const std::string storage_tiering::schedule::storage_tiering{"irods_policy_schedule_storage_tiering"};
+    const std::string storage_tiering::schedule::data_movement{"irods_policy_schedule_data_object_movement"};
 
     storage_tiering::storage_tiering(
-            rsComm_t*          _comm,
-            const std::string& _instance_name) :
-        comm_(_comm),
-        config_(_instance_name) {
+        ruleExecInfo_t*    _rei,
+        const std::string& _instance_name) :
+          rei_(_rei)
+        , comm_(_rei->rsComm)
+        , config_(_instance_name) {
 
     }
 
@@ -361,20 +266,20 @@ namespace irods {
 
     } // get_restage_tier_resource_name
 
-    std::string storage_tiering::get_restage_delay_param_for_resc(
+    std::string storage_tiering::get_data_movement_parameters_for_resc(
             const std::string& _resource_name) {
 
         try {
             std::string ver = get_metadata_for_resource(
-                                  config_.restage_delay_attribute,
+                                  config_.data_movement_parameters_attribute,
                                   _resource_name);
             return ver;
         }
         catch(const exception& _e) {
-            return config_.default_restage_delay_parameters;
+            return config_.default_data_movement_parameters;
         }
 
-    } // get_restage_delay_param_for_resc
+    } // get_data_movement_parameters_for_resc
 
     resource_index_map storage_tiering::get_resource_map_for_group(
         const std::string& _group) {
@@ -499,91 +404,46 @@ namespace irods {
         }
     } // get_object_limit_for_resource
 
-    void storage_tiering::migrate_violating_objects_for_resource(
+    void storage_tiering::migrate_violating_data_objects(
         const std::string& _source_resource,
-        const std::string& _destination_resource,
-        ruleExecInfo_t*    _rei ) {
+        const std::string& _destination_resource) {
         try {
             const auto query_limit = get_object_limit_for_resource(_source_resource);
             const auto query_list  = get_violating_queries_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
-                const auto  qtype = query<rsComm_t>::convert_string_to_query_type(q_itr.second);
-                const auto& qstring = q_itr.first;
+                const auto  violating_query_type = query<rsComm_t>::convert_string_to_query_type(q_itr.second);
+                const auto& violating_query_string = q_itr.first;
 
                 try {
-                    query<rsComm_t> qobj{comm_, qstring, query_limit, qtype};
+                    query<rsComm_t> violating_query{comm_, violating_query_string, query_limit, violating_query_type};
                     rodsLog(
                         config_.data_transfer_log_level_value,
                         "found %ld objects for resc [%s] with query [%s] type [%d]",
-                        qobj.size(),
+                        violating_query.size(),
                         _source_resource.c_str(),
-                        qstring.c_str(),
-                        qtype);
+                        violating_query_string.c_str(),
+                        violating_query_type);
 
-                    for(const auto& result : qobj) {
+                    for(const auto& violating_result : violating_query) {
                         using json = nlohmann::json;
 
-                        auto object_path  = result[1];
+                        auto object_path  = violating_result[1];
                         const auto& vps   = get_virtual_path_separator();
                         if( !boost::ends_with(object_path, vps)) {
                             object_path += vps;
                         }
-                        object_path += result[0];
+                        object_path += violating_result[0];
 
-                        json rule_obj;
-                        rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-                        rule_obj["rule-engine-instance-name"] = config_.instance_name;
-                        rule_obj["preserve-replicas"] = get_preserve_replicas_for_resc(_source_resource);
-                        rule_obj["verification-type"] = get_verification_for_resc(_destination_resource);
-                        rule_obj["source-resource"] = _source_resource;
-                        rule_obj["destination-resource"] = _destination_resource;
-                        rule_obj["object-path"] = object_path;
+                        queue_data_movement(
+                            config_.instance_name,
+                            object_path,
+                            _source_resource,
+                            _destination_resource,
+                            get_verification_for_resc(_destination_resource),
+                            get_preserve_replicas_for_resc(_source_resource),
+                            get_data_movement_parameters_for_resc(_source_resource));
 
-                        std::string remote_host;
-                        try {
-                            rodsLong_t src_resc_id = boost::lexical_cast<rodsLong_t>(result[2]);
-                            error ret = get_resource_property<std::string>(
-                                            src_resc_id,
-                                            RESOURCE_LOCATION,
-                                            remote_host);
-                            if(!ret.ok()) {
-                                THROW(ret.code(), ret.result());
-                            }
-                        }
-                        catch(const boost::bad_lexical_cast& _e) {
-                            THROW(
-                                INVALID_LEXICAL_CAST,
-                                _e.what());
-                        }
-
-                        execMyRuleInp_t exec_inp;
-                        memset(&exec_inp, 0, sizeof(exec_inp));
-                        exec_inp.condInput.len = 0;
-                        exec_inp.addr.portNum = 0,
-                        rstrcpy(
-                            exec_inp.addr.hostAddr,
-                            remote_host.c_str(),
-                            LONG_NAME_LEN);
-                        snprintf(
-                            exec_inp.myRule,
-                            META_STR_LEN,
-                            "%s",
-                            rule_obj.dump().c_str());
-
-                        msParamArray_t *out_params{nullptr};
-                        const auto rem_err = rsExecMyRule(
-                                                _rei->rsComm,
-                                                &exec_inp,
-                                                &out_params);
-                        if(rem_err < 0) {
-                            THROW(
-                                rem_err,
-                                boost::format("restage failed for object [%s] from [%s] to [%s]") %
-                                object_path %
-                                _source_resource %
-                                _destination_resource);
-                        } // if
-                    } // for result
+                    } // for violating_result
                 }
                 catch(const exception& _e) {
                     // if nothing of interest is found, thats not an error
@@ -592,8 +452,8 @@ namespace irods {
                             config_.data_transfer_log_level_value,
                             "no object found resc [%s] with query [%s] type [%d]",
                             _source_resource.c_str(),
-                            qstring.c_str(),
-                            qtype);
+                            violating_query_string.c_str(),
+                            violating_query_type);
 
                         continue;
                     }
@@ -609,118 +469,68 @@ namespace irods {
                 boost::format("out of bounds index for storage tiering query on resource [%s] : both DATA_NAME, COLL_NAME are required") %
                 _source_resource);
         }
-    } // migrate_violating_objects_for_resource
+    } // migrate_violating_data_objects
+
+    void storage_tiering::schedule_storage_tiering_policy(
+        const std::string& _json,
+        const std::string& _params) {
+        const int delay_err = _delayExec(
+                                  _json.c_str(),
+                                  "",
+                                  _params.c_str(),
+                                  rei_);
+        if(delay_err < 0) {
+            THROW(
+            delay_err,
+            "delayExec failed");
+        }
+
+    } // schedule_storage_tiering_policy
 
     void storage_tiering::queue_data_movement(
-        const std::string& _restage_delay_params,
-        const std::string& _verification_type,
+        const std::string& _plugin_instance_name,
+        const std::string& _object_path,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const std::string& _object_path,
-        ruleExecInfo_t*    _rei) {
+        const std::string& _verification_type,
+        const bool         _preserve_replicas,
+        const std::string& _data_movement_params) {
         using json = nlohmann::json;
 
         json rule_obj;
-        rule_obj["rule-engine-operation"] = "migrate_object_to_resource";
-        rule_obj["preserve-replicas"]     = get_preserve_replicas_for_resc(_source_resource);
-        rule_obj["verification-type"]    = _verification_type;
-        rule_obj["source-resource"]      = _source_resource;
-        rule_obj["destination-resource"] = _destination_resource;
-        rule_obj["object-path"]          = _object_path;
+        rule_obj["rule-engine-operation"]     = policy::data_movement;
+        rule_obj["rule-engine-instance-name"] = _plugin_instance_name;
+        rule_obj["object-path"]               = _object_path;
+        rule_obj["source-resource"]           = _source_resource;
+        rule_obj["destination-resource"]      = _destination_resource;
+        rule_obj["preserve-replicas"]         = _preserve_replicas,
+        rule_obj["verification-type"]         = _verification_type;
 
         const auto delay_err = _delayExec(
                                    rule_obj.dump().c_str(),
                                    "",
-                                   _restage_delay_params.c_str(), 
-                                   _rei);
+                                   _data_movement_params.c_str(), 
+                                   rei_);
         if(delay_err < 0) {
             THROW(
                 delay_err,
-                boost::format("restage failed for object [%s] from [%s] to [%s]") %
+                boost::format("queue data movement failed for object [%s] from [%s] to [%s]") %
                 _object_path %
                 _source_resource %
                 _destination_resource);
         }
+
+        rodsLog(
+            config_.data_transfer_log_level_value,
+            "irods::storage_tiering migrating [%s] from [%s] to [%s]",
+            _object_path.c_str(),
+            _source_resource.c_str(),
+            _destination_resource.c_str());
+
     } // queue_data_movement
 
-    void storage_tiering::apply_access_time_to_collection(
-        rsComm_t* _comm,
-        int       _handle) {
-        collEnt_t* coll_ent{nullptr};
-        int err = rsReadCollection(_comm, &_handle, &coll_ent);
-        while(err >= 0) {
-            if(DATA_OBJ_T == coll_ent->objType) {
-                const auto& vps = get_virtual_path_separator();
-                std::string lp{coll_ent->collName};
-                lp += vps;
-                lp += coll_ent->dataName;
-                update_access_time_for_data_object(lp);
-            }
-            else if(COLL_OBJ_T == coll_ent->objType) {
-                collInp_t coll_inp;
-                memset(&coll_inp, 0, sizeof(coll_inp));
-                rstrcpy(
-                    coll_inp.collName,
-                    coll_ent->collName,
-                    MAX_NAME_LEN);
-                int handle = rsOpenCollection(_comm, &coll_inp);
-                apply_access_time_to_collection(_comm, handle);
-                rsCloseCollection(_comm, &handle);
-            }
-
-            err = rsReadCollection(_comm, &_handle, &coll_ent);
-        } // while
-    } // apply_access_time_to_collection
-
-    // =-=-=-=-=-=-=-
-    // Application Functions
-    void storage_tiering::apply_access_time(
-            rsComm_t*              _comm,
-            std::list<boost::any>& _args) {
-        try {
-            // NOTE:: 3rd parameter is the dataObjInp_t
-            auto it = _args.begin();
-            std::advance(it, 2);
-            if(_args.end() == it) {
-                THROW(
-                    SYS_INVALID_INPUT_PARAM,
-                    "invalid number of arguments");
-            }
-
-            auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            const char* coll_type = getValByKey(&obj_inp->condInput, COLLECTION_KW);
-            if(!coll_type) {
-                update_access_time_for_data_object(obj_inp->objPath);
-            }
-            else {
-                // register a collection
-                collInp_t coll_inp;
-                memset(&coll_inp, 0, sizeof(coll_inp));
-                rstrcpy(
-                    coll_inp.collName,
-                    obj_inp->objPath,
-                    MAX_NAME_LEN);
-                int handle = rsOpenCollection(
-                                 _comm,
-                                 &coll_inp);
-                if(handle < 0) {
-                    THROW(
-                        handle,
-                        boost::format("failed to open collection [%s]") %
-                        obj_inp->objPath);
-                }
-
-                apply_access_time_to_collection(_comm, handle);
-            }
-        }
-        catch(const boost::bad_any_cast& _e) {
-            THROW( INVALID_ANY_CAST, _e.what() );
-        }
-    } // apply_access_time
-
-    void storage_tiering::restage_object_to_lowest_tier(
-        std::list<boost::any>& _args,
-        ruleExecInfo_t*        _rei) {
+    void storage_tiering::migrate_object_to_minimum_restage_tier(
+        std::list<boost::any>& _args) {
         const char* object_path{nullptr};
         const char* source_resource_hier{nullptr};
         try {
@@ -756,15 +566,16 @@ namespace irods {
                                                      group_name);
             const auto  verification_type = get_verification_for_resc(
                                                   low_tier_resource_name);
-            const auto restage_delay_params = get_restage_delay_param_for_resc(
+            const auto data_movement_params = get_data_movement_parameters_for_resc(
                                                   source_resource);
             queue_data_movement(
-                    restage_delay_params,
-                    verification_type,
+                    config_.instance_name,
+                    object_path,
                     source_resource,
                     low_tier_resource_name,
-                    object_path,
-                    _rei);
+                    verification_type,
+                    false,
+                    data_movement_params);
         }
         catch(const exception& _e) {
             if(CAT_NO_ROWS_FOUND == _e.code()) {
@@ -774,11 +585,10 @@ namespace irods {
                     source_resource.c_str());
             }
         }
-    } // restage_object_to_lowest_tier
+    } // migrate_object_to_minimum_restage_tier
 
-    void storage_tiering::apply_storage_tiering_policy(
-        const std::string& _group,
-        ruleExecInfo_t*    _rei ) {
+    void storage_tiering::apply_policy_for_tier_group(
+        const std::string& _group) {
         const resource_index_map rescs = get_resource_map_for_group(
                                              _group);
         if(rescs.empty()) {
@@ -790,45 +600,20 @@ namespace irods {
             return;
         }
 
-        auto resc_itr = rescs.begin();
-        for( ; resc_itr != rescs.end(); ++resc_itr) {
+        auto resc_itr = std::begin(rescs);
+        for( ; resc_itr != std::end(rescs); ++resc_itr) {
             auto next_itr = resc_itr;
 
             ++next_itr;
             if(rescs.end() == next_itr) {
                 break;
             }
-            migrate_violating_objects_for_resource(resc_itr->second, next_itr->second, _rei);
+
+            migrate_violating_data_objects(resc_itr->second, next_itr->second);
+
         } // for resc
 
-    } // apply_storage_tiering_policy
-
-    void storage_tiering::move_data_object(
-            const bool         _preserve_replicas,
-            const std::string& _verification_type,
-            const std::string& _source_resource,
-            const std::string& _destination_resource,
-            const std::string& _object_path) {
-        irods::object_migrator mover(
-            comm_,
-            _preserve_replicas,
-            _verification_type,
-            _source_resource,
-            _destination_resource,
-            _object_path);
-
-        rodsLog(
-            config_.data_transfer_log_level_value,
-            "storage_tiering::migrating [%s] from [%s] to [%s] inst name [%s] with verification[%s] and preservation %d",
-            _object_path.c_str(),
-            _source_resource.c_str(),
-            _destination_resource.c_str(),
-            config_.instance_name.c_str(),
-            _verification_type.c_str(),
-            _preserve_replicas);
-
-        mover();
-
-    } // move_data_object
+    } // apply_policy_for_tier_group
 
 }; // namespace irods
+
