@@ -16,27 +16,51 @@ namespace irods {
         std::string time_attribute{"irods::storage_tiering::time"};
         std::string query_attribute{"irods::storage_tiering::query"};
         std::string verification_attribute{"irods::storage_tiering::verification"};
-        std::string restage_delay_attribute{"irods::storage_tiering::restage_delay"};
+        std::string data_movement_parameters_attribute{"irods::storage_tiering::data_movement_parameters"};
         std::string minimum_restage_tier{"irods::storage_tiering::minimum_restage_tier"};
         std::string preserve_replicas{"irods::storage_tiering::preserve_replicas"};
         std::string object_limit{"irods::storage_tiering::object_limit"};
 
-        std::string default_restage_delay_parameters{"<PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
+        std::string default_data_movement_parameters{"<INST_NAME>irods-rule-engine-plugin-storage-tiering-instance</INST_NAME><PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
         
         const std::string data_transfer_log_level_key{"data_transfer_log_level"};
         int data_transfer_log_level_value{LOG_DEBUG};
 
-        std::string instance_name{};
+        const std::string instance_name{};
 
         explicit storage_tiering_configuration(const std::string& _instance_name);
     };
 
     using resource_index_map = std::map<std::string, std::string>;
     class storage_tiering {
-        rsComm_t*                     comm_;
-        storage_tiering_configuration config_;
+        public:
+        struct policy {
+            static const std::string storage_tiering;
+            static const std::string data_movement;
+            static const std::string access_time;
+        };
 
+        struct schedule {
+            static const std::string storage_tiering;
+            static const std::string data_movement;
+        };
+
+        storage_tiering(
+            ruleExecInfo_t*    _rei,
+            const std::string& _instance_name);
+
+        void apply_policy_for_tier_group(
+            const std::string& _group);
+
+        void migrate_object_to_minimum_restage_tier(
+            std::list<boost::any>& _args);
+
+        void schedule_storage_tiering_policy(
+            const std::string& _json,
+            const std::string& _params);
+
+        private:
         void update_access_time_for_data_object(
             const std::string& _logical_path);
 
@@ -66,7 +90,7 @@ namespace irods {
         std::string get_restage_tier_resource_name(
             const std::string& _resource_name);
 
-        std::string get_restage_delay_param_for_resc(
+        std::string get_data_movement_parameters_for_resc(
             const std::string& _resource_name);
 
         resource_index_map
@@ -82,49 +106,26 @@ namespace irods {
         uint32_t get_object_limit_for_resource(
             const std::string& _resource_name);
 
-        void migrate_violating_objects_for_resource(
-            const std::string& _source_resource,
-            const std::string& _destination_resource,
-            ruleExecInfo_t*        _rei);
-
-        public:
-        storage_tiering(
-            rsComm_t*          _comm,
-            const std::string& _instance_name);
-
-        void apply_access_time_to_collection(
-            rsComm_t*,
-            int);
-
-        void apply_access_time(
-            rsComm_t*,
-            std::list<boost::any>& _args);
-
-        void restage_object_to_lowest_tier(
-            std::list<boost::any>& _args,
-            ruleExecInfo_t*        _rei);
-
-        void apply_storage_tiering_policy(
-            const std::string& _group,
-            ruleExecInfo_t*    _rei);
-
         void queue_data_movement(
-            const std::string& _restage_delay_params,
-            const std::string& _verification_type,
-            const std::string& _source_resource,
-            const std::string& _destination_resource,
+            const std::string& _plugin_instance_name,
             const std::string& _object_path,
-            ruleExecInfo_t*    _rei);
-
-        void move_data_object(
-            const bool         _preserve_replicas,
-            const std::string& _verification_type,
             const std::string& _source_resource,
             const std::string& _destination_resource,
-            const std::string& _object_path);
+            const std::string& _verification_type,
+            const bool         _preserve_replicas,
+            const std::string& _data_movement_params);
+
+        void migrate_violating_data_objects(
+            const std::string& _source_resource,
+            const std::string& _destination_resource);
+        
+        // Attributes 
+        ruleExecInfo_t*               rei_;
+        rsComm_t*                     comm_;
+        storage_tiering_configuration config_;
+
 
     }; // class storage_tiering
-
 }; // namespace irods
 
 #endif // IRODS_STORAGE_TIERING_HPP

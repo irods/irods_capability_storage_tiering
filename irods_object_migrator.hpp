@@ -7,10 +7,6 @@
 #include <string>
 
 namespace irods {
-static const std::string VERIFY_CHECKSUM{"checksum"};
-static const std::string VERIFY_FILESYSTEM{"filesystem"};
-static const std::string VERIFY_CATALOG{"catalog"};
-
 
     class object_migrator {
         rsComm_t*         comm_;
