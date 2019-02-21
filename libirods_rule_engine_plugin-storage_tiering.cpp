@@ -215,14 +215,18 @@ irods::error exec_rule_text(
         }
     }
     catch(const  std::invalid_argument& _e) {
+        std::string msg{"Rule text is not valid JSON -- "};
+        msg += _e.what();
         return ERROR(
                    SYS_NOT_SUPPORTED,
-                   _e.what());
+                   msg);
     }
     catch(const std::domain_error& _e) {
+        std::string msg{"Rule text is not valid JSON -- "};
+        msg += _e.what();
         return ERROR(
                    SYS_NOT_SUPPORTED,
-                   _e.what());
+                   msg);
     }
     catch(const irods::exception& _e) {
         return ERROR(
