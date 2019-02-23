@@ -38,8 +38,8 @@ int _delayExec(
 namespace irods {
 
     storage_tiering_configuration::storage_tiering_configuration(
-        const std::string& _instance_name ) {
-        instance_name = _instance_name;
+        const std::string& _instance_name )
+        : instance_name{_instance_name} {
         bool success_flag = false;
 
         try {
@@ -178,7 +178,7 @@ namespace irods {
                     boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
                     _meta_attr_name %
                     _resource_name) };
-        query qobj{comm_, query_str, 1};
+        query<rsComm_t> qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
             return qobj.front()[0];
         }
@@ -199,7 +199,7 @@ namespace irods {
                     boost::format("SELECT META_RESC_ATTR_VALUE, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
                     _meta_attr_name %
                     _resource_name) };
-        query qobj{comm_, query_str};
+        query<rsComm_t> qobj{comm_, query_str};
         if(qobj.size() > 0) {
             for( const auto& r : qobj) {
                 _results.push_back(std::make_pair(r[0], r[1]));
@@ -224,7 +224,7 @@ namespace irods {
                         "SELECT RESC_ID, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = '%s'") %
                     config_.group_attribute %
                     _group_name) };
-        for(auto row : query{comm_, query_str}) {
+        for(auto row : query<rsComm_t>{comm_, query_str}) {
             std::string& resc_name = row[0];
             std::string& tier_idx  = row[1];
 
@@ -332,7 +332,7 @@ namespace irods {
                         "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = 'true' and RESC_ID IN (%s)") %
                     config_.minimum_restage_tier %
                     resc_list) };
-        query qobj{comm_, query_str, 1};
+        query<rsComm_t> qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
             const auto& result = qobj.front();
             if(qobj.size() > 1) {
@@ -386,7 +386,7 @@ namespace irods {
                         boost::format("SELECT META_RESC_ATTR_UNITS, RESC_NAME WHERE META_RESC_ATTR_VALUE = '%s' AND META_RESC_ATTR_NAME = '%s'") %
                         _group %
                         config_.group_attribute)};
-            query qobj{comm_, query_str};
+            query<rsComm_t> qobj{comm_, query_str};
             for(const auto& g : qobj) {
                 groups[g[0]] = g[1];
             }
@@ -507,11 +507,11 @@ namespace irods {
             const auto query_limit = get_object_limit_for_resource(_source_resource);
             const auto query_list  = get_violating_queries_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
-                const auto  qtype = query::convert_string_to_query_type(q_itr.second);
+                const auto  qtype = query<rsComm_t>::convert_string_to_query_type(q_itr.second);
                 const auto& qstring = q_itr.first;
 
                 try {
-                    query qobj{comm_, qstring, query_limit, qtype};
+                    query<rsComm_t> qobj{comm_, qstring, query_limit, qtype};
                     rodsLog(
                         config_.data_transfer_log_level_value,
                         "found %ld objects for resc [%s] with query [%s] type [%d]",
