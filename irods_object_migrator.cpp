@@ -205,7 +205,7 @@ namespace irods {
                         obj_name %
                         coll_name %
                         leaf_str);
-        query qobj{comm_, query_str, 1};
+        query<rsComm_t> qobj{comm_, query_str, 1};
         if(qobj.size() > 0) {
             const auto result = qobj.front();
             _file_path      = result[0];
@@ -256,7 +256,7 @@ namespace irods {
                         obj_name %
                         coll_name %
                         _resource_name);
-        irods::query qobj(comm_, query_str, 1);
+        irods::query<rsComm_t> qobj(comm_, query_str, 1);
         if(qobj.size() > 0) {
             const auto& result = qobj.front();
             const auto& data_checksum = result[0];
