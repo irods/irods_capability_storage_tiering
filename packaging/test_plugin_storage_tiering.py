@@ -32,8 +32,8 @@ def storage_tiering_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name" : "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name" : "irods-rule-engine-plugin-storage-tiering",
+                "instance_name" : "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name" : "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration" : {
                     "access_time_attribute" : "irods::custom_access_time",
                     "group_attribute" : "irods::custom_storage_tiering::group",
@@ -50,8 +50,8 @@ def storage_tiering_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-verification-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-verification",
+                "instance_name": "irods_rule_engine_plugin-data_verification-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_verification",
                 "plugin_specific_configuration": {
                 }
             }
@@ -59,8 +59,8 @@ def storage_tiering_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-replication-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-replication",
+                "instance_name": "irods_rule_engine_plugin-data_replication-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_replication",
                 "plugin_specific_configuration": {
                 }
             }
@@ -68,8 +68,8 @@ def storage_tiering_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -77,8 +77,8 @@ def storage_tiering_configured_custom(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-apply-access-time-instance",
-                "plugin_name": "irods-rule-engine-plugin-apply-access-time",
+                "instance_name": "irods_rule_engine_plugin-apply_access_time-instance",
+                "plugin_name": "irods_rule_engine_plugin-apply_access_time",
                 "plugin_specific_configuration": {
                 }
             }
@@ -99,8 +99,8 @@ def storage_tiering_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name": "irods-rule-engine-plugin-storage-tiering",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                     "data_transfer_log_level" : "LOG_NOTICE"
                 }
@@ -109,8 +109,8 @@ def storage_tiering_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-verification-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-verification",
+                "instance_name": "irods_rule_engine_plugin-data_verification-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_verification",
                 "plugin_specific_configuration": {
                 }
             }
@@ -118,8 +118,8 @@ def storage_tiering_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-replication-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-replication",
+                "instance_name": "irods_rule_engine_plugin-data_replication-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_replication",
                 "plugin_specific_configuration": {
                 }
             }
@@ -127,8 +127,8 @@ def storage_tiering_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -136,8 +136,8 @@ def storage_tiering_configured(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-apply-access-time-instance",
-                "plugin_name": "irods-rule-engine-plugin-apply-access-time",
+                "instance_name": "irods_rule_engine_plugin-apply_access_time-instance",
+                "plugin_name": "irods_rule_engine_plugin-apply_access_time",
                 "plugin_specific_configuration": {
                 }
             }
@@ -158,8 +158,8 @@ def storage_tiering_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name": "irods-rule-engine-plugin-storage-tiering",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                     "data_transfer_log_level" : "LOG_NOTICE"
                 }
@@ -168,8 +168,8 @@ def storage_tiering_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-verification-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-verification",
+                "instance_name": "irods_rule_engine_plugin-data_verification-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_verification",
                 "plugin_specific_configuration": {
                 }
             }
@@ -177,8 +177,8 @@ def storage_tiering_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-replication-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-replication",
+                "instance_name": "irods_rule_engine_plugin-data_replication-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_replication",
                 "plugin_specific_configuration": {
                 }
             }
@@ -186,8 +186,8 @@ def storage_tiering_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -195,8 +195,8 @@ def storage_tiering_configured_with_log(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-apply-access-time-instance",
-                "plugin_name": "irods-rule-engine-plugin-apply-access-time",
+                "instance_name": "irods_rule_engine_plugin-apply_access_time-instance",
+                "plugin_name": "irods_rule_engine_plugin-apply_access_time",
                 "plugin_specific_configuration": {
                 }
             }
@@ -218,8 +218,8 @@ def storage_tiering_configured_without_replication(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name": "irods-rule-engine-plugin-storage-tiering",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                     "data_transfer_log_level": "LOG_NOTICE"
                 }
@@ -228,8 +228,8 @@ def storage_tiering_configured_without_replication(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-verification-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-verification",
+                "instance_name": "irods_rule_engine_plugin-data_verification-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_verification",
                 "plugin_specific_configuration": {
                 }
             }
@@ -237,8 +237,8 @@ def storage_tiering_configured_without_replication(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -246,8 +246,8 @@ def storage_tiering_configured_without_replication(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-apply-access-time-instance",
-                "plugin_name": "irods-rule-engine-plugin-apply-access-time",
+                "instance_name": "irods_rule_engine_plugin-apply_access_time-instance",
+                "plugin_name": "irods_rule_engine_plugin-apply_access_time",
                 "plugin_specific_configuration": {
                 }
             }
@@ -268,8 +268,8 @@ def storage_tiering_configured_without_verification(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name": "irods-rule-engine-plugin-storage-tiering",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                 }
             }
@@ -277,8 +277,8 @@ def storage_tiering_configured_without_verification(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-replication-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-replication",
+                "instance_name": "irods_rule_engine_plugin-data_replication-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_replication",
                 "plugin_specific_configuration": {
                 }
             }
@@ -286,8 +286,8 @@ def storage_tiering_configured_without_verification(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -295,8 +295,8 @@ def storage_tiering_configured_without_verification(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-apply-access-time-instance",
-                "plugin_name": "irods-rule-engine-plugin-apply-access-time",
+                "instance_name": "irods_rule_engine_plugin-apply_access_time-instance",
+                "plugin_name": "irods_rule_engine_plugin-apply_access_time",
                 "plugin_specific_configuration": {
                 }
             }
@@ -317,8 +317,8 @@ def storage_tiering_configured_without_access_time(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-storage-tiering-instance",
-                "plugin_name": "irods-rule-engine-plugin-storage-tiering",
+                "instance_name": "irods_rule_engine_plugin-storage_tiering-instance",
+                "plugin_name": "irods_rule_engine_plugin-storage_tiering",
                 "plugin_specific_configuration": {
                     "data_transfer_log_level" : "LOG_NOTICE"
                 }
@@ -327,8 +327,8 @@ def storage_tiering_configured_without_access_time(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-verification-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-verification",
+                "instance_name": "irods_rule_engine_plugin-data_verification-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_verification",
                 "plugin_specific_configuration": {
                 }
             }
@@ -336,8 +336,8 @@ def storage_tiering_configured_without_access_time(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-replication-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-replication",
+                "instance_name": "irods_rule_engine_plugin-data_replication-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_replication",
                 "plugin_specific_configuration": {
                 }
             }
@@ -345,8 +345,8 @@ def storage_tiering_configured_without_access_time(arg=None):
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
-                "instance_name": "irods-rule-engine-plugin-data-movement-instance",
-                "plugin_name": "irods-rule-engine-plugin-data-movement",
+                "instance_name": "irods_rule_engine_plugin-data_movement-instance",
+                "plugin_name": "irods_rule_engine_plugin-data_movement",
                 "plugin_specific_configuration": {
                 }
             }
@@ -412,7 +412,7 @@ class TestStorageTieringCustomReplicationPolicy(ResourceBase, unittest.TestCase)
 
                     # test stage to tier 1
                     sleep(5)
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
 
                     admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -484,7 +484,7 @@ class TestStorageTieringCustomVerificationPolicy(ResourceBase, unittest.TestCase
 
                     # test stage to tier 1
                     sleep(5)
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
 
                     admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -569,7 +569,7 @@ class TestStorageTieringCustomAccessTimePolicy(ResourceBase, unittest.TestCase):
 
                         # test stage to tier 1
                         sleep(10)
-                        admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                        admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                         sleep(10)
 
                         admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -643,13 +643,13 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
                     # test stage to tier 1
                     sleep(5)
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
                     alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                     # test stage to tier 2
                     sleep(10)
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
                     alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -749,14 +749,14 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
                 admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs1g2')
 
                 # test stage to tier 2
                 sleep(10)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 sleep(60)
                 admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
                 admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs2g2')
@@ -833,7 +833,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -841,7 +841,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 2
                 sleep(25)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(60)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -947,7 +947,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                     # test stage to tier 1
                     sleep(5)
                     initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
                     log_cnt = lib.count_occurrences_of_string_in_log(
                             paths.server_log_path(),
@@ -1014,7 +1014,7 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
                     # test stage to tier 1
                     sleep(5)
                     initial_size_of_server_log = lib.get_file_size_by_path(paths.server_log_path())
-                    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                     sleep(60)
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
@@ -1111,7 +1111,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, look for both replicas
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1161,7 +1161,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, look for both replicas (only one should move)
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1183,7 +1183,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, everything should move
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1203,7 +1203,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, everything should move
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1249,7 +1249,7 @@ class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
 
 		    # test stage to tier 1
 		    sleep(5)
-		    admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+		    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
 		    sleep(60)
 
 		    admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -1300,7 +1300,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                 admin_session.assert_icommand('imeta ls -d ' + filename2, 'STDOUT_SINGLELINE', 'irods::access_time')
 
                 # test stage to tier 1
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1309,7 +1309,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
                 sleep(40)
 
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs1')
@@ -1354,7 +1354,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1375,7 +1375,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
 
                 # test stage to tier 1
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(40)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1419,7 +1419,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, everything should have been tiered out
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(80)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1442,7 +1442,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, everything should have been tiered out
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(80)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1468,7 +1468,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, only the last item should not have been tiered out
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(80)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')
@@ -1492,7 +1492,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
                 # stage to tier 1, everything should have been tiered out
                 sleep(5)
-                admin_session.assert_icommand('irule -r irods-rule-engine-plugin-storage-tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                 sleep(80)
                 admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'No')

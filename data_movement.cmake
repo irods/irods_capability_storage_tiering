@@ -1,10 +1,10 @@
-set(POLICY_NAME "data-movement")
+set(POLICY_NAME "data_movement")
 
-set(IRODS_PACKAGE_COMPONENT_POLICY_NAME "${POLICY_NAME}")
+set(IRODS_PACKAGE_COMPONENT_POLICY_NAME "data-movement")
 #-${IRODS_PLUGIN_VERSION}")
 set(TOUPPER IRODS_PACKAGE_COMPONENT_POLICY_NAME_UPPERCASE ${IRODS_PACKAGE_COMPONENT_POLICY_NAME})
 
-set(TARGET_NAME "irods-rule-engine-plugin-${POLICY_NAME}")
+set(TARGET_NAME "irods_rule_engine_plugin-${POLICY_NAME}")
 
 set(
   IRODS_PLUGIN_POLICY_COMPILE_DEFINITIONS
@@ -17,11 +17,10 @@ set(
   irods_server
   )
 
-string(REPLACE "-" "_" POLICY_NAME_US ${POLICY_NAME})
 add_library(
     ${TARGET_NAME}
     MODULE
-    ${CMAKE_SOURCE_DIR}/libirods_rule_engine_plugin-${POLICY_NAME_US}.cpp
+    ${CMAKE_SOURCE_DIR}/lib${TARGET_NAME}.cpp
     ${CMAKE_SOURCE_DIR}/storage_tiering_utilities.cpp
     )
 
