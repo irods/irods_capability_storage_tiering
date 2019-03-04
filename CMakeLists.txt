@@ -10,7 +10,7 @@ set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 
-project(irods_rule_engine_plugin_storage_tiering C CXX)
+project(irods_rule_engine_plugin C CXX)
 
 include(${IRODS_TARGETS_PATH})
 
