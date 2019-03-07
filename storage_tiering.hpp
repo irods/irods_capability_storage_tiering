@@ -33,7 +33,8 @@ namespace irods {
             const std::string& _group);
 
         void migrate_object_to_minimum_restage_tier(
-            std::list<boost::any>& _args);
+                 const std::string& _object_path,
+                 const std::string& _source_name);
 
         void schedule_storage_tiering_policy(
             const std::string& _json,
