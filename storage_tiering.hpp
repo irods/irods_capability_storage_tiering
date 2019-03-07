@@ -41,6 +41,14 @@ namespace irods {
             const std::string& _params);
 
         private:
+        bool skip_object_in_lower_tier(
+            const std::string& _object_path,
+            const std::string& _partial_list);
+
+        std::string make_partial_list(
+            resource_index_map::iterator _itr,
+            resource_index_map::iterator _end);
+
         void update_access_time_for_data_object(
             const std::string& _logical_path);
 
@@ -76,13 +84,13 @@ namespace irods {
         resource_index_map
         get_resource_map_for_group(
             const std::string& _group);
-        
+
         std::string get_tier_time_for_resc(
             const std::string& _resource_name);
-        
+
         metadata_results get_violating_queries_for_resource(
             const std::string& _resource_name);
-        
+
         uint32_t get_object_limit_for_resource(
             const std::string& _resource_name);
 
@@ -96,9 +104,10 @@ namespace irods {
             const std::string& _data_movement_params);
 
         void migrate_violating_data_objects(
-            const std::string& _source_resource,
-            const std::string& _destination_resource);
-        
+            const std::string&       _partial_list,
+            const std::string&       _source_resource,
+            const std::string&       _destination_resource);
+
         // Attributes 
         ruleExecInfo_t*               rei_;
         rsComm_t*                     comm_;
