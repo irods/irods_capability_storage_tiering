@@ -21,7 +21,7 @@ add_library(
     ${TARGET_NAME}
     MODULE
     ${CMAKE_SOURCE_DIR}/lib${TARGET_NAME}.cpp
-    ${CMAKE_SOURCE_DIR}/irods_storage_tiering.cpp
+    ${CMAKE_SOURCE_DIR}/storage_tiering.cpp
     ${CMAKE_SOURCE_DIR}/storage_tiering_configuration.cpp
     ${CMAKE_SOURCE_DIR}/storage_tiering_utilities.cpp
     )
