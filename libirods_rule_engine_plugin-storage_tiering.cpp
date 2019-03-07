@@ -121,7 +121,7 @@ namespace {
 
                 _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
             }
-            else if("pep_api_data_obj_put_post" == _rn) {
+            else if("pep_api_data_obj_get_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
