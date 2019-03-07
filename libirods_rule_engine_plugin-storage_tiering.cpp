@@ -2,9 +2,10 @@
 // =-=-=-=-=-=-=-
 // irods includes
 #include "irods_re_plugin.hpp"
-#include "irods_storage_tiering.hpp"
+#include "storage_tiering.hpp"
 #include "irods_re_ruleexistshelper.hpp"
 #include "storage_tiering_utilities.hpp"
+#include "irods_resource_backport.hpp"
 
 #undef LIST
 
@@ -23,6 +24,9 @@
 #include <boost/optional.hpp>
 
 #include "json.hpp"
+
+#include "objDesc.hpp"
+extern l1desc_t L1desc[NUM_L1_DESC];
 
 int _delayExec(
     const char *inActionCall,
@@ -73,7 +77,7 @@ namespace {
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _object_path) {
-        
+
         std::list<boost::any> args;
         args.push_back(boost::any(_instance_name));
         args.push_back(boost::any(_preserve_replicas));
@@ -84,6 +88,68 @@ namespace {
         irods::invoke_policy(_rei, irods::storage_tiering::policy::data_movement, args);
 
     } // apply_data_movement_policy
+
+    void apply_restage_movement_policy(
+        irods::storage_tiering& _st,
+        const std::string &     _rn,
+        std::list<boost::any>&  _args) {
+        try {
+            std::string object_path;
+            std::string source_name;
+            // NOTE:: 3rd parameter is the target
+            if("pep_api_data_obj_close_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                object_path = obj_inp->objPath;
+                const char* source_hier = getValByKey(
+                                              &obj_inp->condInput,
+                                              RESC_HIER_STR_KW);
+                if(!source_hier) {
+                    THROW(SYS_INVALID_INPUT_PARAM, "resc hier is null");
+                }
+
+                irods::hierarchy_parser parser;
+                parser.set_string(source_hier);
+                parser.last_resc(source_name);
+
+                _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
+            }
+            else if("pep_api_data_obj_put_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
+                const auto l1_idx = opened_inp->l1descInx;
+                const auto opr_type = opened_inp->oprType;
+
+                auto obj_info = L1desc[l1_idx].dataObjInfo;
+                object_path = obj_info->objPath;
+                auto id = obj_info->rescId;
+
+                irods::error err = irods::get_resource_property<std::string>(id, irods::RESOURCE_NAME, source_name);
+                if(!err.ok()) {
+                    THROW(err.code(), err.result());
+                }
+
+                _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
+            }
+        }
+        catch(const boost::bad_any_cast& _e) {
+            THROW(INVALID_ANY_CAST, _e.what());
+        }
+    } // apply_restage_movement_policy
 
 } // namespace
 
@@ -108,6 +174,8 @@ irods::error rule_exists(
     const std::string& _rn,
     bool&              _ret) {
     const std::set<std::string> rules{
+                                    "pep_api_data_obj_close_post",
+                                    "pep_api_data_obj_create_post",
                                     "pep_api_data_obj_put_post",
                                     "pep_api_data_obj_get_post",
                                     "pep_api_phy_path_reg_post"};
@@ -134,10 +202,8 @@ irods::error exec_rule(
     try {
         apply_access_time_policy(rei, _args);
 
-        if("pep_api_data_obj_get_post" == _rn) {
-            irods::storage_tiering st{rei, plugin_instance_name};
-            st.migrate_object_to_minimum_restage_tier(_args);
-        }
+        irods::storage_tiering st{rei, plugin_instance_name};
+        apply_restage_movement_policy(st, _rn, _args);
     }
     catch(const  std::invalid_argument& _e) {
         irods::exception_to_rerror(

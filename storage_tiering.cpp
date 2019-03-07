@@ -1,7 +1,7 @@
 
 #include "irods_server_properties.hpp"
 #include "irods_re_plugin.hpp"
-#include "irods_storage_tiering.hpp"
+#include "storage_tiering.hpp"
 #include "irods_query.hpp"
 #include "irods_object_migrator.hpp"
 #include "irods_virtual_path.hpp"
@@ -530,59 +530,34 @@ namespace irods {
     } // queue_data_movement
 
     void storage_tiering::migrate_object_to_minimum_restage_tier(
-        std::list<boost::any>& _args) {
-        const char* object_path{nullptr};
-        const char* source_resource_hier{nullptr};
+        const std::string& _object_path,
+        const std::string& _source_name) {
         try {
-            // NOTE:: 3rd parameter is the dataObjInp_t
-            auto it = _args.begin();
-            std::advance(it, 2);
-            if(_args.end() == it) {
-                THROW(
-                    SYS_INVALID_INPUT_PARAM,
-                    "invalid number of arguments");
+            const auto low_tier_resource_name = get_restage_tier_resource_name(
+                                                    get_metadata_for_resource(
+                                                        config_.group_attribute,
+                                                        _source_name));
+            // do not queue movement if data is on minimum tier
+            // TODO:: query for already queued movement?
+            if(low_tier_resource_name == _source_name) {
+                return;
             }
 
-            auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            object_path = obj_inp->objPath;
-            source_resource_hier = getValByKey(
-                                       &obj_inp->condInput,
-                                       RESC_HIER_STR_KW);
-        }
-        catch(const boost::bad_any_cast& _e) {
-            THROW(INVALID_ANY_CAST, _e.what());
-        }
-
-        std::string source_resource;
-        try {
-            hierarchy_parser h_parse;
-            h_parse.set_string(source_resource_hier);
-            h_parse.first_resc(source_resource);
-
-            const auto group_name = get_metadata_for_resource(
-                                        config_.group_attribute,
-                                        source_resource);
-            const auto low_tier_resource_name = get_restage_tier_resource_name(
-                                                     group_name);
-            const auto  verification_type = get_verification_for_resc(
-                                                  low_tier_resource_name);
-            const auto data_movement_params = get_data_movement_parameters_for_resc(
-                                                  source_resource);
             queue_data_movement(
-                    config_.instance_name,
-                    object_path,
-                    source_resource,
-                    low_tier_resource_name,
-                    verification_type,
-                    false,
-                    data_movement_params);
+                config_.instance_name,
+                _object_path,
+                _source_name,
+                low_tier_resource_name,
+                get_verification_for_resc(low_tier_resource_name),
+                false,
+                get_data_movement_parameters_for_resc(_source_name));
         }
         catch(const exception& _e) {
             if(CAT_NO_ROWS_FOUND == _e.code()) {
                 rodsLog(
                     config_.data_transfer_log_level_value,
                     "[%s] is not in a tier group",
-                    source_resource.c_str());
+                    _source_name.c_str());
             }
         }
     } // migrate_object_to_minimum_restage_tier
