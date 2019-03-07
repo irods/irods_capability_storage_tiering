@@ -1,7 +1,7 @@
 
 #include "rcConnect.h"
 #include <string>
-#include "irods_storage_tiering.hpp"
+#include "storage_tiering.hpp"
 
 namespace irods {
     bool verify_replica_for_destination_resource(

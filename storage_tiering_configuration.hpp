@@ -16,9 +16,9 @@ namespace irods {
         std::string preserve_replicas{"irods::storage_tiering::preserve_replicas"};
         std::string object_limit{"irods::storage_tiering::object_limit"};
 
-        std::string default_data_movement_parameters{"<INST_NAME>irods-rule-engine-plugin-storage-tiering-instance</INST_NAME><PLUSET>1s</PLUSET><EF>1h DOUBLE UNTIL SUCCESS OR 6 TIMES</EF>"};
+        std::string default_data_movement_parameters{"<INST_NAME>irods_rule_engine_plugin-storage_tiering-instance</INST_NAME><PLUSET>1s</PLUSET><EF>1m DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>"};
         std::string time_check_string{"TIME_CHECK_STRING"};
-        
+
         const std::string data_transfer_log_level_key{"data_transfer_log_level"};
         int data_transfer_log_level_value{LOG_DEBUG};
 
