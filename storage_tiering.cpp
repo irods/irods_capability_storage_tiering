@@ -91,7 +91,7 @@ namespace irods {
         THROW(
             CAT_NO_ROWS_FOUND,
             boost::format("no results found for resc [%s] with attribute [%s]") %
-            _resource_name % 
+            _resource_name %
             _meta_attr_name);
     } // get_metadata_for_resource
 
@@ -404,10 +404,36 @@ namespace irods {
         }
     } // get_object_limit_for_resource
 
+    bool storage_tiering::skip_object_in_lower_tier(
+        const std::string& _object_path,
+        const std::string& _partial_list) {
+        boost::filesystem::path p{_object_path};
+        std::string coll_name = p.parent_path().string();
+        std::string data_name = p.filename().string();
+        std::string qstr{boost::str(boost::format(
+            "SELECT RESC_ID WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND RESC_NAME IN (%s)")
+            % data_name % coll_name % _partial_list)};
+
+        query<rsComm_t> qobj{comm_, qstr};
+        bool skip = qobj.size() > 0;
+        if(skip) {
+            rodsLog(
+                config_.data_transfer_log_level_value,
+                "irods::storage_tiering - skipping migration for [%s] in resource list [%s]",
+                _object_path.c_str(),
+                _partial_list.c_str());
+        }
+
+        return skip;
+    } // skip_object_in_lower_tier
+
     void storage_tiering::migrate_violating_data_objects(
+        const std::string& _partial_list,
         const std::string& _source_resource,
         const std::string& _destination_resource) {
         try {
+            const bool preserve_replicas = get_preserve_replicas_for_resc(_source_resource);
+
             const auto query_limit = get_object_limit_for_resource(_source_resource);
             const auto query_list  = get_violating_queries_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
@@ -425,14 +451,20 @@ namespace irods {
                         violating_query_type);
 
                     for(const auto& violating_result : violating_query) {
-                        using json = nlohmann::json;
-
-                        auto object_path  = violating_result[1];
-                        const auto& vps   = get_virtual_path_separator();
+                        auto object_path = violating_result[1];
+                        const auto& vps  = get_virtual_path_separator();
                         if( !boost::ends_with(object_path, vps)) {
                             object_path += vps;
                         }
                         object_path += violating_result[0];
+
+                        if(preserve_replicas) {
+                            if(skip_object_in_lower_tier(
+                                   object_path,
+                                   _partial_list)) {
+                                continue;
+                            }
+                        }
 
                         queue_data_movement(
                             config_.instance_name,
@@ -562,9 +594,23 @@ namespace irods {
         }
     } // migrate_object_to_minimum_restage_tier
 
+    std::string storage_tiering::make_partial_list(
+            resource_index_map::iterator _itr,
+            resource_index_map::iterator _end) {
+        ++_itr; // skip source resource
+
+        std::string partial_list{};
+        for(; _itr != _end; ++_itr) {
+            partial_list += "'" + _itr->second + "', ";
+        }
+        partial_list += ")";
+
+        return partial_list;
+    }
+
     void storage_tiering::apply_policy_for_tier_group(
         const std::string& _group) {
-        const resource_index_map rescs = get_resource_map_for_group(
+        resource_index_map rescs = get_resource_map_for_group(
                                              _group);
         if(rescs.empty()) {
             rodsLog(
@@ -575,16 +621,20 @@ namespace irods {
             return;
         }
 
-        auto resc_itr = std::begin(rescs);
-        for( ; resc_itr != std::end(rescs); ++resc_itr) {
-            auto next_itr = resc_itr;
+        auto resc_itr = rescs.begin();
+        for( ; resc_itr != rescs.end(); ++resc_itr) {
+            const std::string partial_list{make_partial_list(resc_itr, rescs.end())};
 
+            auto next_itr = resc_itr;
             ++next_itr;
             if(rescs.end() == next_itr) {
                 break;
             }
 
-            migrate_violating_data_objects(resc_itr->second, next_itr->second);
+            migrate_violating_data_objects(
+                partial_list,
+                resc_itr->second,
+                next_itr->second);
 
         } // for resc
 
