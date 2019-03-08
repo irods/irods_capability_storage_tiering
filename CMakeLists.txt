@@ -10,8 +10,9 @@ set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 
-project(irods_rule_engine_plugin C CXX)
+set(PROJECT_NAME irods_rule_engine_plugin) 
 
+project( ${PROJECT_NAME} C CXX)
 include(${IRODS_TARGETS_PATH})
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -91,7 +92,7 @@ set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_M
 
 
 include(${CMAKE_SOURCE_DIR}/storage_tiering.cmake)
-include(${CMAKE_SOURCE_DIR}/access_time.cmake)
+include(${CMAKE_SOURCE_DIR}/apply_access_time.cmake)
 include(${CMAKE_SOURCE_DIR}/data_movement.cmake)
 include(${CMAKE_SOURCE_DIR}/data_replication.cmake)
 include(${CMAKE_SOURCE_DIR}/data_verification.cmake)
