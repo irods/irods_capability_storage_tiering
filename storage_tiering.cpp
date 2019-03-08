@@ -432,6 +432,7 @@ namespace irods {
         const std::string& _source_resource,
         const std::string& _destination_resource) {
         try {
+            std::map<std::string, uint8_t> object_is_processed;
             const bool preserve_replicas = get_preserve_replicas_for_resc(_source_resource);
 
             const auto query_limit = get_object_limit_for_resource(_source_resource);
@@ -441,7 +442,11 @@ namespace irods {
                 const auto& violating_query_string = q_itr.first;
 
                 try {
-                    query<rsComm_t> violating_query{comm_, violating_query_string, query_limit, violating_query_type};
+                    query<rsComm_t> violating_query{
+                                        comm_,
+                                        violating_query_string,
+                                        query_limit,
+                                        violating_query_type};
                     rodsLog(
                         config_.data_transfer_log_level_value,
                         "found %ld objects for resc [%s] with query [%s] type [%d]",
@@ -457,6 +462,13 @@ namespace irods {
                             object_path += vps;
                         }
                         object_path += violating_result[0];
+
+                        if(std::end(object_is_processed) !=
+                           object_is_processed.find(object_path)) {
+                            continue;
+                        }
+
+                        object_is_processed[object_path] = 1;
 
                         if(preserve_replicas) {
                             if(skip_object_in_lower_tier(
