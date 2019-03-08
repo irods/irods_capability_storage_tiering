@@ -54,7 +54,11 @@ namespace irods {
             resource_index_map::iterator _end);
 
         void update_access_time_for_data_object(
-            const std::string& _logical_path);
+            const std::string& _object_path);
+
+        std::string get_metadata_for_data_object(
+            const std::string& _meta_attr_name,
+            const std::string& _object_path);
 
         std::string get_metadata_for_resource(
             const std::string& _meta_attr_name,
