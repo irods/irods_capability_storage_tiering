@@ -1032,7 +1032,6 @@ class TestStorageTieringPluginWithMungefs(ResourceBase, unittest.TestCase):
 
                     self.assertTrue(log_cnt > 0, msg='log_cnt:{}'.format(log_cnt))
 
-
 class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
     def setUp(self):
         super(TestStorageTieringPluginMinimumRestage, self).setUp()
@@ -1515,6 +1514,48 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 # cleanup
                 admin_session.assert_icommand(['irm', '-f', '-r', dirname])
                 shutil.rmtree(dirname, ignore_errors=True)
+
+class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase):
+    def setUp(self):
+        super(TestStorageTieringPluginMultiGroupRestage, self).setUp()
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand('iqdel -a')
+            admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
+            admin_session.assert_icommand('iadmin mkresc ufs2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs2', 'STDOUT_SINGLELINE', 'unixfilesystem')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
+            admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::group example_group 1')
+
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group2 0')
+            admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::group example_group2 1')
+
+            admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
+            admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::time 5')
+
+    def tearDown(self):
+        super(TestStorageTieringPluginMultiGroupRestage, self).tearDown()
+        with session.make_session_for_existing_admin() as admin_session:
+
+            admin_session.assert_icommand('iadmin rmresc ufs0')
+            admin_session.assert_icommand('iadmin rmresc ufs1')
+            admin_session.assert_icommand('iadmin rmresc ufs2')
+            admin_session.assert_icommand('iadmin rum')
+
+    def test_put_and_get(self):
+        with storage_tiering_configured():
+            with session.make_session_for_existing_admin() as admin_session:
+                filename = 'test_put_file'
+                filepath = lib.create_local_testfile(filename)
+                admin_session.assert_icommand('iput -R ufs1 ' + filename)
+                admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
+
+                # test restage to tier 1
+                admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
+                sleep(40)
+                admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
+
+                admin_session.assert_icommand('irm -f ' + filename)
 
 
 

@@ -163,7 +163,7 @@ namespace {
             std::string object_path;
             std::string source_name;
             // NOTE:: 3rd parameter is the target
-            if("pep_api_data_obj_close_post" == _rn) {
+            if("pep_api_data_obj_put_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -187,7 +187,7 @@ namespace {
 
                 _st.apply_tier_group_metadata_to_object(object_path, source_name);
             }
-            else if("pep_api_data_obj_put_post" == _rn) {
+            else if("pep_api_data_obj_close_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -270,7 +270,7 @@ irods::error exec_rule(
         apply_access_time_policy(rei, _args);
 
         irods::storage_tiering st{rei, plugin_instance_name};
-        apply_tier_group_metadata_policy(st, _rn, -args);
+        apply_tier_group_metadata_policy(st, _rn, _args);
         apply_restage_movement_policy(st, _rn, _args);
     }
     catch(const  std::invalid_argument& _e) {
