@@ -21,6 +21,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
+#include <random>
 
 #include "json.hpp"
 
@@ -268,16 +269,65 @@ namespace irods {
 
     std::string storage_tiering::get_data_movement_parameters_for_resc(
             const std::string& _resource_name) {
+        std::string params = "<INST_NAME>" + config_.instance_name + "</INST_NAME>";
 
+        // if metadata is not present an irods::exception is thrown
+        // which is ignored in the presence of strong defaults
+        std::string extras{config_.default_data_movement_parameters};
         try {
-            std::string ver = get_metadata_for_resource(
-                                  config_.data_movement_parameters_attribute,
-                                  _resource_name);
-            return ver;
+            extras = get_metadata_for_resource(
+                         config_.data_movement_parameters_attribute,
+                         _resource_name);
         }
-        catch(const exception& _e) {
-            return config_.default_data_movement_parameters;
+        catch(const exception&) {
         }
+        params += extras;
+
+        int min_time{config_.default_minimum_delay_time};
+        try {
+            std::string t0 = get_metadata_for_resource(
+                                 config_.minimum_delay_time,
+                                 _resource_name);
+            min_time = boost::lexical_cast<int>(t0);
+        }
+        catch(const exception&) {
+        }
+        catch(const boost::bad_lexical_cast&){
+        }
+
+        int max_time{config_.default_maximum_delay_time};
+        try {
+            std::string t1 = get_metadata_for_resource(
+                                config_.maximum_delay_time,
+                                _resource_name);
+            max_time = boost::lexical_cast<int>(t1);
+        }
+        catch(const exception&) {
+        }
+        catch(const boost::bad_lexical_cast&){
+        }
+
+        std::string sleep_time{"1"};
+        try {
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(min_time, max_time);
+            sleep_time = boost::lexical_cast<std::string>(dis(gen));
+        }
+        catch(const boost::bad_lexical_cast&){
+        }
+
+
+
+        params += "<PLUSET>"+sleep_time+"</PLUSET>";
+
+        rodsLog(
+            config_.data_transfer_log_level_value,
+            "irods::storage_tiering :: delay params for [%s] - [%s]",
+            _resource_name.c_str(),
+            params.c_str());
+
+        return params;
 
     } // get_data_movement_parameters_for_resc
 

@@ -16,14 +16,19 @@ namespace irods {
         std::string preserve_replicas{"irods::storage_tiering::preserve_replicas"};
         std::string object_limit{"irods::storage_tiering::object_limit"};
 
-        std::string default_data_movement_parameters{"<INST_NAME>irods_rule_engine_plugin-storage_tiering-instance</INST_NAME><PLUSET>1s</PLUSET><EF>1m DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>"};
+        std::string minimum_delay_time{"irods::storage_tiering::minimum_delay_time_in_seconds"};
+        std::string maximum_delay_time{"irods::storage_tiering::maximum_delay_time_in_seconds"};
+
         std::string time_check_string{"TIME_CHECK_STRING"};
 
         const std::string data_transfer_log_level_key{"data_transfer_log_level"};
         int data_transfer_log_level_value{LOG_DEBUG};
 
-        const std::string instance_name{};
+        int default_minimum_delay_time{1};
+        int default_maximum_delay_time{30};
+        std::string default_data_movement_parameters{"<EF>1m DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>"};
 
+        const std::string instance_name{};
         explicit storage_tiering_configuration(const std::string& _instance_name);
     };
 } // namespace irods
