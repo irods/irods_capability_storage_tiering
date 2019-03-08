@@ -40,6 +40,10 @@ namespace irods {
             const std::string& _json,
             const std::string& _params);
 
+        void apply_tier_group_metadata_to_object(
+                 const std::string& _object_path,
+                 const std::string& _source_name);
+
         private:
         bool skip_object_in_lower_tier(
             const std::string& _object_path,
