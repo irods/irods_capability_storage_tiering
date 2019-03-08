@@ -151,6 +151,69 @@ namespace {
         }
     } // apply_restage_movement_policy
 
+    void apply_tier_group_metadata_policy(
+        irods::storage_tiering& _st,
+        const std::string &     _rn,
+        std::list<boost::any>&  _args) {
+        try {
+            std::string object_path;
+            std::string source_name;
+            // NOTE:: 3rd parameter is the target
+            if("pep_api_data_obj_close_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                object_path = obj_inp->objPath;
+                const char* source_hier = getValByKey(
+                                              &obj_inp->condInput,
+                                              RESC_HIER_STR_KW);
+                if(!source_hier) {
+                    THROW(SYS_INVALID_INPUT_PARAM, "resc hier is null");
+                }
+
+                irods::hierarchy_parser parser;
+                parser.set_string(source_hier);
+                parser.last_resc(source_name);
+
+                _st.apply_tier_group_metadata_to_object(object_path, source_name);
+            }
+            else if("pep_api_data_obj_put_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
+                const auto l1_idx = opened_inp->l1descInx;
+                const auto opr_type = opened_inp->oprType;
+
+                auto obj_info = L1desc[l1_idx].dataObjInfo;
+                object_path = obj_info->objPath;
+                auto id = obj_info->rescId;
+
+                irods::error err = irods::get_resource_property<std::string>(id, irods::RESOURCE_NAME, source_name);
+                if(!err.ok()) {
+                    THROW(err.code(), err.result());
+                }
+
+                _st.apply_tier_group_metadata_to_object(object_path, source_name);
+            }
+        }
+        catch(const boost::bad_any_cast& _e) {
+            THROW(INVALID_ANY_CAST, _e.what());
+        }
+    } // apply_tier_group_metadata_policy
+
+
 } // namespace
 
 
@@ -203,6 +266,7 @@ irods::error exec_rule(
         apply_access_time_policy(rei, _args);
 
         irods::storage_tiering st{rei, plugin_instance_name};
+        apply_tier_group_metadata_policy(st, _rn, -args);
         apply_restage_movement_policy(st, _rn, _args);
     }
     catch(const  std::invalid_argument& _e) {

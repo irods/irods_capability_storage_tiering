@@ -14,6 +14,7 @@
 #include "rsOpenCollection.hpp"
 #include "rsReadCollection.hpp"
 #include "rsCloseCollection.hpp"
+#include "rsModAVUMetadata.hpp"
 
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
@@ -639,6 +640,37 @@ namespace irods {
         } // for resc
 
     } // apply_policy_for_tier_group
+
+    void storage_tiering::apply_tier_group_metadata_to_object(
+                 const std::string& _object_path,
+                 const std::string& _source_name) {
+        try {
+            get_metadata_for_resource(
+                config_.group_attribute,
+                _source_name);
+            modAVUMetadataInp_t avuOp{
+                .arg0 = "set",
+                .arg1 = "-d",
+                .arg2 = const_cast<char*>(_object_path.c_str()),
+                .arg3 = const_cast<char*>(config_.group_attribute.c_str()),
+                .arg4 = const_cast<char*>(group_name.c_str()),
+                .arg5 = ""};
+
+            auto status = rsModAVUMetadata(comm_, &avuOp);
+            if(status < 0) {
+                THROW(
+                    status,
+                    boost::format("failed to set access time for [%s]") %
+                    _logical_path);
+            }
+        }
+        catch(const exception& _e) {
+            if(CAT_NO_ROWS_FOUND == _e.code()) {
+                // no op - not in a tier group
+            }
+        }
+
+    } // apply_tier_group_metadata_to_object
 
 }; // namespace irods
 
