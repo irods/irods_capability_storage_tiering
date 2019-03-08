@@ -57,13 +57,13 @@ namespace irods {
     // =-=-=-=-=-=-=-
     // Helper Functions
     void storage_tiering::update_access_time_for_data_object(
-        const std::string& _logical_path) {
+        const std::string& _object_path) {
 
         auto ts = std::to_string(std::time(nullptr));
         modAVUMetadataInp_t avuOp{
             .arg0 = "set",
             .arg1 = "-d",
-            .arg2 = const_cast<char*>(_logical_path.c_str()),
+            .arg2 = const_cast<char*>(_object_path.c_str()),
             .arg3 = const_cast<char*>(config_.access_time_attribute.c_str()),
             .arg4 = const_cast<char*>(ts.c_str()),
             .arg5 = ""};
@@ -73,9 +73,35 @@ namespace irods {
             THROW(
                 status,
                 boost::format("failed to set access time for [%s]") %
-                _logical_path);
+                _object_path);
         }
     } // update_access_time_for_data_object
+
+    std::string storage_tiering::get_metadata_for_data_object(
+        const std::string& _meta_attr_name,
+        const std::string& _object_path ) {
+        boost::filesystem::path p{_object_path};
+        std::string coll_name = p.parent_path().string();
+        std::string data_name = p.filename().string();
+
+
+        std::string query_str {
+            boost::str(
+                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'") %
+                    _meta_attr_name %
+                    data_name %
+                    coll_name) };
+        query<rsComm_t> qobj{comm_, query_str, 1};
+        if(qobj.size() > 0) {
+            return qobj.front()[0];
+        }
+
+        THROW(
+            CAT_NO_ROWS_FOUND,
+            boost::format("no results found for object [%s] with attribute [%s]") %
+            _object_path %
+            _meta_attr_name);
+    } // get_metadata_for_data_object
 
     std::string storage_tiering::get_metadata_for_resource(
         const std::string& _meta_attr_name,
@@ -629,9 +655,9 @@ namespace irods {
         const std::string& _source_name) {
         try {
             const auto low_tier_resource_name = get_restage_tier_resource_name(
-                                                    get_metadata_for_resource(
+                                                    get_metadata_for_data_object(
                                                         config_.group_attribute,
-                                                        _source_name));
+                                                        _object_path));
             // do not queue movement if data is on minimum tier
             // TODO:: query for already queued movement?
             if(low_tier_resource_name == _source_name) {
@@ -707,9 +733,9 @@ namespace irods {
                  const std::string& _object_path,
                  const std::string& _source_name) {
         try {
-            get_metadata_for_resource(
-                config_.group_attribute,
-                _source_name);
+            std::string group_name = get_metadata_for_resource(
+                                         config_.group_attribute,
+                                         _source_name);
             modAVUMetadataInp_t avuOp{
                 .arg0 = "set",
                 .arg1 = "-d",
@@ -723,7 +749,7 @@ namespace irods {
                 THROW(
                     status,
                     boost::format("failed to set access time for [%s]") %
-                    _logical_path);
+                    _object_path);
             }
         }
         catch(const exception& _e) {
