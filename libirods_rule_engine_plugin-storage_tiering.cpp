@@ -97,7 +97,7 @@ namespace {
             std::string object_path;
             std::string source_name;
             // NOTE:: 3rd parameter is the target
-            if("pep_api_data_obj_close_post" == _rn) {
+            if("pep_api_data_obj_get_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -117,11 +117,11 @@ namespace {
 
                 irods::hierarchy_parser parser;
                 parser.set_string(source_hier);
-                parser.last_resc(source_name);
+                parser.first_resc(source_name);
 
                 _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
             }
-            else if("pep_api_data_obj_get_post" == _rn) {
+            else if("pep_api_data_obj_close_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -147,7 +147,11 @@ namespace {
             }
         }
         catch(const boost::bad_any_cast& _e) {
-            THROW(INVALID_ANY_CAST, _e.what());
+            THROW(
+                INVALID_ANY_CAST,
+                boost::str(boost::format(
+                    "function [%s] rule name [%s]")
+                    % __FUNCTION__ % _rn));
         }
     } // apply_restage_movement_policy
 
