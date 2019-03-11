@@ -184,7 +184,7 @@ namespace irods {
         const std::string& _source_resource,
         const std::string& _destination_resource) {
 
-        using stcfg = irods::storage_tiering_configuration::storage_tiering_configuration;
+        using stcfg = irods::storage_tiering_configuration;
         auto log_level = stcfg{_instance_name}.data_transfer_log_level_value;
 
         rodsLog(
