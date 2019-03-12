@@ -12,7 +12,7 @@ namespace irods {
 
         std::string msg;
         for(const auto& i : _exception.message_stack()) {
-            msg += i; 
+            msg += i;
         }
 
         addRErrorMsg(
