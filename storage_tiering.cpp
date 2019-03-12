@@ -2,8 +2,8 @@
 #include "irods_server_properties.hpp"
 #include "irods_re_plugin.hpp"
 #include "storage_tiering.hpp"
+#include "storage_tiering_utilities.hpp"
 #include "irods_query.hpp"
-#include "irods_object_migrator.hpp"
 #include "irods_virtual_path.hpp"
 #include "irods_hierarchy_parser.hpp"
 #include "irods_resource_manager.hpp"
@@ -87,7 +87,7 @@ namespace irods {
 
         std::string query_str {
             boost::str(
-                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'") %
+                boost::format("SELECT META_DATA_ATTR_VALUE WHERE META_DATA_ATTR_NAME = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'") %
                     _meta_attr_name %
                     data_name %
                     coll_name) };
@@ -294,7 +294,7 @@ namespace irods {
 
     } // get_restage_tier_resource_name
 
-    std::string storage_tiering::get_data_movement_parameters_for_resc(
+    std::string storage_tiering::get_data_movement_parameters_for_resource(
             const std::string& _resource_name) {
         std::string params = "<INST_NAME>" + config_.instance_name + "</INST_NAME>";
 
@@ -346,7 +346,7 @@ namespace irods {
 
 
 
-        params += "<PLUSET>"+sleep_time+"</PLUSET>";
+        params += "<PLUSET>"+sleep_time+"s</PLUSET>";
 
         rodsLog(
             config_.data_transfer_log_level_value,
@@ -356,7 +356,7 @@ namespace irods {
 
         return params;
 
-    } // get_data_movement_parameters_for_resc
+    } // get_data_movement_parameters_for_resource
 
     resource_index_map storage_tiering::get_resource_map_for_group(
         const std::string& _group) {
@@ -443,7 +443,7 @@ namespace irods {
             metadata_results results;
             results.push_back(
                 std::make_pair(boost::str(
-                boost::format("SELECT DATA_NAME, COLL_NAME, DATA_RESC_ID WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
+                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
                 config_.access_time_attribute %
                 tier_time %
                 leaf_str), ""));
@@ -505,6 +505,7 @@ namespace irods {
     } // skip_object_in_lower_tier
 
     void storage_tiering::migrate_violating_data_objects(
+        const std::string& _group_name,
         const std::string& _partial_list,
         const std::string& _source_resource,
         const std::string& _destination_resource) {
@@ -531,14 +532,27 @@ namespace irods {
                         _source_resource.c_str(),
                         violating_query_string.c_str(),
                         violating_query_type);
+                    if(violating_query.size() == 0) {
+                        continue;
+                    }
+
+                    // users could possbily configure an incorrect query
+                    if(violating_query.front().size() < 4) {
+                        rodsLog(
+                            LOG_ERROR,
+                            "invalid number of colums returned [%d] for query [%s]",
+                            violating_query.front().size(),
+                            violating_query_string.c_str());
+                        continue;
+                    }
 
                     for(const auto& violating_result : violating_query) {
-                        auto object_path = violating_result[1];
+                        auto object_path = violating_result[1]; // coll name
                         const auto& vps  = get_virtual_path_separator();
                         if( !boost::ends_with(object_path, vps)) {
                             object_path += vps;
                         }
-                        object_path += violating_result[0];
+                        object_path += violating_result[0]; // data name
 
                         if(std::end(object_is_processed) !=
                            object_is_processed.find(object_path)) {
@@ -557,12 +571,15 @@ namespace irods {
 
                         queue_data_movement(
                             config_.instance_name,
+                            _group_name,
                             object_path,
+                            violating_result[2],
+                            violating_result[3],
                             _source_resource,
                             _destination_resource,
                             get_verification_for_resc(_destination_resource),
                             get_preserve_replicas_for_resc(_source_resource),
-                            get_data_movement_parameters_for_resc(_source_resource));
+                            get_data_movement_parameters_for_resource(_source_resource));
 
                     } // for violating_result
                 }
@@ -610,18 +627,23 @@ namespace irods {
 
     void storage_tiering::queue_data_movement(
         const std::string& _plugin_instance_name,
+        const std::string& _group_name,
         const std::string& _object_path,
+        const std::string& _user_name,
+        const std::string& _source_replica_number,
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _verification_type,
         const bool         _preserve_replicas,
         const std::string& _data_movement_params) {
         using json = nlohmann::json;
-
         json rule_obj;
         rule_obj["rule-engine-operation"]     = policy::data_movement;
         rule_obj["rule-engine-instance-name"] = _plugin_instance_name;
+        rule_obj["group-name"]                = _group_name;
         rule_obj["object-path"]               = _object_path;
+        rule_obj["user-name"]                 = _user_name;
+        rule_obj["source-replica-number"]     = _source_replica_number;
         rule_obj["source-resource"]           = _source_resource;
         rule_obj["destination-resource"]      = _destination_resource;
         rule_obj["preserve-replicas"]         = _preserve_replicas,
@@ -630,7 +652,7 @@ namespace irods {
         const auto delay_err = _delayExec(
                                    rule_obj.dump().c_str(),
                                    "",
-                                   _data_movement_params.c_str(), 
+                                   _data_movement_params.c_str(),
                                    rei_);
         if(delay_err < 0) {
             THROW(
@@ -650,36 +672,99 @@ namespace irods {
 
     } // queue_data_movement
 
+    std::string storage_tiering::get_replica_number_for_resource(
+        const std::string& _object_path,
+        const std::string& _resource_name) {
+        boost::filesystem::path p{_object_path};
+        std::string coll_name = p.parent_path().string();
+        std::string data_name = p.filename().string();
+
+        std::string leaf_ids = get_leaf_resources_string(_resource_name);
+        std::string qstr{boost::str(
+            boost::format("SELECT DATA_REPL_NUM WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND DATA_RESC_ID IN (%s)")
+            % data_name
+            % coll_name
+            % leaf_ids)};
+
+        query<rsComm_t> qobj{comm_, qstr};
+
+        if(qobj.size() == 0) {
+            THROW(
+                CAT_NO_ROWS_FOUND,
+                "failed to fetch user name and replica number");
+        }
+
+        return qobj.front()[0];
+
+    } // get_replica_number_for_resource
+
+    std::string storage_tiering::get_group_name_by_replica_number(
+        const std::string& _attribute_name,
+        const std::string& _object_path,
+        const std::string& _replica_number) {
+        boost::filesystem::path p{_object_path};
+        std::string data_name = p.filename().string();
+        std::string coll_name = p.parent_path().string();
+
+        std::string qstr{boost::str(
+            boost::format("SELECT META_DATA_ATTR_VALUE WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_UNITS = '%s'")
+            % data_name
+            % coll_name
+            % _attribute_name
+            % _replica_number)};
+
+        query<rsComm_t> qobj{comm_, qstr};
+
+        if(qobj.size() == 0) {
+            THROW(
+                CAT_NO_ROWS_FOUND,
+                "failed to fetch group name by resource and replica number");
+        }
+
+        return qobj.front()[0];
+
+    } // get_group_name_by_replica_number
+
     void storage_tiering::migrate_object_to_minimum_restage_tier(
         const std::string& _object_path,
-        const std::string& _source_name) {
+        const std::string& _user_name,
+        const std::string& _source_resource) {
+
         try {
+            const auto source_replica_number = get_replica_number_for_resource(
+                                                   _object_path,
+                                                   _source_resource);
+            const auto group_name = get_group_name_by_replica_number(
+                                        config_.group_attribute,
+                                        _object_path,
+                                        source_replica_number);
             const auto low_tier_resource_name = get_restage_tier_resource_name(
-                                                    get_metadata_for_data_object(
-                                                        config_.group_attribute,
-                                                        _object_path));
+                                                    group_name);
             // do not queue movement if data is on minimum tier
             // TODO:: query for already queued movement?
-            if(low_tier_resource_name == _source_name) {
+            if(low_tier_resource_name == _source_resource) {
                 return;
             }
 
             queue_data_movement(
                 config_.instance_name,
+                group_name,
                 _object_path,
-                _source_name,
+                _user_name,
+                source_replica_number,
+                _source_resource,
                 low_tier_resource_name,
                 get_verification_for_resc(low_tier_resource_name),
                 false,
-                get_data_movement_parameters_for_resc(_source_name));
+                get_data_movement_parameters_for_resource(_source_resource));
         }
         catch(const exception& _e) {
-            if(CAT_NO_ROWS_FOUND == _e.code()) {
-                rodsLog(
-                    config_.data_transfer_log_level_value,
-                    "[%s] is not in a tier group",
-                    _source_name.c_str());
-            }
+            rodsLog(
+                config_.data_transfer_log_level_value,
+                "Failed to restage data object [%s] for resource [%s] Exception: [%s]",
+                _object_path.c_str(),
+                _source_resource.c_str(),
+                _e.what());
         }
     } // migrate_object_to_minimum_restage_tier
 
@@ -721,6 +806,7 @@ namespace irods {
             }
 
             migrate_violating_data_objects(
+                _group,
                 partial_list,
                 resc_itr->second,
                 next_itr->second);
@@ -730,32 +816,61 @@ namespace irods {
     } // apply_policy_for_tier_group
 
     void storage_tiering::apply_tier_group_metadata_to_object(
-                 const std::string& _object_path,
-                 const std::string& _source_name) {
+        const std::string& _group_name,
+        const std::string& _object_path,
+        const std::string& _user_name,
+        const std::string& _source_replica_number,
+        const std::string& _source_resource,
+        const std::string& _destination_resource) {
         try {
-            std::string group_name = get_metadata_for_resource(
-                                         config_.group_attribute,
-                                         _source_name);
-            modAVUMetadataInp_t avuOp{
+            const auto destination_replica_number = get_replica_number_for_resource(
+                                                        _object_path,
+                                                        _destination_resource);
+            modAVUMetadataInp_t set_op{
                 .arg0 = "set",
                 .arg1 = "-d",
                 .arg2 = const_cast<char*>(_object_path.c_str()),
                 .arg3 = const_cast<char*>(config_.group_attribute.c_str()),
-                .arg4 = const_cast<char*>(group_name.c_str()),
-                .arg5 = ""};
+                .arg4 = const_cast<char*>(_group_name.c_str()),
+                .arg5 = const_cast<char*>(destination_replica_number.c_str())};
 
-            auto status = rsModAVUMetadata(comm_, &avuOp);
+            auto status = rsModAVUMetadata(comm_, &set_op);
             if(status < 0) {
                 THROW(
                     status,
-                    boost::format("failed to set access time for [%s]") %
-                    _object_path);
+                    boost::format("failed to set tier group [%s] metadata for [%s]")
+                    % _group_name
+                    % _object_path);
+            }
+
+            modAVUMetadataInp_t rm_op{
+                .arg0 = "rm",
+                .arg1 = "-d",
+                .arg2 = const_cast<char*>(_object_path.c_str()),
+                .arg3 = const_cast<char*>(config_.group_attribute.c_str()),
+                .arg4 = const_cast<char*>(_group_name.c_str()),
+                .arg5 = const_cast<char*>(_source_replica_number.c_str())};
+
+            status = rsModAVUMetadata(comm_, &rm_op);
+            if(status < 0) {
+                // metadata is not resident during inital move from first tier
+                if(CAT_SUCCESS_BUT_WITH_NO_INFO != status) {
+                    THROW(
+                        status,
+                        boost::format("failed to remove tier group [%s] metadata for [%s]")
+                        % _group_name
+                        % _object_path);
+                }
             }
         }
         catch(const exception& _e) {
-            if(CAT_NO_ROWS_FOUND == _e.code()) {
-                // no op - not in a tier group
-            }
+            irods::exception_to_rerror(
+                SYS_NOT_SUPPORTED,
+                _e.what(),
+                comm_->rError);
+            THROW(
+                _e.code(),
+                _e.what());
         }
 
     } // apply_tier_group_metadata_to_object

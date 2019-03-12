@@ -39,31 +39,58 @@ namespace {
     std::string plugin_instance_name{};
 
     void apply_access_time_policy(
+        const std::string&           _rn,
         ruleExecInfo_t*              _rei,
         const std::list<boost::any>& _args) {
-        auto it = _args.begin();
-        std::advance(it, 2);
-        if(_args.end() == it) {
-            THROW(
-                SYS_INVALID_INPUT_PARAM,
-                "invalid number of arguments");
-        }
 
         try {
-            auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-            const char* coll_type_ptr = getValByKey(&obj_inp->condInput, COLLECTION_KW);
+            if("pep_api_data_obj_put_post" == _rn ||
+               "pep_api_phy_path_reg_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
 
-            std::string obj_path{obj_inp->objPath};
-            std::string coll_type{};
-            if(coll_type_ptr) {
-                coll_type = "true";
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                const char* coll_type_ptr = getValByKey(&obj_inp->condInput, COLLECTION_KW);
+
+                std::string object_path{obj_inp->objPath};
+                std::string coll_type{};
+                if(coll_type_ptr) {
+                    coll_type = "true";
+                }
+
+                std::list<boost::any> args;
+                args.push_back(boost::any(object_path));
+                args.push_back(boost::any(coll_type));
+                args.push_back(boost::any(config->access_time_attribute));
+                irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
             }
+            else if("pep_api_data_obj_close_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
 
-            std::list<boost::any> args;
-            args.push_back(boost::any(obj_path));
-            args.push_back(boost::any(coll_type));
-            args.push_back(boost::any(config->access_time_attribute));
-            irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+                const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
+                const auto l1_idx = opened_inp->l1descInx;
+                const auto opr_type = opened_inp->oprType;
+
+                auto obj_info = L1desc[l1_idx].dataObjInfo;
+                std::string object_path{obj_info->objPath};
+
+                std::list<boost::any> args;
+                args.push_back(boost::any(object_path));
+                args.push_back(boost::any(""));
+                args.push_back(boost::any(config->access_time_attribute));
+                irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+            }
         } catch( const boost::bad_any_cast&) {
             // do nothing - no object to annotate
         }
@@ -72,30 +99,34 @@ namespace {
     void apply_data_movement_policy(
         ruleExecInfo_t*    _rei,
         const std::string& _instance_name,
-        const bool         _preserve_replicas,
-        const std::string& _verification_type,
+        const std::string& _object_path,
+        const std::string& _user_name,
+        const std::string& _source_replica_number,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const std::string& _object_path) {
+        const bool         _preserve_replicas,
+        const std::string& _verification_type) {
 
         std::list<boost::any> args;
         args.push_back(boost::any(_instance_name));
-        args.push_back(boost::any(_preserve_replicas));
-        args.push_back(boost::any(_verification_type));
+        args.push_back(boost::any(_object_path));
+        args.push_back(boost::any(_user_name));
+        args.push_back(boost::any(_source_replica_number));
         args.push_back(boost::any(_source_resource));
         args.push_back(boost::any(_destination_resource));
-        args.push_back(boost::any(_object_path));
+        args.push_back(boost::any(_preserve_replicas));
+        args.push_back(boost::any(_verification_type));
         irods::invoke_policy(_rei, irods::storage_tiering::policy::data_movement, args);
 
     } // apply_data_movement_policy
 
     void apply_restage_movement_policy(
-        irods::storage_tiering& _st,
-        const std::string &     _rn,
-        std::list<boost::any>&  _args) {
+        const std::string &    _rn,
+        ruleExecInfo_t*        _rei,
+        std::list<boost::any>& _args) {
         try {
             std::string object_path;
-            std::string source_name;
+            std::string source_resource;
             // NOTE:: 3rd parameter is the target
             if("pep_api_data_obj_get_post" == _rn) {
                 auto it = _args.begin();
@@ -117,9 +148,13 @@ namespace {
 
                 irods::hierarchy_parser parser;
                 parser.set_string(source_hier);
-                parser.first_resc(source_name);
+                parser.first_resc(source_resource);
 
-                _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
+                irods::storage_tiering st{_rei, plugin_instance_name};
+                st.migrate_object_to_minimum_restage_tier(
+                    object_path,
+                    _rei->rsComm->clientUser.userName,
+                    source_resource);
             }
             else if("pep_api_data_obj_close_post" == _rn) {
                 auto it = _args.begin();
@@ -136,14 +171,21 @@ namespace {
 
                 auto obj_info = L1desc[l1_idx].dataObjInfo;
                 object_path = obj_info->objPath;
-                auto id = obj_info->rescId;
+                auto resc_id = obj_info->rescId;
 
-                irods::error err = irods::get_resource_property<std::string>(id, irods::RESOURCE_NAME, source_name);
+                irods::error err = irods::get_resource_property<std::string>(
+                                       resc_id,
+                                       irods::RESOURCE_NAME,
+                                       source_resource);
                 if(!err.ok()) {
                     THROW(err.code(), err.result());
                 }
 
-                _st.migrate_object_to_minimum_restage_tier(object_path, source_name);
+                irods::storage_tiering st{_rei, plugin_instance_name};
+                st.migrate_object_to_minimum_restage_tier(
+                    object_path,
+                    _rei->rsComm->clientUser.userName,
+                    source_resource);
             }
         }
         catch(const boost::bad_any_cast& _e) {
@@ -157,64 +199,19 @@ namespace {
 
     void apply_tier_group_metadata_policy(
         irods::storage_tiering& _st,
-        const std::string &     _rn,
-        std::list<boost::any>&  _args) {
-        try {
-            std::string object_path;
-            std::string source_name;
-            // NOTE:: 3rd parameter is the target
-            if("pep_api_data_obj_put_post" == _rn) {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-                object_path = obj_inp->objPath;
-                const char* source_hier = getValByKey(
-                                              &obj_inp->condInput,
-                                              RESC_HIER_STR_KW);
-                if(!source_hier) {
-                    THROW(SYS_INVALID_INPUT_PARAM, "resc hier is null");
-                }
-
-                irods::hierarchy_parser parser;
-                parser.set_string(source_hier);
-                parser.last_resc(source_name);
-
-                _st.apply_tier_group_metadata_to_object(object_path, source_name);
-            }
-            else if("pep_api_data_obj_close_post" == _rn) {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
-                const auto l1_idx = opened_inp->l1descInx;
-                const auto opr_type = opened_inp->oprType;
-
-                auto obj_info = L1desc[l1_idx].dataObjInfo;
-                object_path = obj_info->objPath;
-                auto id = obj_info->rescId;
-
-                irods::error err = irods::get_resource_property<std::string>(id, irods::RESOURCE_NAME, source_name);
-                if(!err.ok()) {
-                    THROW(err.code(), err.result());
-                }
-
-                _st.apply_tier_group_metadata_to_object(object_path, source_name);
-            }
-        }
-        catch(const boost::bad_any_cast& _e) {
-            THROW(INVALID_ANY_CAST, _e.what());
-        }
+        const std::string& _group_name,
+        const std::string& _object_path,
+        const std::string& _user_name,
+        const std::string& _source_replica_number,
+        const std::string& _source_resource,
+        const std::string& _destination_resource) {
+        _st.apply_tier_group_metadata_to_object(
+            _group_name,
+            _object_path,
+            _user_name,
+            _source_replica_number,
+            _source_resource,
+            _destination_resource);
     } // apply_tier_group_metadata_policy
 
 
@@ -242,7 +239,6 @@ irods::error rule_exists(
     bool&              _ret) {
     const std::set<std::string> rules{
                                     "pep_api_data_obj_close_post",
-                                    "pep_api_data_obj_create_post",
                                     "pep_api_data_obj_put_post",
                                     "pep_api_data_obj_get_post",
                                     "pep_api_phy_path_reg_post"};
@@ -267,11 +263,9 @@ irods::error exec_rule(
     }
 
     try {
-        apply_access_time_policy(rei, _args);
+        apply_access_time_policy(_rn, rei, _args);
 
-        irods::storage_tiering st{rei, plugin_instance_name};
-        apply_tier_group_metadata_policy(st, _rn, _args);
-        apply_restage_movement_policy(st, _rn, _args);
+        apply_restage_movement_policy(_rn, rei, _args);
     }
     catch(const  std::invalid_argument& _e) {
         irods::exception_to_rerror(
@@ -379,17 +373,16 @@ irods::error exec_rule_expression(
     msParamArray_t*        _ms_params,
     irods::callback        _eff_hdlr) {
     using json = nlohmann::json;
+    ruleExecInfo_t* rei{};
+    const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
+    if(!err.ok()) {
+        return err;
+    }
 
     try {
         const auto rule_obj = json::parse(_rule_text);
-
-        if(irods::storage_tiering::policy::storage_tiering == rule_obj["rule-engine-operation"]) {
-            ruleExecInfo_t* rei{};
-            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
-            if(!err.ok()) {
-                return err;
-            }
-
+        if(irods::storage_tiering::policy::storage_tiering ==
+           rule_obj["rule-engine-operation"]) {
             try {
                 irods::storage_tiering st{rei, plugin_instance_name};
                 for(const auto& group : rule_obj["storage-tier-groups"]) {
@@ -397,29 +390,45 @@ irods::error exec_rule_expression(
                 }
             }
             catch(const irods::exception& _e) {
+                printErrorStack(&rei->rsComm->rError);
                 return ERROR(
                         _e.code(),
                         _e.what());
             }
         }
-        else if(irods::storage_tiering::policy::data_movement == rule_obj["rule-engine-operation"]) {
-            ruleExecInfo_t* rei{};
-            const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
-            if(!err.ok()) {
-                return err;
-            }
-
+        else if(irods::storage_tiering::policy::data_movement ==
+                rule_obj["rule-engine-operation"]) {
             try {
+                // proxy for provided user name
+                const std::string& user_name = rule_obj["user-name"];
+                rstrcpy(
+                    rei->rsComm->clientUser.userName,
+                    user_name.c_str(),
+                    NAME_LEN);
+
                 apply_data_movement_policy(
                     rei,
                     plugin_instance_name,
-                    rule_obj["preserve-replicas"],
-                    rule_obj["verification-type"],
+                    rule_obj["object-path"],
+                    rule_obj["user-name"],
+                    rule_obj["source-replica-number"],
                     rule_obj["source-resource"],
                     rule_obj["destination-resource"],
-                    rule_obj["object-path"]);
+                    rule_obj["preserve-replicas"],
+                    rule_obj["verification-type"]);
+
+                irods::storage_tiering st{rei, plugin_instance_name};
+                apply_tier_group_metadata_policy(
+                    st,
+                    rule_obj["group-name"],
+                    rule_obj["object-path"],
+                    rule_obj["user-name"],
+                    rule_obj["source-replica-number"],
+                    rule_obj["source-resource"],
+                    rule_obj["destination-resource"]);
             }
             catch(const irods::exception& _e) {
+                printErrorStack(&rei->rsComm->rError);
                 return ERROR(
                         _e.code(),
                         _e.what());
@@ -427,6 +436,7 @@ irods::error exec_rule_expression(
 
         }
         else {
+            printErrorStack(&rei->rsComm->rError);
             return ERROR(
                     SYS_NOT_SUPPORTED,
                     "supported rule name not found");
@@ -460,7 +470,7 @@ irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
         new irods::pluggable_rule_engine<irods::default_re_ctx>(
                 _inst_name,
                 _context);
-    
+
     re->add_operation<
         irods::default_re_ctx&,
         const std::string&>(
