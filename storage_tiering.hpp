@@ -34,15 +34,20 @@ namespace irods {
 
         void migrate_object_to_minimum_restage_tier(
                  const std::string& _object_path,
-                 const std::string& _source_name);
+                 const std::string& _user_name,
+                 const std::string& _source_resource);
 
         void schedule_storage_tiering_policy(
             const std::string& _json,
             const std::string& _params);
 
         void apply_tier_group_metadata_to_object(
-                 const std::string& _object_path,
-                 const std::string& _source_name);
+            const std::string& _group_name,
+            const std::string& _object_path,
+            const std::string& _user_name,
+            const std::string& _source_replica_number,
+            const std::string& _source_resource,
+            const std::string& _destination_resource);
 
         private:
         bool skip_object_in_lower_tier(
@@ -86,8 +91,17 @@ namespace irods {
         std::string get_restage_tier_resource_name(
             const std::string& _resource_name);
 
-        std::string get_data_movement_parameters_for_resc(
+        std::string get_data_movement_parameters_for_resource(
             const std::string& _resource_name);
+
+        std::string get_replica_number_for_resource(
+            const std::string& _object_path,
+            const std::string& _resource_name);
+
+        std::string get_group_name_by_replica_number(
+            const std::string& _attribute_name,
+            const std::string& _object_path,
+            const std::string& _replica_number);
 
         resource_index_map
         get_resource_map_for_group(
@@ -104,7 +118,10 @@ namespace irods {
 
         void queue_data_movement(
             const std::string& _plugin_instance_name,
+            const std::string& _group_name,
             const std::string& _object_path,
+            const std::string& _user_name,
+            const std::string& _source_replica_number,
             const std::string& _source_resource,
             const std::string& _destination_resource,
             const std::string& _verification_type,
@@ -112,6 +129,7 @@ namespace irods {
             const std::string& _data_movement_params);
 
         void migrate_violating_data_objects(
+            const std::string&       _group_name,
             const std::string&       _partial_list,
             const std::string&       _source_resource,
             const std::string&       _destination_resource);

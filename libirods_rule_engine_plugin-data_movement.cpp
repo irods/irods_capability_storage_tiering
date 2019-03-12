@@ -14,9 +14,9 @@ namespace {
     void apply_data_replication_policy(
         ruleExecInfo_t*    _rei,
         const std::string& _instance_name,
+        const std::string& _object_path,
         const std::string& _source_resource,
-        const std::string& _destination_resource,
-        const std::string& _object_path) {
+        const std::string& _destination_resource) {
         std::list<boost::any> args;
         args.push_back(boost::any(_instance_name));
         args.push_back(boost::any(_source_resource));
@@ -29,10 +29,10 @@ namespace {
     void apply_data_verification_policy(
         ruleExecInfo_t*    _rei,
         const std::string& _instance_name,
-        const std::string& _verification_type,
+        const std::string& _object_path,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const std::string& _object_path) {
+        const std::string& _verification_type) {
         std::list<boost::any> args;
         args.push_back(boost::any(_instance_name));
         args.push_back(boost::any(_verification_type));
@@ -46,9 +46,9 @@ namespace {
     void apply_data_retention_policy(
         ruleExecInfo_t*    _rei,
         const std::string& _instance_name,
-        const bool         _preserve_replicas,
+        const std::string& _object_path,
         const std::string& _source_resource,
-        const std::string& _object_path) {
+        const bool         _preserve_replicas) {
         if(_preserve_replicas) {
             return;
         }
@@ -89,32 +89,33 @@ namespace {
     void apply_data_movement_policy(
         ruleExecInfo_t*    _rei,
         const std::string& _instance_name,
-        const bool         _preserve_replicas,
-        const std::string& _verification_type,
+        const std::string& _object_path,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const std::string& _object_path) {
+        const bool         _preserve_replicas,
+        const std::string& _verification_type) {
+
         apply_data_replication_policy(
                 _rei,
                 _instance_name,
+                _object_path,
                 _source_resource,
-                _destination_resource,
-                _object_path);
+                _destination_resource);
 
         apply_data_verification_policy(
                 _rei,
                 _instance_name,
-                _verification_type,
+                _object_path,
                 _source_resource,
                 _destination_resource,
-                _object_path);
+                _verification_type);
 
         apply_data_retention_policy(
                 _rei,
                 _instance_name,
-                _preserve_replicas,
+                _object_path,
                 _source_resource,
-                _object_path);
+                _preserve_replicas);
     } // apply_data_movement_policy
 
 } // namespace
@@ -164,23 +165,25 @@ irods::error exec_rule(
     try {
         // Extract parameters from args
         auto it = _args.begin();
-        std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it; 
-        bool        preserve_replicas{ boost::any_cast<bool>(*it) }; ++it;
-        std::string verification_type{ boost::any_cast<std::string>(*it) }; ++it; 
-        std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it; 
-        std::string destination_resource{ boost::any_cast<std::string>(*it) }; ++it;
-        std::string object_path{ boost::any_cast<std::string>(*it) };
+        const std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string object_path{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string user_name{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string source_replica_number{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string destination_resource{ boost::any_cast<std::string>(*it) }; ++it;
+        const bool  preserve_replicas{ boost::any_cast<const bool>(*it) }; ++it;
+        std::string verification_type{ boost::any_cast<std::string>(*it) }; ++it;
 
         apply_data_movement_policy(
             rei,
             instance_name,
-            preserve_replicas,
-            verification_type,
+            object_path,
             source_resource,
             destination_resource,
-            object_path);
+            preserve_replicas,
+            verification_type);
     }
-    catch(const  std::invalid_argument& _e) {
+    catch(const std::invalid_argument& _e) {
         irods::exception_to_rerror(
             SYS_NOT_SUPPORTED,
             _e.what(),

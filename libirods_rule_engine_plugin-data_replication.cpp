@@ -84,8 +84,8 @@ irods::error exec_rule(
 
     try {
         auto it = _args.begin();
-        std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it; 
-        std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it; 
+        std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it;
+        std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it;
         std::string destination_resource{ boost::any_cast<std::string>(*it) }; ++it;
         std::string object_path{ boost::any_cast<std::string>(*it) };
 
