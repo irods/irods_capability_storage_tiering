@@ -540,7 +540,7 @@ namespace irods {
                     if(violating_query.front().size() < 4) {
                         rodsLog(
                             LOG_ERROR,
-                            "invalid number of colums returned [%d] for query [%s]",
+                            "invalid number of columns returned [%d] for query [%s]",
                             violating_query.front().size(),
                             violating_query_string.c_str());
                         continue;
@@ -853,7 +853,7 @@ namespace irods {
 
             status = rsModAVUMetadata(comm_, &rm_op);
             if(status < 0) {
-                // metadata is not resident during inital move from first tier
+                // metadata is not resident during initial move from first tier
                 if(CAT_SUCCESS_BUT_WITH_NO_INFO != status) {
                     THROW(
                         status,
