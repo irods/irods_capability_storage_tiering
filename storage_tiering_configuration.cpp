@@ -71,6 +71,16 @@ namespace irods {
                                     plugin_spec_cfg.at("default_data_movement_parameters"));
                         }
 
+                        if(plugin_spec_cfg.find("minimum_delay_time") != plugin_spec_cfg.end()) {
+                            default_data_movement_parameters = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("minimum_delay_time"));
+                        }
+
+                        if(plugin_spec_cfg.find("maximum_delay_time") != plugin_spec_cfg.end()) {
+                            default_data_movement_parameters = boost::any_cast<std::string>(
+                                    plugin_spec_cfg.at("maximum_delay_time"));
+                        }
+
                         if(plugin_spec_cfg.find("time_check_string") != plugin_spec_cfg.end()) {
                             time_check_string = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at("time_check_string"));
