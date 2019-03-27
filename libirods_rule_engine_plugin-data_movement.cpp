@@ -167,8 +167,8 @@ irods::error exec_rule(
         auto it = _args.begin();
         const std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it;
         const std::string object_path{ boost::any_cast<std::string>(*it) }; ++it;
-        const std::string user_name{ boost::any_cast<std::string>(*it) }; ++it;
-        const std::string source_replica_number{ boost::any_cast<std::string>(*it) }; ++it;
+        ++it; // user name
+        ++it; // source_replica_number
         const std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it;
         const std::string destination_resource{ boost::any_cast<std::string>(*it) }; ++it;
         const bool  preserve_replicas{ boost::any_cast<const bool>(*it) }; ++it;
