@@ -118,6 +118,7 @@ For example:
 imeta add -R fast_resc irods::storage_tiering::group example_group 0
 imeta add -R medium_resc irods::storage_tiering::group example_group 1
 imeta add -R slow_resc irods::storage_tiering::group example_group 2
+```
 
 This example defines three tiers of the group `example_group` where data will flow from tier 0 to tier 2 as it ages.  In this example `fast_resc` is a single resource, but it could have been set to `fast_tier_root_resc` and represent the root of a resource hierarchy consisting of many resources.
 
@@ -195,6 +196,7 @@ Queries may also be provided by using the Specific Query interface within iRODS.
 At which point the query attached to the root of a storage tier would require the use of a metadata unit of ```specific```:
 ```
 imeta set -R fast_resc irods::storage_tiering::query archive_query specific
+```
 
 # **Preserving Replicas for a given Tier**
 
