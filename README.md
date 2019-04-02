@@ -18,7 +18,7 @@ The example diagram below shows a configuration with three tiers.
     * Data Retention
  * Metadata Application
 
-Through the composition of policy through the iRODS rule engine plugin framework, the storage tiering rule engine plugin may take advantage of the strong default behavior while allowing for the provision of advanced configuration.  An administrator may override one or more of these composed policies via another rule base or rule engine plugin.  The entirety of data_movement may be reimplemented, or one of its components such as data replication.  For instance, should an administrator wish to use an external service to replicate and register a data object, the `irods_policy_data_replication` policy can be overriden to leverage the external service and then call the iRODS API to resgister the additional replica while the other policies remain default.
+Through the composition of policy through the iRODS rule engine plugin framework, the storage tiering rule engine plugin may take advantage of the strong default behavior while allowing for the provision of advanced configuration.  An administrator may override one or more of these composed policies via another rule base or rule engine plugin.  The entirety of data_movement may be reimplemented, or one of its components such as data replication.  For instance, should an administrator wish to use an external service to replicate and register a data object, the `irods_policy_data_replication` policy can be overriden to leverage the external service and then call the iRODS API to register the additional replica while the other policies remain default.
 
 **Policy Signatures**
 
