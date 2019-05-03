@@ -2,10 +2,12 @@
 #include "irods_query.hpp"
 #include "irods_re_plugin.hpp"
 #include "irods_re_ruleexistshelper.hpp"
+#include "irods_server_api_call.hpp"
 #include "storage_tiering_utilities.hpp"
 
 #include "rsDataObjRepl.hpp"
 #include "physPath.hpp"
+#include "apiNumber.h"
 
 #include <boost/any.hpp>
 
@@ -16,7 +18,7 @@ namespace {
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _object_path) {
-       
+
         dataObjInp_t data_obj_inp{};
         rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
         data_obj_inp.createMode = getDefFileMode();
@@ -28,7 +30,7 @@ namespace {
         }
 
         transferStat_t* trans_stat{};
-        const auto repl_err = rsDataObjRepl(_comm, &data_obj_inp, &trans_stat);
+        const auto repl_err = irods::server_api_call(DATA_OBJ_REPL_AN, _comm, &data_obj_inp, &trans_stat);
         free(trans_stat);
         if(repl_err < 0) {
             THROW(repl_err,
@@ -150,11 +152,11 @@ extern "C"
 irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
     const std::string& _inst_name,
     const std::string& _context ) {
-    irods::pluggable_rule_engine<irods::default_re_ctx>* re = 
+    irods::pluggable_rule_engine<irods::default_re_ctx>* re =
         new irods::pluggable_rule_engine<irods::default_re_ctx>(
                 _inst_name,
                 _context);
-    
+
     re->add_operation<
         irods::default_re_ctx&,
         const std::string&>(

@@ -44,8 +44,9 @@ namespace {
         const std::list<boost::any>& _args) {
 
         try {
-            if("pep_api_data_obj_put_post" == _rn ||
-               "pep_api_phy_path_reg_post" == _rn) {
+            if("pep_api_data_obj_put_post"  == _rn ||
+               "pep_api_data_obj_repl_post" == _rn ||
+               "pep_api_phy_path_reg_post"  == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -240,6 +241,7 @@ irods::error rule_exists(
     const std::set<std::string> rules{
                                     "pep_api_data_obj_close_post",
                                     "pep_api_data_obj_put_post",
+                                    "pep_api_data_obj_repl_post",
                                     "pep_api_data_obj_get_post",
                                     "pep_api_phy_path_reg_post"};
     _ret = rules.find(_rn) != rules.end();
