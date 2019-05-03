@@ -36,7 +36,40 @@ int _delayExec(
 
 namespace {
     std::unique_ptr<irods::storage_tiering_configuration> config;
+    std::map<int, std::tuple<std::string, std::string>> opened_objects;
     std::string plugin_instance_name{};
+
+    std::tuple<int, std::string>
+    get_index_and_resource(const dataObjInp_t* _inp) {
+        int l1_idx{};
+        dataObjInfo_t* obj_info{};
+        for(const auto& l1 : L1desc) {
+            if(FD_INUSE != l1.inuseFlag) {
+                continue;
+            }
+            if(!strcmp(l1.dataObjInp->objPath, _inp->objPath)) {
+                obj_info = l1.dataObjInfo;
+                l1_idx = &l1 - L1desc;
+            }
+        }
+
+        if(nullptr == obj_info) {
+            THROW(
+                SYS_INVALID_INPUT_PARAM,
+                "no object found");
+        }
+
+        std::string resource_name;
+        irods::error err = irods::get_resource_property<std::string>(
+                               obj_info->rescId,
+                               irods::RESOURCE_NAME,
+                               resource_name);
+        if(!err.ok()) {
+            THROW(err.code(), err.result());
+        }
+
+        return std::make_tuple(l1_idx, resource_name);
+    } // get_index_and_resource
 
     void apply_access_time_policy(
         const std::string&           _rn,
@@ -69,7 +102,54 @@ namespace {
                 args.push_back(boost::any(config->access_time_attribute));
                 irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
             }
+            else if("pep_api_data_obj_open_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                int l1_idx{};
+                std::string resource_name;
+                try {
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
+                }
+                catch(const irods::exception& _e) {
+                    rodsLog(
+                       LOG_ERROR,
+                       "get_index_and_resource failed for [%s]",
+                       obj_inp->objPath);
+                }
+            }
+            else if("pep_api_data_obj_create_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                int l1_idx{};
+                std::string resource_name;
+                try {
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
+                }
+                catch(const irods::exception& _e) {
+                    rodsLog(
+                       LOG_ERROR,
+                       "get_index_and_resource failed for [%s]",
+                       obj_inp->objPath);
+                }
+            }
             else if("pep_api_data_obj_close_post" == _rn) {
+                //TODO :: only for create/write events
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -80,16 +160,16 @@ namespace {
 
                 const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
                 const auto l1_idx = opened_inp->l1descInx;
-                const auto opr_type = opened_inp->oprType;
+                if(opened_objects.find(l1_idx) != opened_objects.end()) {
+                    std::string object_path, resource_name;
+                    std::tie(object_path, resource_name) = opened_objects[l1_idx];
 
-                auto obj_info = L1desc[l1_idx].dataObjInfo;
-                std::string object_path{obj_info->objPath};
-
-                std::list<boost::any> args;
-                args.push_back(boost::any(object_path));
-                args.push_back(boost::any(""));
-                args.push_back(boost::any(config->access_time_attribute));
-                irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+                    std::list<boost::any> args;
+                    args.push_back(boost::any(object_path));
+                    args.push_back(boost::any(std::string{}));
+                    args.push_back(boost::any(config->access_time_attribute));
+                    irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+                }
             }
         } catch( const boost::bad_any_cast&) {
             // do nothing - no object to annotate
@@ -156,6 +236,30 @@ namespace {
                     _rei->rsComm->clientUser.userName,
                     source_resource);
             }
+            else if("pep_api_data_obj_open_post"   == _rn ||
+                    "pep_api_data_obj_create_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if(_args.end() == it) {
+                    THROW(
+                        SYS_INVALID_INPUT_PARAM,
+                        "invalid number of arguments");
+                }
+
+                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
+                int l1_idx{};
+                std::string resource_name;
+                try {
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
+                }
+                catch(const irods::exception& _e) {
+                    rodsLog(
+                       LOG_ERROR,
+                       "get_index_and_resource failed for [%s]",
+                       obj_inp->objPath);
+                }
+            }
             else if("pep_api_data_obj_close_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
@@ -167,25 +271,16 @@ namespace {
 
                 const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
                 const auto l1_idx = opened_inp->l1descInx;
-                const auto opr_type = opened_inp->oprType;
+                if(opened_objects.find(l1_idx) != opened_objects.end()) {
+                    std::string object_path, resource_name;
+                    std::tie(object_path, resource_name) = opened_objects[l1_idx];
 
-                auto obj_info = L1desc[l1_idx].dataObjInfo;
-                object_path = obj_info->objPath;
-                auto resc_id = obj_info->rescId;
-
-                irods::error err = irods::get_resource_property<std::string>(
-                                       resc_id,
-                                       irods::RESOURCE_NAME,
-                                       source_resource);
-                if(!err.ok()) {
-                    THROW(err.code(), err.result());
+                    irods::storage_tiering st{_rei, plugin_instance_name};
+                    st.migrate_object_to_minimum_restage_tier(
+                        object_path,
+                        _rei->rsComm->clientUser.userName,
+                        resource_name);
                 }
-
-                irods::storage_tiering st{_rei, plugin_instance_name};
-                st.migrate_object_to_minimum_restage_tier(
-                    object_path,
-                    _rei->rsComm->clientUser.userName,
-                    source_resource);
             }
         }
         catch(const boost::bad_any_cast& _e) {
@@ -238,6 +333,8 @@ irods::error rule_exists(
     const std::string& _rn,
     bool&              _ret) {
     const std::set<std::string> rules{
+                                    "pep_api_data_obj_create_post",
+                                    "pep_api_data_obj_open_post",
                                     "pep_api_data_obj_close_post",
                                     "pep_api_data_obj_put_post",
                                     "pep_api_data_obj_get_post",
@@ -264,7 +361,6 @@ irods::error exec_rule(
 
     try {
         apply_access_time_policy(_rn, rei, _args);
-
         apply_restage_movement_policy(_rn, rei, _args);
     }
     catch(const  std::invalid_argument& _e) {
@@ -292,8 +388,7 @@ irods::error exec_rule(
         return irods::error(_e);
     }
 
-    return err;
-
+    return CODE(RULE_ENGINE_CONTINUE);
 } // exec_rule
 
 irods::error exec_rule_text(

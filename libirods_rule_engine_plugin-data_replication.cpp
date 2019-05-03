@@ -11,12 +11,12 @@
 
 namespace {
     void replicate_object_to_resource(
-        rsComm_t*          _comm, 
+        rsComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _object_path) {
-       
+
         dataObjInp_t data_obj_inp{};
         rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
         data_obj_inp.createMode = getDefFileMode();
@@ -28,7 +28,7 @@ namespace {
         }
 
         transferStat_t* trans_stat{};
-        const auto repl_err = rsDataObjRepl(_comm, &data_obj_inp, &trans_stat);
+        const auto repl_err = irods::server_api_call(DATA_OBJ_REPL_AN, _comm, &data_obj_inp, &trans_stat);
         free(trans_stat);
         if(repl_err < 0) {
             THROW(repl_err,
