@@ -2,10 +2,12 @@
 #include "irods_query.hpp"
 #include "irods_re_plugin.hpp"
 #include "irods_re_ruleexistshelper.hpp"
+#include "irods_server_api_call.hpp"
 #include "storage_tiering_utilities.hpp"
 
 #include "rsDataObjRepl.hpp"
 #include "physPath.hpp"
+#include "apiNumber.h"
 
 #include <boost/any.hpp>
 
@@ -150,11 +152,11 @@ extern "C"
 irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
     const std::string& _inst_name,
     const std::string& _context ) {
-    irods::pluggable_rule_engine<irods::default_re_ctx>* re = 
+    irods::pluggable_rule_engine<irods::default_re_ctx>* re =
         new irods::pluggable_rule_engine<irods::default_re_ctx>(
                 _inst_name,
                 _context);
-    
+
     re->add_operation<
         irods::default_re_ctx&,
         const std::string&>(
