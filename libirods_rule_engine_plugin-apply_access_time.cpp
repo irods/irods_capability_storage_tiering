@@ -80,7 +80,6 @@ namespace {
             auto obj_path  = boost::any_cast<std::string>(*it); ++it;
             auto coll_type = boost::any_cast<std::string>(*it); ++it;
             auto attribute = boost::any_cast<std::string>(*it);
-
             if(coll_type.size() == 0) {
                 update_access_time_for_data_object(_comm, obj_path, attribute);
             }
