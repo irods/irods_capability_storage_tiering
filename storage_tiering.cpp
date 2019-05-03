@@ -842,26 +842,6 @@ namespace irods {
                     % _group_name
                     % _object_path);
             }
-
-            modAVUMetadataInp_t rm_op{
-                .arg0 = "rm",
-                .arg1 = "-d",
-                .arg2 = const_cast<char*>(_object_path.c_str()),
-                .arg3 = const_cast<char*>(config_.group_attribute.c_str()),
-                .arg4 = const_cast<char*>(_group_name.c_str()),
-                .arg5 = const_cast<char*>(_source_replica_number.c_str())};
-
-            status = rsModAVUMetadata(comm_, &rm_op);
-            if(status < 0) {
-                // metadata is not resident during initial move from first tier
-                if(CAT_SUCCESS_BUT_WITH_NO_INFO != status) {
-                    THROW(
-                        status,
-                        boost::format("failed to remove tier group [%s] metadata for [%s]")
-                        % _group_name
-                        % _object_path);
-                }
-            }
         }
         catch(const exception& _e) {
             irods::exception_to_rerror(
