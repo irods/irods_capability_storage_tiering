@@ -86,6 +86,11 @@ namespace irods {
                                     plugin_spec_cfg.at("time_check_string"));
                         }
 
+                        if(plugin_spec_cfg.find("number_of_scheduling_threads") != plugin_spec_cfg.end()) {
+                            number_of_scheduling_threads = boost::any_cast<int>(
+                                    plugin_spec_cfg.at("number_of_scheduling_threads"));
+                        }
+
                         if(plugin_spec_cfg.find(data_transfer_log_level_key) != plugin_spec_cfg.end()) {
                             const std::string val = boost::any_cast<std::string>(
                                     plugin_spec_cfg.at(data_transfer_log_level_key));

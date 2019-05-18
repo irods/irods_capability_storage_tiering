@@ -1,4 +1,3 @@
-// nclude "irods_re_ruleexistshelper.hpp"
 // =-=-=-=-=-=-=-
 // irods includes
 #include "irods_re_plugin.hpp"
@@ -6,6 +5,18 @@
 #include "irods_re_ruleexistshelper.hpp"
 #include "storage_tiering_utilities.hpp"
 #include "irods_resource_backport.hpp"
+
+#include "rsModAVUMetadata.hpp"
+#include "rsOpenCollection.hpp"
+#include "rsReadCollection.hpp"
+#include "rsCloseCollection.hpp"
+#include "irods_virtual_path.hpp"
+#include "rsDataObjRepl.hpp"
+#include "rsDataObjTrim.hpp"
+#include "physPath.hpp"
+#include "apiNumber.h"
+#include "data_verification_utilities.hpp"
+#include "irods_server_api_call.hpp"
 
 #undef LIST
 
@@ -71,6 +82,160 @@ namespace {
         return std::make_tuple(l1_idx, resource_name);
     } // get_index_and_resource
 
+    void replicate_object_to_resource(
+        rsComm_t*          _comm,
+        const std::string& _instance_name,
+        const std::string& _source_resource,
+        const std::string& _destination_resource,
+        const std::string& _object_path) {
+
+        dataObjInp_t data_obj_inp{};
+        rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
+        data_obj_inp.createMode = getDefFileMode();
+        addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW,      _source_resource.c_str());
+        addKeyVal(&data_obj_inp.condInput, DEST_RESC_NAME_KW, _destination_resource.c_str());
+
+        if(_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(&data_obj_inp.condInput, ADMIN_KW, "true" );
+        }
+
+        transferStat_t* trans_stat{};
+        const auto repl_err = irods::server_api_call(DATA_OBJ_REPL_AN, _comm, &data_obj_inp, &trans_stat);
+        free(trans_stat);
+        if(repl_err < 0) {
+            THROW(repl_err,
+                boost::format("failed to migrate [%s] to [%s]") %
+                _object_path % _destination_resource);
+
+        }
+    } // replicate_object_to_resource
+
+    void apply_data_retention_policy(
+        ruleExecInfo_t*    _rei,
+        const std::string& _instance_name,
+        const std::string& _object_path,
+        const std::string& _source_resource,
+        const bool         _preserve_replicas) {
+        if(_preserve_replicas) {
+            return;
+        }
+
+        rsComm_t* comm = _rei->rsComm;
+
+        dataObjInp_t obj_inp{};
+        rstrcpy(
+            obj_inp.objPath,
+            _object_path.c_str(),
+            sizeof(obj_inp.objPath));
+        addKeyVal(
+            &obj_inp.condInput,
+            RESC_NAME_KW,
+            _source_resource.c_str());
+        addKeyVal(
+            &obj_inp.condInput,
+            COPIES_KW,
+            "1");
+        if(comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(
+                &obj_inp.condInput,
+                ADMIN_KW,
+                "true" );
+        }
+
+        const auto trim_err = rsDataObjTrim(comm, &obj_inp);
+        if(trim_err < 0) {
+            THROW(
+                trim_err,
+                boost::format("failed to trim obj path [%s] from resource [%s]") %
+                _object_path %
+                _source_resource);
+        }
+
+    } // apply_data_retention_policy
+
+    void update_access_time_for_data_object(
+        rsComm_t*          _comm,
+        const std::string& _logical_path,
+        const std::string& _attribute) {
+
+        auto ts = std::to_string(std::time(nullptr));
+        modAVUMetadataInp_t avuOp{
+            "set",
+            "-d",
+            const_cast<char*>(_logical_path.c_str()),
+            const_cast<char*>(_attribute.c_str()),
+            const_cast<char*>(ts.c_str()),
+            ""};
+
+        auto status = rsModAVUMetadata(_comm, &avuOp);
+        if(status < 0) {
+            THROW(
+                status,
+                boost::format("failed to set access time for [%s]") %
+                _logical_path);
+        }
+    } // update_access_time_for_data_object
+
+    void apply_access_time_to_collection(
+        rsComm_t*          _comm,
+        int                _handle,
+        const std::string& _attribute) {
+        collEnt_t* coll_ent{nullptr};
+        int err = rsReadCollection(_comm, &_handle, &coll_ent);
+        while(err >= 0) {
+            if(DATA_OBJ_T == coll_ent->objType) {
+                const auto& vps = irods::get_virtual_path_separator();
+                std::string lp{coll_ent->collName};
+                lp += vps;
+                lp += coll_ent->dataName;
+                update_access_time_for_data_object(_comm, lp, _attribute);
+            }
+            else if(COLL_OBJ_T == coll_ent->objType) {
+                collInp_t coll_inp;
+                memset(&coll_inp, 0, sizeof(coll_inp));
+                rstrcpy(
+                    coll_inp.collName,
+                    coll_ent->collName,
+                    MAX_NAME_LEN);
+                int handle = rsOpenCollection(_comm, &coll_inp);
+                apply_access_time_to_collection(_comm, handle, _attribute);
+                rsCloseCollection(_comm, &handle);
+            }
+
+            err = rsReadCollection(_comm, &_handle, &coll_ent);
+        } // while
+    } // apply_access_time_to_collection
+
+    void set_access_time_metadata(
+        rsComm_t*              _comm,
+        const std::string& _object_path,
+        const std::string& _collection_type,
+        const std::string& _attribute) {
+        if(_collection_type.size() == 0) {
+            update_access_time_for_data_object(_comm, _object_path, _attribute);
+        }
+        else {
+            // register a collection
+            collInp_t coll_inp;
+            memset(&coll_inp, 0, sizeof(coll_inp));
+            rstrcpy(
+                coll_inp.collName,
+                _object_path.c_str(),
+                MAX_NAME_LEN);
+            int handle = rsOpenCollection(
+                             _comm,
+                             &coll_inp);
+            if(handle < 0) {
+                THROW(
+                    handle,
+                    boost::format("failed to open collection [%s]") %
+                    _object_path);
+            }
+
+            apply_access_time_to_collection(_comm, handle, _attribute);
+        }
+    } // set_access_time_metadata
+
     void apply_access_time_policy(
         const std::string&           _rn,
         ruleExecInfo_t*              _rei,
@@ -97,11 +262,11 @@ namespace {
                     coll_type = "true";
                 }
 
-                std::list<boost::any> args;
-                args.push_back(boost::any(object_path));
-                args.push_back(boost::any(coll_type));
-                args.push_back(boost::any(config->access_time_attribute));
-                irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+                set_access_time_metadata(
+                    _rei->rsComm,
+                    object_path,
+                    coll_type,
+                    config->access_time_attribute);
             }
             else if("pep_api_data_obj_open_post" == _rn) {
                 auto it = _args.begin();
@@ -164,11 +329,11 @@ namespace {
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
                     auto [object_path, resource_name] = opened_objects[l1_idx];
 
-                    std::list<boost::any> args;
-                    args.push_back(boost::any(object_path));
-                    args.push_back(boost::any(std::string{}));
-                    args.push_back(boost::any(config->access_time_attribute));
-                    irods::invoke_policy(_rei, irods::storage_tiering::policy::access_time, args);
+                    set_access_time_metadata(
+                        _rei->rsComm,
+                        object_path,
+                        "",
+                        config->access_time_attribute);
                 }
             }
         } catch( const boost::bad_any_cast&) {
@@ -187,16 +352,34 @@ namespace {
         const bool         _preserve_replicas,
         const std::string& _verification_type) {
 
-        std::list<boost::any> args;
-        args.push_back(boost::any(_instance_name));
-        args.push_back(boost::any(_object_path));
-        args.push_back(boost::any(_user_name));
-        args.push_back(boost::any(_source_replica_number));
-        args.push_back(boost::any(_source_resource));
-        args.push_back(boost::any(_destination_resource));
-        args.push_back(boost::any(_preserve_replicas));
-        args.push_back(boost::any(_verification_type));
-        irods::invoke_policy(_rei, irods::storage_tiering::policy::data_movement, args);
+        replicate_object_to_resource(
+            _rei->rsComm,
+            _instance_name,
+            _source_resource,
+            _destination_resource,
+            _object_path);
+
+        auto verified = irods::verify_replica_for_destination_resource(
+                            _rei->rsComm,
+                            _instance_name,
+                            _verification_type,
+                            _object_path,
+                            _source_resource,
+                            _destination_resource);
+        if(!verified) {
+            THROW(
+                UNMATCHED_KEY_OR_INDEX,
+                boost::format("verification failed for [%s] on [%s]")
+                % _object_path
+                % _destination_resource);
+        }
+
+        apply_data_retention_policy(
+                _rei,
+                _instance_name,
+                _object_path,
+                _source_resource,
+                _preserve_replicas);
 
     } // apply_data_movement_policy
 
