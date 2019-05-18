@@ -1,4 +1,4 @@
-set(POLICY_NAME "storage_tiering")
+set(POLICY_NAME "unified_storage_tiering")
 
 string(REPLACE "_" "-" POLICY_NAME_HYPHENS ${POLICY_NAME})
 set(IRODS_PACKAGE_COMPONENT_POLICY_NAME ${POLICY_NAME_HYPHENS})
@@ -24,16 +24,16 @@ add_library(
     ${CMAKE_SOURCE_DIR}/storage_tiering.cpp
     ${CMAKE_SOURCE_DIR}/storage_tiering_configuration.cpp
     ${CMAKE_SOURCE_DIR}/storage_tiering_utilities.cpp
+    ${CMAKE_SOURCE_DIR}/data_verification_utilities.cpp
     )
 
 target_include_directories(
     ${TARGET_NAME}
     PRIVATE
     ${IRODS_INCLUDE_DIRS}
-    ${IRODS_EXTERNALS_FULLPATH_QPID}/include
-    ${IRODS_EXTERNALS_FULLPATH_BOOST}/include
-    ${IRODS_EXTERNALS_FULLPATH_JANSSON}/include
     ${IRODS_EXTERNALS_FULLPATH_ARCHIVE}/include
+    ${IRODS_EXTERNALS_FULLPATH_BOOST}/include
+    ${IRODS_EXTERNALS_FULLPATH_JSON}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
 
@@ -41,7 +41,6 @@ target_link_libraries(
     ${TARGET_NAME}
     PRIVATE
     ${IRODS_PLUGIN_POLICY_LINK_LIBRARIES}
-    ${IRODS_EXTERNALS_FULLPATH_JANSSON}/lib/libjansson.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_filesystem.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_regex.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_system.so
@@ -64,7 +63,7 @@ install(
 
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/packaging/test_plugin_storage_tiering.py
+  ${CMAKE_SOURCE_DIR}/packaging/test_plugin_unified_storage_tiering.py
   DESTINATION ${IRODS_HOME_DIRECTORY}/scripts/irods/test
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   COMPONENT ${IRODS_PACKAGE_COMPONENT_POLICY_NAME}
@@ -72,7 +71,7 @@ install(
 
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/packaging/run_storage_tiering_plugin_test.py
+  ${CMAKE_SOURCE_DIR}/packaging/run_unified_storage_tiering_plugin_test.py
   DESTINATION ${IRODS_HOME_DIRECTORY}/scripts
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   COMPONENT ${IRODS_PACKAGE_COMPONENT_POLICY_NAME}
@@ -80,7 +79,7 @@ install(
 
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/example_tiering_invocation.r
+  ${CMAKE_SOURCE_DIR}/example_unified_tiering_invocation.r
   DESTINATION ${IRODS_HOME_DIRECTORY}
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   COMPONENT ${IRODS_PACKAGE_COMPONENT_POLICY_NAME}
@@ -98,8 +97,4 @@ if (IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "centos" OR IRODS_LINUX_DISTRIBUTION_
 elseif (IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "opensuse")
     set(CPACK_RPM_${IRODS_PACKAGE_COMPONENT_POLICY_NAME}_PACKAGE_REQUIRES "${IRODS_PACKAGE_DEPENDENCIES_STRING}, irods-server = ${IRODS_VERSION}, irods-runtime = ${IRODS_VERSION}, libopenssl1_0_0")
 endif()
-
-set(CPACK_DEBIAN_PACKAGE_BREAKS "irods-rule-engine-plugin-tiered-storage")
-set(CPACK_DEBIAN_PACKAGE_REPLACES "irods-rule-engine-plugin-tiered-storage")
-set(CPACK_RPM_PACKAGE_OBSOLETES "irods-rule-engine-plugin-tiered-storage")
 

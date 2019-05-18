@@ -21,12 +21,12 @@ namespace {
 
         auto ts = std::to_string(std::time(nullptr));
         modAVUMetadataInp_t avuOp{
-            .arg0 = "set",
-            .arg1 = "-d",
-            .arg2 = const_cast<char*>(_logical_path.c_str()),
-            .arg3 = const_cast<char*>(_attribute.c_str()),
-            .arg4 = const_cast<char*>(ts.c_str()),
-            .arg5 = ""};
+            "set",
+            "-d",
+            const_cast<char*>(_logical_path.c_str()),
+            const_cast<char*>(_attribute.c_str()),
+            const_cast<char*>(ts.c_str()),
+            ""};
 
         auto status = rsModAVUMetadata(_comm, &avuOp);
         if(status < 0) {

@@ -24,6 +24,7 @@ namespace irods {
         const std::string data_transfer_log_level_key{"data_transfer_log_level"};
         int data_transfer_log_level_value{LOG_DEBUG};
 
+        int number_of_scheduling_threads{4};
         int default_minimum_delay_time{1};
         int default_maximum_delay_time{30};
         std::string default_data_movement_parameters{"<EF>60s DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>"};
