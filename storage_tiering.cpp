@@ -8,6 +8,7 @@
 #include "irods_hierarchy_parser.hpp"
 #include "irods_resource_manager.hpp"
 #include "irods_resource_backport.hpp"
+#include "query_processor.hpp"
 
 #include "rsModAVUMetadata.hpp"
 #include "rsExecMyRule.hpp"
@@ -25,7 +26,7 @@
 #include <random>
 
 #include "json.hpp"
-
+#include <tuple>
 
 extern irods::resource_manager resc_mgr;
 
@@ -61,12 +62,12 @@ namespace irods {
 
         auto ts = std::to_string(std::time(nullptr));
         modAVUMetadataInp_t avuOp{
-            .arg0 = "set",
-            .arg1 = "-d",
-            .arg2 = const_cast<char*>(_object_path.c_str()),
-            .arg3 = const_cast<char*>(config_.access_time_attribute.c_str()),
-            .arg4 = const_cast<char*>(ts.c_str()),
-            .arg5 = ""};
+            "set",
+            "-d",
+            const_cast<char*>(_object_path.c_str()),
+            const_cast<char*>(config_.access_time_attribute.c_str()),
+            const_cast<char*>(ts.c_str()),
+            ""};
 
         auto status = rsModAVUMetadata(comm_, &avuOp);
         if(status < 0) {
@@ -504,84 +505,103 @@ namespace irods {
         return skip;
     } // skip_object_in_lower_tier
 
+
     void storage_tiering::migrate_violating_data_objects(
+        rsComm_t&          _comm,
         const std::string& _group_name,
         const std::string& _partial_list,
         const std::string& _source_resource,
         const std::string& _destination_resource) {
+        using result_row = irods::query_processor<rsComm_t>::result_row;
+
+        irods::thread_pool thread_pool{config_.number_of_scheduling_threads};
         try {
             std::map<std::string, uint8_t> object_is_processed;
             const bool preserve_replicas = get_preserve_replicas_for_resc(_source_resource);
+            const auto query_limit       = get_object_limit_for_resource(_source_resource);
+            const auto query_list        = get_violating_queries_for_resource(_source_resource);
 
-            const auto query_limit = get_object_limit_for_resource(_source_resource);
-            const auto query_list  = get_violating_queries_for_resource(_source_resource);
             for(const auto& q_itr : query_list) {
-                const auto  violating_query_type = query<rsComm_t>::convert_string_to_query_type(q_itr.second);
+                const auto  violating_query_type   = query<rsComm_t>::convert_string_to_query_type(q_itr.second);
                 const auto& violating_query_string = q_itr.first;
-
-                try {
-                    query<rsComm_t> violating_query{
-                                        comm_,
-                                        violating_query_string,
-                                        query_limit,
-                                        violating_query_type};
+                auto job = [&](const result_row& _results) {
                     rodsLog(
                         config_.data_transfer_log_level_value,
                         "found %ld objects for resc [%s] with query [%s] type [%d]",
-                        violating_query.size(),
+                        _results.size(),
                         _source_resource.c_str(),
                         violating_query_string.c_str(),
                         violating_query_type);
-                    if(violating_query.size() == 0) {
-                        continue;
+                    if(_results.size() == 0) {
+                        return;
                     }
 
                     // users could possbily configure an incorrect query
-                    if(violating_query.front().size() < 4) {
+                    if(_results.size() < 4) {
                         rodsLog(
                             LOG_ERROR,
                             "invalid number of columns returned [%d] for query [%s]",
-                            violating_query.front().size(),
+                            _results.size(),
                             violating_query_string.c_str());
-                        continue;
+                        return;
                     }
 
-                    for(const auto& violating_result : violating_query) {
-                        auto object_path = violating_result[1]; // coll name
-                        const auto& vps  = get_virtual_path_separator();
-                        if( !boost::ends_with(object_path, vps)) {
-                            object_path += vps;
+                    auto object_path = _results[1]; // coll name
+                    const auto& vps  = get_virtual_path_separator();
+                    if( !boost::ends_with(object_path, vps)) {
+                        object_path += vps;
+                    }
+                    object_path += _results[0]; // data name
+
+                    if(std::end(object_is_processed) !=
+                       object_is_processed.find(object_path)) {
+                        return;
+                    }
+
+                    object_is_processed[object_path] = 1;
+
+                    if(preserve_replicas) {
+                        if(skip_object_in_lower_tier(
+                               object_path,
+                               _partial_list)) {
+                            return;
                         }
-                        object_path += violating_result[0]; // data name
+                    }
 
-                        if(std::end(object_is_processed) !=
-                           object_is_processed.find(object_path)) {
-                            continue;
+                    queue_data_movement(
+                        config_.instance_name,
+                        _group_name,
+                        object_path,
+                        _results[2],
+                        _results[3],
+                        _source_resource,
+                        _destination_resource,
+                        get_verification_for_resc(_destination_resource),
+                        get_preserve_replicas_for_resc(_source_resource),
+                        get_data_movement_parameters_for_resource(_source_resource));
+
+                }; // job
+
+                try {
+                    irods::query_processor<rsComm_t> qp(violating_query_string, job, query_limit, violating_query_type);
+                    auto future = qp.execute(thread_pool, _comm);
+                    auto errors = future.get();
+                    if(errors.size() > 0) {
+                        for(auto& e : errors) {
+                            rodsLog(
+                                LOG_ERROR,
+                                "data movement scheduling failed - [%d]::[%s]",
+                                std::get<0>(e),
+                                std::get<1>(e).c_str());
                         }
 
-                        object_is_processed[object_path] = 1;
-
-                        if(preserve_replicas) {
-                            if(skip_object_in_lower_tier(
-                                   object_path,
-                                   _partial_list)) {
-                                continue;
-                            }
-                        }
-
-                        queue_data_movement(
-                            config_.instance_name,
-                            _group_name,
-                            object_path,
-                            violating_result[2],
-                            violating_result[3],
-                            _source_resource,
-                            _destination_resource,
-                            get_verification_for_resc(_destination_resource),
-                            get_preserve_replicas_for_resc(_source_resource),
-                            get_data_movement_parameters_for_resource(_source_resource));
-
-                    } // for violating_result
+                        THROW(
+                            SYS_INVALID_OPR_TYPE,
+                            boost::format(
+                            "scheduling failed for [%d] objects for query [%s]")
+                            % errors.size()
+                            % violating_query_string.c_str());
+                    }
                 }
                 catch(const exception& _e) {
                     // if nothing of interest is found, thats not an error
@@ -783,6 +803,7 @@ namespace irods {
     }
 
     void storage_tiering::apply_policy_for_tier_group(
+        rsComm_t&          _comm,
         const std::string& _group) {
         resource_index_map rescs = get_resource_map_for_group(
                                              _group);
@@ -797,15 +818,14 @@ namespace irods {
 
         auto resc_itr = rescs.begin();
         for( ; resc_itr != rescs.end(); ++resc_itr) {
-            const std::string partial_list{make_partial_list(resc_itr, rescs.end())};
-
+            const auto partial_list{make_partial_list(resc_itr, rescs.end())};
             auto next_itr = resc_itr;
             ++next_itr;
             if(rescs.end() == next_itr) {
                 break;
             }
-
             migrate_violating_data_objects(
+                _comm,
                 _group,
                 partial_list,
                 resc_itr->second,
@@ -827,12 +847,12 @@ namespace irods {
                                                         _object_path,
                                                         _destination_resource);
             modAVUMetadataInp_t set_op{
-                .arg0 = "set",
-                .arg1 = "-d",
-                .arg2 = const_cast<char*>(_object_path.c_str()),
-                .arg3 = const_cast<char*>(config_.group_attribute.c_str()),
-                .arg4 = const_cast<char*>(_group_name.c_str()),
-                .arg5 = const_cast<char*>(destination_replica_number.c_str())};
+                "set",
+                "-d",
+                const_cast<char*>(_object_path.c_str()),
+                const_cast<char*>(config_.group_attribute.c_str()),
+                const_cast<char*>(_group_name.c_str()),
+                const_cast<char*>(destination_replica_number.c_str())};
 
             auto status = rsModAVUMetadata(comm_, &set_op);
             if(status < 0) {

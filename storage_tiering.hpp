@@ -30,6 +30,7 @@ namespace irods {
             const std::string& _instance_name);
 
         void apply_policy_for_tier_group(
+            rsComm_t&          _comm,
             const std::string& _group);
 
         void migrate_object_to_minimum_restage_tier(
@@ -129,10 +130,11 @@ namespace irods {
             const std::string& _data_movement_params);
 
         void migrate_violating_data_objects(
-            const std::string&       _group_name,
-            const std::string&       _partial_list,
-            const std::string&       _source_resource,
-            const std::string&       _destination_resource);
+            rsComm_t&           _comm,
+            const std::string&  _group_name,
+            const std::string&  _partial_list,
+            const std::string&  _source_resource,
+            const std::string&  _destination_resource);
 
         // Attributes 
         ruleExecInfo_t*               rei_;

@@ -91,6 +91,7 @@ set(CPACK_PACKAGE_FILE_NAME "irods-rule-engine-plugin")
 set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_MINOR}.${IRODS_PLUGIN_VERSION_PATCH}")
 
 
+include(${CMAKE_SOURCE_DIR}/unified_storage_tiering.cmake)
 include(${CMAKE_SOURCE_DIR}/storage_tiering.cmake)
 include(${CMAKE_SOURCE_DIR}/apply_access_time.cmake)
 include(${CMAKE_SOURCE_DIR}/data_movement.cmake)
