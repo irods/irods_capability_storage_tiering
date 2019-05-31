@@ -116,8 +116,8 @@ namespace {
                 int l1_idx{};
                 std::string resource_name;
                 try {
-                    auto [l1_idx, resource_name] = get_index_and_resource(obj_inp);
-                    opened_objects[l1_idx] = std::make_tuple(obj_inp->objPath, resource_name);
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
                 }
                 catch(const irods::exception& _e) {
                     rodsLog(
@@ -139,8 +139,8 @@ namespace {
                 int l1_idx{};
                 std::string resource_name;
                 try {
-                    auto [l1_idx, resource_name] = get_index_and_resource(obj_inp);
-                    opened_objects[l1_idx] = std::make_tuple(obj_inp->objPath, resource_name);
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
                 }
                 catch(const irods::exception& _e) {
                     rodsLog(
@@ -162,7 +162,8 @@ namespace {
                 const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
                 const auto l1_idx = opened_inp->l1descInx;
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
-                    auto [object_path, resource_name] = opened_objects[l1_idx];
+                    std::string object_path, resource_name;
+                    std::tie(object_path, resource_name) = opened_objects[l1_idx];
 
                     std::list<boost::any> args;
                     args.push_back(boost::any(object_path));
@@ -250,8 +251,8 @@ namespace {
                 int l1_idx{};
                 std::string resource_name;
                 try {
-                    auto [l1_idx, resource_name] = get_index_and_resource(obj_inp);
-                    opened_objects[l1_idx] = std::make_tuple(obj_inp->objPath, resource_name);
+                    std::tie(l1_idx, resource_name) = get_index_and_resource(obj_inp);
+                    opened_objects[l1_idx] = std::tie(obj_inp->objPath, resource_name);
                 }
                 catch(const irods::exception& _e) {
                     rodsLog(
@@ -272,7 +273,8 @@ namespace {
                 const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
                 const auto l1_idx = opened_inp->l1descInx;
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
-                    auto [object_path, resource_name] = opened_objects[l1_idx];
+                    std::string object_path, resource_name;
+                    std::tie(object_path, resource_name) = opened_objects[l1_idx];
 
                     irods::storage_tiering st{_rei, plugin_instance_name};
                     st.migrate_object_to_minimum_restage_tier(
