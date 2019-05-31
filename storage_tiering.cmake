@@ -45,6 +45,7 @@ target_link_libraries(
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_filesystem.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_regex.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_system.so
+    ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_thread.so
     ${OPENSSL_CRYPTO_LIBRARY}
     irods_common
     pthread
