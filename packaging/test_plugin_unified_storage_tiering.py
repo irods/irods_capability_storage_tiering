@@ -929,6 +929,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
                 filename  = 'test_put_file'
                 filename2 = 'test_put_file2'
+                filepath  = lib.create_local_testfile(filename)
                 admin_session.assert_icommand('iput -R ufs0 ' + filename)
                 admin_session.assert_icommand('imeta add -d ' + filename + ' archive_object yes')
                 admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', 'irods::access_time')
@@ -1007,6 +1008,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
             with session.make_session_for_existing_admin() as admin_session:
                 local_dir_name = '/tmp/test_directory_registration_dir'
                 shutil.rmtree(local_dir_name, ignore_errors=True)
+                local_tree = lib.make_deep_local_tmp_dir(local_dir_name, 3, 10, 5)
 
                 dest_path = '/tempZone/home/rods/reg_coll'
                 admin_session.assert_icommand('ireg -CR ufs0 ' + local_dir_name + ' ' + dest_path)
