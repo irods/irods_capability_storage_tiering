@@ -91,7 +91,7 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/packaging/postinst_t
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/postinst_tiering")
 
 set(CPACK_DEBIAN_${IRODS_PACKAGE_COMPONENT_POLICY_NAME_UPPERCASE}_PACKAGE_NAME ${TARGET_NAME})
-set(CPACK_DEBIAN_${IRODS_PACKAGE_COMPONENT_POLICY_NAME_UPPERCASE}_PACKAGE_DEPENDS "${IRODS_PACKAGE_DEPENDENCIES_STRING}, irods-server (= ${IRODS_VERSION}), irods-runtime (= ${IRODS_VERSION}), libc6, irods-rule-engine-plugin-apply-access-time-2.5.0, irods-rule-engine-plugin-data-movement-2.5.0, irods-rule-engine-plugin-data-replication-2.5.0, irods-rule-engine-plugin-data-verification-2.5.0")
+set(CPACK_DEBIAN_${IRODS_PACKAGE_COMPONENT_POLICY_NAME_UPPERCASE}_PACKAGE_DEPENDS "${IRODS_PACKAGE_DEPENDENCIES_STRING}, irods-server (= ${IRODS_VERSION}), irods-runtime (= ${IRODS_VERSION}), libc6, irods-rule-engine-plugin-apply-access-time-${IRODS_PLUGIN_VERSION}, irods-rule-engine-plugin-data-movement-${IRODS_PLUGIN_VERSION}, irods-rule-engine-plugin-data-replication-${IRODS_PLUGIN_VERSION}, irods-rule-engine-plugin-data-verification-${IRODS_PLUGIN_VERSION}")
 
 set(CPACK_RPM_${IRODS_PACKAGE_COMPONENT_POLICY_NAME}_PACKAGE_NAME ${TARGET_NAME})
 if (IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "centos" OR IRODS_LINUX_DISTRIBUTION_NAME STREQUAL "centos linux")
