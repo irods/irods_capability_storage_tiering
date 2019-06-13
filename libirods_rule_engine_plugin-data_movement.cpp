@@ -48,8 +48,8 @@ namespace {
         const std::string& _instance_name,
         const std::string& _object_path,
         const std::string& _source_resource,
-        const bool         _preserve_replicas) {
-        if(_preserve_replicas) {
+        const std::string& _preserve_replicas) {
+        if("true" == _preserve_replicas) {
             return;
         }
 
@@ -92,7 +92,7 @@ namespace {
         const std::string& _object_path,
         const std::string& _source_resource,
         const std::string& _destination_resource,
-        const bool         _preserve_replicas,
+        const std::string& _preserve_replicas,
         const std::string& _verification_type) {
 
         apply_data_replication_policy(
@@ -156,6 +156,7 @@ irods::error exec_rule(
     const std::string&     _rn,
     std::list<boost::any>& _args,
     irods::callback        _eff_hdlr) {
+
     ruleExecInfo_t* rei{};
     const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
     if(!err.ok()) {
@@ -165,14 +166,14 @@ irods::error exec_rule(
     try {
         // Extract parameters from args
         auto it = _args.begin();
-        const std::string instance_name{ boost::any_cast<std::string>(*it) }; ++it;
-        const std::string object_path{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string instance_name{ irods::any_to_string(*it) }; ++it;
+        const std::string object_path{ irods::any_to_string(*it) }; ++it;
         ++it; // user name
         ++it; // source_replica_number
-        const std::string source_resource{ boost::any_cast<std::string>(*it) }; ++it;
-        const std::string destination_resource{ boost::any_cast<std::string>(*it) }; ++it;
-        const bool  preserve_replicas{ boost::any_cast<const bool>(*it) }; ++it;
-        std::string verification_type{ boost::any_cast<std::string>(*it) }; ++it;
+        const std::string source_resource{ irods::any_to_string(*it) }; ++it;
+        const std::string destination_resource{ irods::any_to_string(*it) }; ++it;
+        const std::string  preserve_replicas{ irods::any_to_string(*it) }; ++it;
+        std::string verification_type{ irods::any_to_string(*it) }; ++it;
 
         apply_data_movement_policy(
             rei,
@@ -237,11 +238,11 @@ extern "C"
 irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
     const std::string& _inst_name,
     const std::string& _context ) {
-    irods::pluggable_rule_engine<irods::default_re_ctx>* re = 
+    irods::pluggable_rule_engine<irods::default_re_ctx>* re =
         new irods::pluggable_rule_engine<irods::default_re_ctx>(
                 _inst_name,
                 _context);
-    
+
     re->add_operation<
         irods::default_re_ctx&,
         const std::string&>(
