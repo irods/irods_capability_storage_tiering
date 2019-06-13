@@ -1,10 +1,33 @@
 
 #include "storage_tiering_utilities.hpp"
-
 #include "rcMisc.h"
 
-
 namespace irods {
+    std::string any_to_string(boost::any& _a) {
+        if(_a.type() == typeid(std::string)) {
+            return boost::any_cast<std::string>(_a);
+        }
+        else if(_a.type() == typeid(std::string*)) {
+            return *boost::any_cast<std::string*>(_a);
+        }
+        else if(_a.type() == typeid(msParam_t*)) {
+            msParam_t* msp = boost::any_cast<msParam_t*>(_a);
+            if(msp->type == STR_MS_T) {
+                return static_cast<char*>(msp->inOutStruct);
+            }
+            else {
+                rodsLog(
+                    LOG_ERROR,
+                    "not a string type [%s]",
+                    msp->type);
+            }
+        }
+
+        THROW(
+           SYS_INVALID_INPUT_PARAM,
+           boost::format("parameter is not a string [%s]")
+           % _a.type().name());
+    } // any_to_string
 
     void exception_to_rerror(
         const irods::exception& _exception,

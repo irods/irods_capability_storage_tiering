@@ -195,7 +195,7 @@ namespace {
         args.push_back(boost::any(_source_replica_number));
         args.push_back(boost::any(_source_resource));
         args.push_back(boost::any(_destination_resource));
-        args.push_back(boost::any(_preserve_replicas));
+        args.push_back(boost::any(_preserve_replicas ? std::string("true") : std::string("false")));
         args.push_back(boost::any(_verification_type));
         irods::invoke_policy(_rei, irods::storage_tiering::policy::data_movement, args);
 
