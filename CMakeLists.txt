@@ -5,6 +5,7 @@ find_package(IRODS 4.2.6 EXACT REQUIRED)
 set(IRODS_PLUGIN_VERSION_MAJOR 2)
 set(IRODS_PLUGIN_VERSION_MINOR 6)
 set(IRODS_PLUGIN_VERSION_PATCH 1)
+set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_MINOR}.${IRODS_PLUGIN_VERSION_PATCH}")
 
 set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
@@ -86,12 +87,12 @@ set(CPACK_RPM_PACKAGE_AUTOPROV 0)
 
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 
+include(${CMAKE_SOURCE_DIR}/irods_plugin_common.cmake)
+
 # CPACK names component package files as "${CPACK_PACKAGE_FILE_NAME}-${COMPONENT_NAME}"
 # CPackDeb TO_UPPERs all the component names when checking the ${CPACK_DEBIAN_<COMPONENT>...} variables
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME_HYPHENS})
 set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME_HYPHENS})
-set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_MINOR}.${IRODS_PLUGIN_VERSION_PATCH}")
-
 
 include(${CMAKE_SOURCE_DIR}/unified_storage_tiering.cmake)
 include(${CMAKE_SOURCE_DIR}/storage_tiering.cmake)
@@ -99,12 +100,6 @@ include(${CMAKE_SOURCE_DIR}/apply_access_time.cmake)
 include(${CMAKE_SOURCE_DIR}/data_movement.cmake)
 include(${CMAKE_SOURCE_DIR}/data_replication.cmake)
 include(${CMAKE_SOURCE_DIR}/data_verification.cmake)
-
-
-if (NOT CPACK_GENERATOR)
-    set(CPACK_GENERATOR ${IRODS_CPACK_GENERATOR} CACHE STRING "CPack generator to use, e.g. {DEB, RPM, TGZ}." FORCE)
-    message(STATUS "Setting unspecified CPACK_GENERATOR to ${CPACK_GENERATOR}. This is the correct setting for normal builds.")
-endif()
 
 include(CPack)
 

@@ -1,0 +1,15 @@
+if [ -f /etc/irods/service_account.config ] ; then
+  . /etc/irods/service_account.config
+else
+  IRODS_SERVICE_ACCOUNT_NAME=`stat --format "%U" /var/lib/irods`
+  IRODS_SERVICE_GROUP_NAME=`stat --format "%G" /var/lib/irods`
+fi
+
+
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods/scripts
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods/scripts/irods
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods/scripts/irods/test
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods/scripts/irods/test/test_plugin_unified_storage_tiering.py
+chown $IRODS_SERVICE_ACCOUNT_NAME:$IRODS_SERVICE_GROUP_NAME /var/lib/irods/scripts/run_unified_storage_tiering_plugin_test.py
+
