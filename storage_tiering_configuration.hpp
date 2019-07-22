@@ -19,6 +19,8 @@ namespace irods {
         std::string minimum_delay_time{"irods::storage_tiering::minimum_delay_time_in_seconds"};
         std::string maximum_delay_time{"irods::storage_tiering::maximum_delay_time_in_seconds"};
 
+        std::string migration_scheduled_flag{"irods::storage_tiering::migration_scheduled"};
+
         std::string time_check_string{"TIME_CHECK_STRING"};
 
         const std::string data_transfer_log_level_key{"data_transfer_log_level"};
