@@ -444,10 +444,11 @@ namespace irods {
             metadata_results results;
             results.push_back(
                 std::make_pair(boost::str(
-                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND DATA_RESC_ID IN (%s)") %
-                config_.access_time_attribute %
-                tier_time %
-                leaf_str), ""));
+                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND META_DATA_ATTR_UNITS <> '%s' AND DATA_RESC_ID IN (%s)")
+                % config_.access_time_attribute
+                % tier_time
+                % config_.migration_scheduled_flag
+                % leaf_str), ""));
             rodsLog(
                 config_.data_transfer_log_level_value,
                 "use default query for [%s]",
@@ -504,7 +505,6 @@ namespace irods {
 
         return skip;
     } // skip_object_in_lower_tier
-
 
     void storage_tiering::migrate_violating_data_objects(
         rsComm_t&          _comm,
@@ -657,6 +657,9 @@ namespace irods {
         const bool         _preserve_replicas,
         const std::string& _data_movement_params) {
         using json = nlohmann::json;
+
+        set_migration_metadata_flag_for_object(_object_path);
+
         json rule_obj;
         rule_obj["rule-engine-operation"]     = policy::data_movement;
         rule_obj["rule-engine-instance-name"] = _plugin_instance_name;
@@ -835,6 +838,52 @@ namespace irods {
 
     } // apply_policy_for_tier_group
 
+    void storage_tiering::set_migration_metadata_flag_for_object(
+        const std::string& _object_path) {
+        auto access_time = get_metadata_for_data_object(
+                               config_.access_time_attribute,
+                               _object_path);
+
+        modAVUMetadataInp_t set_op{
+           "set",
+           "-d",
+           const_cast<char*>(_object_path.c_str()),
+           const_cast<char*>(config_.access_time_attribute.c_str()),
+           const_cast<char*>(access_time.c_str()),
+           const_cast<char*>(config_.migration_scheduled_flag.c_str())};
+
+        auto status = rsModAVUMetadata(comm_, &set_op);
+        if(status < 0) {
+           THROW(
+               status,
+               boost::format("failed to set migration scheduled flag for [%s]")
+               % _object_path);
+        }
+    } // set_migration_metadata_flag_for_object
+
+    void storage_tiering::unset_migration_metadata_flag_for_object(
+        const std::string& _object_path) {
+        auto access_time = get_metadata_for_data_object(
+                               config_.access_time_attribute,
+                               _object_path);
+        modAVUMetadataInp_t set_op{
+           "set",
+           "-d",
+           const_cast<char*>(_object_path.c_str()),
+           const_cast<char*>(config_.access_time_attribute.c_str()),
+           const_cast<char*>(access_time.c_str()),
+           nullptr};
+
+       auto status = rsModAVUMetadata(comm_, &set_op);
+       if(status < 0) {
+           THROW(
+               status,
+               boost::format("failed to unset migration scheduled flag for [%s]")
+               % _object_path);
+       }
+
+    } // unset_migration_metadata_flag_for_object
+
     void storage_tiering::apply_tier_group_metadata_to_object(
         const std::string& _group_name,
         const std::string& _object_path,
@@ -843,6 +892,13 @@ namespace irods {
         const std::string& _source_resource,
         const std::string& _destination_resource) {
         try {
+            unset_migration_metadata_flag_for_object(_object_path);
+        }
+        catch(const exception&) {
+        }
+
+        try {
+
             const auto destination_replica_number = get_replica_number_for_resource(
                                                         _object_path,
                                                         _destination_resource);
