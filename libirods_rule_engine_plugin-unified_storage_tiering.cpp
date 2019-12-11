@@ -17,6 +17,7 @@
 #include "apiNumber.h"
 #include "data_verification_utilities.hpp"
 #include "irods_server_api_call.hpp"
+#include "exec_as_user.hpp"
 
 #undef LIST
 
@@ -111,7 +112,7 @@ namespace {
     } // replicate_object_to_resource
 
     void apply_data_retention_policy(
-        ruleExecInfo_t*    _rei,
+        rsComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _object_path,
         const std::string& _source_resource,
@@ -119,8 +120,6 @@ namespace {
         if(_preserve_replicas) {
             return;
         }
-
-        rsComm_t* comm = _rei->rsComm;
 
         dataObjInp_t obj_inp{};
         rstrcpy(
@@ -135,14 +134,14 @@ namespace {
             &obj_inp.condInput,
             COPIES_KW,
             "1");
-        if(comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+        if(_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
             addKeyVal(
                 &obj_inp.condInput,
                 ADMIN_KW,
                 "true" );
         }
 
-        const auto trim_err = rsDataObjTrim(comm, &obj_inp);
+        const auto trim_err = rsDataObjTrim(_comm, &obj_inp);
         if(trim_err < 0) {
             THROW(
                 trim_err,
@@ -342,8 +341,8 @@ namespace {
         }
     } // apply_access_time_policy
 
-    void apply_data_movement_policy(
-        ruleExecInfo_t*    _rei,
+    int apply_data_movement_policy(
+        rsComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _object_path,
         const std::string& _user_name,
@@ -354,14 +353,14 @@ namespace {
         const std::string& _verification_type) {
 
         replicate_object_to_resource(
-            _rei->rsComm,
+            _comm,
             _instance_name,
             _source_resource,
             _destination_resource,
             _object_path);
 
         auto verified = irods::verify_replica_for_destination_resource(
-                            _rei->rsComm,
+                            _comm,
                             _instance_name,
                             _verification_type,
                             _object_path,
@@ -376,12 +375,13 @@ namespace {
         }
 
         apply_data_retention_policy(
-                _rei,
+                _comm,
                 _instance_name,
                 _object_path,
                 _source_resource,
                 _preserve_replicas);
 
+        return 0;
     } // apply_data_movement_policy
 
     void apply_restage_movement_policy(
@@ -413,7 +413,6 @@ namespace {
                 irods::hierarchy_parser parser;
                 parser.set_string(source_hier);
                 parser.first_resc(source_resource);
-
                 irods::storage_tiering st{_rei, plugin_instance_name};
                 st.migrate_object_to_minimum_restage_tier(
                     object_path,
@@ -476,7 +475,7 @@ namespace {
         }
     } // apply_restage_movement_policy
 
-    void apply_tier_group_metadata_policy(
+    int apply_tier_group_metadata_policy(
         irods::storage_tiering& _st,
         const std::string& _group_name,
         const std::string& _object_path,
@@ -491,6 +490,7 @@ namespace {
             _source_replica_number,
             _source_resource,
             _destination_resource);
+        return 0;
     } // apply_tier_group_metadata_policy
 
 
@@ -681,31 +681,32 @@ irods::error exec_rule_expression(
             try {
                 // proxy for provided user name
                 const std::string& user_name = rule_obj["user-name"];
-                rstrcpy(
-                    rei->rsComm->clientUser.userName,
-                    user_name.c_str(),
-                    NAME_LEN);
-
-                apply_data_movement_policy(
-                    rei,
-                    plugin_instance_name,
-                    rule_obj["object-path"],
-                    rule_obj["user-name"],
-                    rule_obj["source-replica-number"],
-                    rule_obj["source-resource"],
-                    rule_obj["destination-resource"],
-                    rule_obj["preserve-replicas"],
-                    rule_obj["verification-type"]);
+                auto& pin   = plugin_instance_name;
+                auto& comm  = *rei->rsComm;
+                auto status = irods::exec_as_user(comm, user_name, [& pin, & rule_obj](auto& comm) -> int{
+                                    return apply_data_movement_policy(
+                                        &comm,
+                                        plugin_instance_name,
+                                        rule_obj["object-path"],
+                                        rule_obj["user-name"],
+                                        rule_obj["source-replica-number"],
+                                        rule_obj["source-resource"],
+                                        rule_obj["destination-resource"],
+                                        rule_obj["preserve-replicas"],
+                                        rule_obj["verification-type"]);
+                                    });
 
                 irods::storage_tiering st{rei, plugin_instance_name};
-                apply_tier_group_metadata_policy(
-                    st,
-                    rule_obj["group-name"],
-                    rule_obj["object-path"],
-                    rule_obj["user-name"],
-                    rule_obj["source-replica-number"],
-                    rule_obj["source-resource"],
-                    rule_obj["destination-resource"]);
+                status = irods::exec_as_user(comm, user_name, [& st, & rule_obj](auto& comm) -> int{
+                                    return apply_tier_group_metadata_policy(
+                                        st,
+                                        rule_obj["group-name"],
+                                        rule_obj["object-path"],
+                                        rule_obj["user-name"],
+                                        rule_obj["source-replica-number"],
+                                        rule_obj["source-resource"],
+                                        rule_obj["destination-resource"]);
+                                    });
             }
             catch(const irods::exception& _e) {
                 printErrorStack(&rei->rsComm->rError);
