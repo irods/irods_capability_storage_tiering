@@ -53,9 +53,15 @@ namespace irods {
         private:
 
         void set_migration_metadata_flag_for_object(
+            const std::string& _user_name,
             const std::string& _object_path);
 
         void unset_migration_metadata_flag_for_object(
+            const std::string& _user_name,
+            const std::string& _object_path);
+
+        bool object_has_migration_metadata_flag(
+            const std::string& _user_name,
             const std::string& _object_path);
 
         bool skip_object_in_lower_tier(
