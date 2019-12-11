@@ -12,7 +12,7 @@ def main():
     parser.add_argument('--output_root_directory', type=str, required=True)
     parser.add_argument('--built_packages_root_directory', type=str, required=True)
     parser.add_argument('--munge_path', type=str, default=None, help='munge externals path')
-    parser.add_argument('--test_unified_storage_tiering', action='store_true', default=False)
+    parser.add_argument('--test_unified_storage_tiering', type=str, default=None, help='should be either True or False')
 
     args = parser.parse_args()
 
@@ -34,7 +34,7 @@ def main():
     try:
         test_output_file = 'log/test_output.log'
         test_name = 'test_plugin_storage_tiering'
-        if args.test_unified_storage_tiering:
+        if args.test_unified_storage_tiering == 'True':
             test_name = 'test_plugin_unified_storage_tiering'
 
         if args.munge_path is not None or args.munge_path != '':
