@@ -17,6 +17,8 @@
 #include "rsCloseCollection.hpp"
 #include "rsModAVUMetadata.hpp"
 
+#include "exec_as_user.hpp"
+
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
 #include <boost/exception/all.hpp>
@@ -656,10 +658,13 @@ namespace irods {
         const std::string& _verification_type,
         const bool         _preserve_replicas,
         const std::string& _data_movement_params) {
+        if(object_has_migration_metadata_flag(_user_name, _object_path)) {
+            return;
+        }
+
+        set_migration_metadata_flag_for_object(_user_name, _object_path);
+
         using json = nlohmann::json;
-
-        set_migration_metadata_flag_for_object(_object_path);
-
         json rule_obj;
         rule_obj["rule-engine-operation"]     = policy::data_movement;
         rule_obj["rule-engine-instance-name"] = _plugin_instance_name;
@@ -671,7 +676,6 @@ namespace irods {
         rule_obj["destination-resource"]      = _destination_resource;
         rule_obj["preserve-replicas"]         = _preserve_replicas,
         rule_obj["verification-type"]         = _verification_type;
-
         const auto delay_err = _delayExec(
                                    rule_obj.dump().c_str(),
                                    "",
@@ -768,7 +772,6 @@ namespace irods {
             if(low_tier_resource_name == _source_resource) {
                 return;
             }
-
             queue_data_movement(
                 config_.instance_name,
                 group_name,
@@ -839,6 +842,7 @@ namespace irods {
     } // apply_policy_for_tier_group
 
     void storage_tiering::set_migration_metadata_flag_for_object(
+        const std::string& _user_name,
         const std::string& _object_path) {
         auto access_time = get_metadata_for_data_object(
                                config_.access_time_attribute,
@@ -852,7 +856,10 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            const_cast<char*>(config_.migration_scheduled_flag.c_str())};
 
-        auto status = rsModAVUMetadata(comm_, &set_op);
+        auto& comm = *comm_;
+        auto status = exec_as_user(comm, _user_name, [&set_op](auto& comm) -> int {
+                            return rsModAVUMetadata(&comm, &set_op);
+                            });
         if(status < 0) {
            THROW(
                status,
@@ -862,6 +869,7 @@ namespace irods {
     } // set_migration_metadata_flag_for_object
 
     void storage_tiering::unset_migration_metadata_flag_for_object(
+        const std::string& _user_name,
         const std::string& _object_path) {
         auto access_time = get_metadata_for_data_object(
                                config_.access_time_attribute,
@@ -874,15 +882,43 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            nullptr};
 
-       auto status = rsModAVUMetadata(comm_, &set_op);
-       if(status < 0) {
-           THROW(
-               status,
-               boost::format("failed to unset migration scheduled flag for [%s]")
-               % _object_path);
-       }
+        auto& comm = *comm_;
+        const auto status = exec_as_user(comm, _user_name, [&set_op](auto& comm) -> int {
+                           return rsModAVUMetadata(&comm, &set_op);
+                           });
+        if(status < 0) {
+            THROW(
+                status,
+                boost::format("failed to unset migration scheduled flag for [%s]")
+                % _object_path);
+        }
 
     } // unset_migration_metadata_flag_for_object
+
+    bool storage_tiering::object_has_migration_metadata_flag(
+        const std::string& _user_name,
+        const std::string& _object_path) {
+        boost::filesystem::path p{_object_path};
+        std::string coll_name = p.parent_path().string();
+        std::string data_name = p.filename().string();
+
+        std::string query_str {
+            boost::str(
+                boost::format("SELECT META_DATA_ATTR_VALUE WHERE META_DATA_ATTR_NAME = '%s' and META_DATA_ATTR_UNITS = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'")
+                % config_.access_time_attribute
+                % config_.migration_scheduled_flag
+                % data_name
+                % coll_name) };
+
+        auto& comm = *comm_;
+        const auto status = exec_as_user(comm, _user_name, [& query_str](auto& comm) -> int {
+                            query<rsComm_t> qobj{&comm, query_str, 1};
+                            return qobj.size();
+                           });
+
+        return status > 0;
+
+    } // object_has_migration_metadata_flag
 
     void storage_tiering::apply_tier_group_metadata_to_object(
         const std::string& _group_name,
@@ -892,7 +928,7 @@ namespace irods {
         const std::string& _source_resource,
         const std::string& _destination_resource) {
         try {
-            unset_migration_metadata_flag_for_object(_object_path);
+            unset_migration_metadata_flag_for_object(_user_name, _object_path);
         }
         catch(const exception&) {
         }
