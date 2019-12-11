@@ -422,20 +422,26 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                     # test stage to tier 1
                     sleep(5)
                     admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                     sleep(60)
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', 'No')
                     alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
                     alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
 
                     # test stage to tier 2
                     sleep(10)
                     admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                     sleep(60)
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', 'No')
                     alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
                     alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
 
                     # test restage to tier 0
                     alice_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', filename)
                     sleep(60)
+                    admin_session.assert_icommand('iqstat -a', 'STDOUT_SINGLELINE', 'No')
                     alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0')
                     alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
 
