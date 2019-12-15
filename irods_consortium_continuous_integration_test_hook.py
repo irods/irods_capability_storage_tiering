@@ -25,6 +25,13 @@ def main():
     irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-data-replication*.{0}'.format(package_suffix))))
     irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-data-verification*.{0}'.format(package_suffix))))
     irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-storage-tiering*.{0}'.format(package_suffix))))
+    irods_python_ci_utilities.install_os_packages_from_files(glob.glob(os.path.join(os_specific_directory, 'irods-rule-engine-plugin-unified-storage-tiering*.{0}'.format(package_suffix))))
+    
+    test_name = None
+    if args.test_unified_storage_tiering == 'True':
+        test_name = 'test_plugin_unified_storage_tiering'
+    else:
+        test_name = 'test_plugin_storage_tiering'
 
     time.sleep(10)
     irods_python_ci_utilities.subprocess_get_output(['sudo', 'chmod', 'g+rwx', '/dev/fuse'], check_rc=True)
@@ -32,10 +39,7 @@ def main():
     time.sleep(10)
 
     try:
-        test_output_file = 'log/test_output.log'
-        test_name = 'test_plugin_storage_tiering'
-        if args.test_unified_storage_tiering == 'True':
-            test_name = 'test_plugin_unified_storage_tiering'
+        test_output_file = '/var/lib/irods/log/test_output.log'
 
         if args.munge_path is not None or args.munge_path != '':
             irods_python_ci_utilities.subprocess_get_output(['sudo', 'su', '-', 'irods', '-c', 'cd scripts; {0}; python2 run_tests.py --xml_output --run_s {1} 2>&1 | tee {2}; exit $PIPESTATUS'.format(args.munge_path, test_name, test_output_file)], check_rc=True)
