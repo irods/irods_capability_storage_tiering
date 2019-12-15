@@ -1099,7 +1099,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
                 wait_for_empty_queue(lambda: admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1'))
 
                 sleep(15)
-                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
+                admin_session.assert_icommand('irule -r irods_rule_engine_plugin-storage_tiering-instance -F /var/lib/irods/example_tiering_invocation.r')
                 wait_for_empty_queue(lambda: admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs2'))
 
                 # test restage to tier 1
