@@ -33,7 +33,6 @@ target_include_directories(
     ${IRODS_INCLUDE_DIRS}
     ${IRODS_EXTERNALS_FULLPATH_QPID}/include
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/include
-    ${IRODS_EXTERNALS_FULLPATH_JANSSON}/include
     ${IRODS_EXTERNALS_FULLPATH_ARCHIVE}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
@@ -42,7 +41,6 @@ target_link_libraries(
     ${TARGET_NAME}
     PRIVATE
     ${IRODS_PLUGIN_POLICY_LINK_LIBRARIES}
-    ${IRODS_EXTERNALS_FULLPATH_JANSSON}/lib/libjansson.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_filesystem.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_regex.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_system.so
