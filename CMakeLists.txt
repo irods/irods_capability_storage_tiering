@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.5.0 FATAL_ERROR) #CPACK_DEBIAN_<COMPONENT>_PACKAGE_NAME
 
 
-find_package(IRODS 4.2.7 EXACT REQUIRED)
-set(IRODS_PLUGIN_VERSION_MAJOR 2)
-set(IRODS_PLUGIN_VERSION_MINOR 7)
-set(IRODS_PLUGIN_VERSION_PATCH 0)
-set(IRODS_PLUGIN_VERSION "${IRODS_PLUGIN_VERSION_MAJOR}.${IRODS_PLUGIN_VERSION_MINOR}.${IRODS_PLUGIN_VERSION_PATCH}")
+find_package(IRODS 4.2.8 EXACT REQUIRED)
+set(IRODS_PLUGIN_REVISION "0")
+set(IRODS_PLUGIN_VERSION "${IRODS_VERSION}.${IRODS_PLUGIN_REVISION}")
 
 set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
@@ -86,21 +84,12 @@ set(CPACK_RPM_PACKAGE_URL "https://irods.org")
 set(CPACK_RPM_PACKAGE_AUTOREQ 0)
 set(CPACK_RPM_PACKAGE_AUTOPROV 0)
 
-set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+#set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 
 include(${CMAKE_SOURCE_DIR}/irods_plugin_common.cmake)
 
-# CPACK names component package files as "${CPACK_PACKAGE_FILE_NAME}-${COMPONENT_NAME}"
-# CPackDeb TO_UPPERs all the component names when checking the ${CPACK_DEBIAN_<COMPONENT>...} variables
-set(CPACK_PACKAGE_NAME ${PROJECT_NAME_HYPHENS})
-set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME_HYPHENS})
 
 include(${CMAKE_SOURCE_DIR}/unified_storage_tiering.cmake)
-include(${CMAKE_SOURCE_DIR}/storage_tiering.cmake)
-include(${CMAKE_SOURCE_DIR}/apply_access_time.cmake)
-include(${CMAKE_SOURCE_DIR}/data_movement.cmake)
-include(${CMAKE_SOURCE_DIR}/data_replication.cmake)
-include(${CMAKE_SOURCE_DIR}/data_verification.cmake)
 
 include(CPack)
 
