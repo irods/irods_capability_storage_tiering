@@ -400,6 +400,8 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::maximum_delay_time_in_seconds 2')
 
+            admin_session.assert_icommand('ilsresc -l', 'STDOUT_SINGLELINE', 'random')
+
     def tearDown(self):
         super(TestStorageTieringPlugin, self).tearDown()
         with session.make_session_for_existing_admin() as admin_session:
@@ -449,6 +451,47 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                     wait_for_empty_queue(lambda: alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0'))
 
                     alice_session.assert_icommand('irm -f ' + filename)
+
+
+    def test_put_and_get_with_preserve_replica__92(self):
+        with storage_tiering_configured():
+            IrodsController().restart()
+            zone_name = IrodsConfig().client_environment['irods_zone_name']
+            with session.make_session_for_existing_admin() as admin_session:
+                with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
+                    admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::preserve_replicas true')
+
+                    filename = "test_put_file"
+                    lib.create_local_testfile(filename)
+                    alice_session.assert_icommand('iput -R rnd0 ' + filename)
+                    alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
+                    alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
+
+                    # wait for object to age out of tier 0
+                    sleep(5)
+
+                    # test stage to tier 1
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
+                    wait_for_empty_queue(lambda: alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0'))
+                    wait_for_empty_queue(lambda: alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1'))
+
+                    # wait for object to age back out of tier 0
+                    sleep(5)
+
+                    admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
+
+                    # wait for rule to execute
+                    sleep(1)
+
+                    # check for objects to have been queued from tier 0
+                    for i in range(50):
+                        stdout, _, _ = admin_session.run_icommand('iqstat')
+                        assert(-1 == stdout.find('rnd0'))
+
+                    alice_session.assert_icommand('irm -f ' + filename)
+                    admin_session.assert_icommand('imeta rm -R rnd0 irods::storage_tiering::preserve_replicas true')
+
+
 
     def test_single_quote_data_name__127(self):
         with storage_tiering_configured():
