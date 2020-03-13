@@ -17,6 +17,8 @@
 #include "rsCloseCollection.hpp"
 #include "rsModAVUMetadata.hpp"
 
+#include "data_verification_utilities.hpp"
+
 #include "exec_as_user.hpp"
 
 #include <boost/any.hpp>
@@ -492,7 +494,7 @@ namespace irods {
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
         std::string qstr{boost::str(boost::format(
-            "SELECT RESC_ID WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND RESC_NAME IN (%s)")
+            "SELECT RESC_ID WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND DATA_RESC_ID IN (%s)")
             % data_name % coll_name % _partial_list)};
 
         query<rsComm_t> qobj{comm_, qstr};
@@ -801,12 +803,12 @@ namespace irods {
 
         std::string partial_list{};
         for(; _itr != _end; ++_itr) {
-            partial_list += "'" + _itr->second + "', ";
+            partial_list += get_leaf_resources_string(_itr->second);
         }
-        partial_list += ")";
 
         return partial_list;
-    }
+
+    } // make_partial_list
 
     void storage_tiering::apply_policy_for_tier_group(
         rsComm_t&          _comm,
