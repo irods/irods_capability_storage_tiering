@@ -334,9 +334,9 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
                 with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
-                    filename = "test_put_file_with_'quotes'"
-                    cmd_filename = '"'+filename+'"'
-                    lib.create_local_testfile(cmd_filename)
+                    filename = "test_put_file_with_\'quotes\'"
+                    cmd_filename = '\"'+filename+'\"'
+                    lib.create_local_testfile(filename)
                     alice_session.assert_icommand('iput -R rnd0 ' + cmd_filename)
                     alice_session.assert_icommand('imeta ls -d ' + cmd_filename, 'STDOUT_SINGLELINE', filename)
                     alice_session.assert_icommand('ils -L ' + cmd_filename, 'STDOUT_SINGLELINE', filename)
