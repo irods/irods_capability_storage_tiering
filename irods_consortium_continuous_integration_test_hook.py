@@ -41,7 +41,6 @@ def main():
         if output_root_directory:
             irods_python_ci_utilities.gather_files_satisfying_predicate('/var/lib/irods/log', output_root_directory, lambda x: True)
             shutil.copy('/var/lib/irods/log/test_output.log', output_root_directory)
-            shutil.copytree('/var/lib/irods/test-reports', os.path.join(output_root_directory, 'test-reports'))
 
 
 if __name__ == '__main__':
