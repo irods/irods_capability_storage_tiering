@@ -5,14 +5,15 @@
 #include "irods_re_ruleexistshelper.hpp"
 #include "storage_tiering_utilities.hpp"
 #include "irods_resource_backport.hpp"
+#include "proxy_connection.hpp"
 
 #include "rsModAVUMetadata.hpp"
 #include "rsOpenCollection.hpp"
 #include "rsReadCollection.hpp"
 #include "rsCloseCollection.hpp"
 #include "irods_virtual_path.hpp"
-#include "rsDataObjRepl.hpp"
-#include "rsDataObjTrim.hpp"
+#include "dataObjRepl.h"
+#include "dataObjTrim.h"
 #include "physPath.hpp"
 #include "apiNumber.h"
 #include "data_verification_utilities.hpp"
@@ -84,7 +85,7 @@ namespace {
     } // get_index_and_resource
 
     void replicate_object_to_resource(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _source_resource,
         const std::string& _destination_resource,
@@ -101,7 +102,7 @@ namespace {
         }
 
         transferStat_t* trans_stat{};
-        const auto repl_err = irods::server_api_call(DATA_OBJ_REPL_AN, _comm, &data_obj_inp, &trans_stat);
+        const auto repl_err = rcDataObjRepl(_comm, &data_obj_inp);
         free(trans_stat);
         if(repl_err < 0) {
             THROW(repl_err,
@@ -112,7 +113,7 @@ namespace {
     } // replicate_object_to_resource
 
     void apply_data_retention_policy(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _object_path,
         const std::string& _source_resource,
@@ -141,7 +142,7 @@ namespace {
                 "true" );
         }
 
-        const auto trim_err = rsDataObjTrim(_comm, &obj_inp);
+        const auto trim_err = rcDataObjTrim(_comm, &obj_inp);
         if(trim_err < 0) {
             THROW(
                 trim_err,
@@ -341,7 +342,7 @@ namespace {
     } // apply_access_time_policy
 
     int apply_data_movement_policy(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _object_path,
         const std::string& _user_name,
@@ -412,7 +413,12 @@ namespace {
                 irods::hierarchy_parser parser;
                 parser.set_string(source_hier);
                 parser.first_resc(source_resource);
-                irods::storage_tiering st{_rei, plugin_instance_name};
+
+                auto proxy_conn = irods::proxy_connection();
+                rcComm_t* comm = proxy_conn.make(_rei->rsComm->clientUser.userName);
+
+                irods::storage_tiering st{comm, _rei, plugin_instance_name};
+
                 st.migrate_object_to_minimum_restage_tier(
                     object_path,
                     _rei->rsComm->clientUser.userName,
@@ -456,7 +462,10 @@ namespace {
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
                     auto [object_path, resource_name] = opened_objects[l1_idx];
 
-                    irods::storage_tiering st{_rei, plugin_instance_name};
+                    auto proxy_conn = irods::proxy_connection();
+                    rcComm_t* comm = proxy_conn.make(_rei->rsComm->clientUser.userName);
+
+                    irods::storage_tiering st{comm, _rei, plugin_instance_name};
                     st.migrate_object_to_minimum_restage_tier(
                         object_path,
                         _rei->rsComm->clientUser.userName,
@@ -536,15 +545,25 @@ irods::error exec_rule(
     const std::string&     _rn,
     std::list<boost::any>& _args,
     irods::callback        _eff_hdlr) {
+    using json = nlohmann::json;
+
     ruleExecInfo_t* rei{};
     const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
     if(!err.ok()) {
         return err;
     }
 
+    const std::set<std::string> peps_for_restage{
+                                    "pep_api_data_obj_open_post",
+                                    "pep_api_data_obj_get_post"};
+
     try {
+
         apply_access_time_policy(_rn, rei, _args);
-        apply_restage_movement_policy(_rn, rei, _args);
+
+        if(peps_for_restage.find(_rn) != peps_for_restage.end()) {
+            apply_restage_movement_policy(_rn, rei, _args);
+        }
     }
     catch(const  std::invalid_argument& _e) {
         irods::exception_to_rerror(
@@ -611,7 +630,10 @@ irods::error exec_rule_text(
             delay_obj["rule-engine-operation"] = irods::storage_tiering::policy::storage_tiering;
             delay_obj["storage-tier-groups"]   = rule_obj["storage-tier-groups"];
 
-            irods::storage_tiering st{rei, plugin_instance_name};
+            auto proxy_conn = irods::proxy_connection();
+            rcComm_t* comm = proxy_conn.make();
+
+            irods::storage_tiering st{comm, rei, plugin_instance_name};
             st.schedule_storage_tiering_policy(
                 delay_obj.dump(),
                 params);
@@ -641,6 +663,12 @@ irods::error exec_rule_text(
                 _e.code(),
                 _e.what());
     }
+    catch(const json::exception& _e) {
+        return ERROR(
+                SYS_INVALID_INPUT_PARAM,
+                "exec_rule_text - caught json exception");
+    }
+
 
     return SUCCESS();
 } // exec_rule_text
@@ -659,12 +687,15 @@ irods::error exec_rule_expression(
 
     try {
         const auto rule_obj = json::parse(_rule_text);
-        if(irods::storage_tiering::policy::storage_tiering ==
-           rule_obj["rule-engine-operation"]) {
+        if(rule_obj.contains("rule-engine-operation") &&
+           irods::storage_tiering::policy::storage_tiering == rule_obj.at("rule-engine-operation")) {
             try {
-                irods::storage_tiering st{rei, plugin_instance_name};
+                auto proxy_conn = irods::proxy_connection();
+                rcComm_t* comm = proxy_conn.make();
+
+                irods::storage_tiering st{comm, rei, plugin_instance_name};
                 for(const auto& group : rule_obj["storage-tier-groups"]) {
-                    st.apply_policy_for_tier_group(*rei->rsComm, group);
+                    st.apply_policy_for_tier_group(group);
                 }
             }
             catch(const irods::exception& _e) {
@@ -674,16 +705,20 @@ irods::error exec_rule_expression(
                         _e.what());
             }
         }
-        else if(irods::storage_tiering::policy::data_movement ==
-                rule_obj["rule-engine-operation"]) {
+        else if(rule_obj.contains("rule-engine-operation") &&
+                irods::storage_tiering::policy::data_movement ==
+                rule_obj.at("rule-engine-operation")) {
             try {
                 // proxy for provided user name
                 const std::string& user_name = rule_obj["user-name"];
-                auto& pin   = plugin_instance_name;
-                auto& comm  = *rei->rsComm;
+                auto& pin = plugin_instance_name;
+
+                auto proxy_conn = irods::proxy_connection();
+                rcComm_t* comm = proxy_conn.make( rule_obj["user-name"]);
+
                 auto status = irods::exec_as_user(comm, user_name, [& pin, & rule_obj](auto& comm) -> int{
                                     return apply_data_movement_policy(
-                                        &comm,
+                                        comm,
                                         plugin_instance_name,
                                         rule_obj["object-path"],
                                         rule_obj["user-name"],
@@ -694,7 +729,7 @@ irods::error exec_rule_expression(
                                         rule_obj["verification-type"]);
                                     });
 
-                irods::storage_tiering st{rei, plugin_instance_name};
+                irods::storage_tiering st{comm, rei, plugin_instance_name};
                 status = irods::exec_as_user(comm, user_name, [& st, & rule_obj](auto& comm) -> int{
                                     return apply_tier_group_metadata_policy(
                                         st,
@@ -715,10 +750,7 @@ irods::error exec_rule_expression(
 
         }
         else {
-            printErrorStack(&rei->rsComm->rError);
-            return ERROR(
-                    SYS_NOT_SUPPORTED,
-                    "supported rule name not found");
+            return CODE(RULE_ENGINE_CONTINUE);
         }
     }
     catch(const  std::invalid_argument& _e) {
@@ -735,6 +767,11 @@ irods::error exec_rule_expression(
         return ERROR(
                 _e.code(),
                 _e.what());
+    }
+    catch(const json::exception& _e) {
+        return ERROR(
+                SYS_INVALID_INPUT_PARAM,
+                "exec_rule_expression - caught json exception");
     }
 
     return SUCCESS();

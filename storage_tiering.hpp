@@ -26,11 +26,11 @@ namespace irods {
         };
 
         storage_tiering(
+            rcComm_t*          _comm,
             ruleExecInfo_t*    _rei,
             const std::string& _instance_name);
 
         void apply_policy_for_tier_group(
-            rsComm_t&          _comm,
             const std::string& _group);
 
         void migrate_object_to_minimum_restage_tier(
@@ -53,18 +53,22 @@ namespace irods {
         private:
 
         void set_migration_metadata_flag_for_object(
+            rcComm_t*          _comm,
             const std::string& _user_name,
             const std::string& _object_path);
 
         void unset_migration_metadata_flag_for_object(
+            rcComm_t*          _comm,
             const std::string& _user_name,
             const std::string& _object_path);
 
         bool object_has_migration_metadata_flag(
+            rcComm_t*          _comm,
             const std::string& _user_name,
             const std::string& _object_path);
 
         bool skip_object_in_lower_tier(
+            rcComm_t*          _comm,
             const std::string& _object_path,
             const std::string& _partial_list);
 
@@ -76,61 +80,76 @@ namespace irods {
             const std::string& _object_path);
 
         std::string get_metadata_for_data_object(
+            rcComm_t*          _comm,
             const std::string& _meta_attr_name,
             const std::string& _object_path);
 
         std::string get_metadata_for_resource(
+            rcComm_t*          _comm,
             const std::string& _meta_attr_name,
             const std::string& _resource_name);
 
         typedef std::vector<std::pair<std::string, std::string>> metadata_results;
         void get_metadata_for_resource(
+            rcComm_t*          _comm,
             const std::string& _meta_attr_name,
             const std::string& _resource_name,
             metadata_results&  _results);
 
         resource_index_map
         get_tier_group_resource_ids_and_indices(
+            rcComm_t*          _comm,
             const std::string& _group_name);
 
         std::string get_leaf_resources_string(
             const std::string& _resource_name);
 
         bool get_preserve_replicas_for_resc(
+            rcComm_t*          _comm,
             const std::string& _source_resource);
 
         std::string get_verification_for_resc(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         std::string get_restage_tier_resource_name(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         std::string get_data_movement_parameters_for_resource(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         std::string get_replica_number_for_resource(
+            rcComm_t*          _comm,
             const std::string& _object_path,
             const std::string& _resource_name);
 
         std::string get_group_name_by_replica_number(
+            rcComm_t*          _comm,
             const std::string& _attribute_name,
             const std::string& _object_path,
             const std::string& _replica_number);
 
         resource_index_map
         get_resource_map_for_group(
+            rcComm_t*          _comm,
             const std::string& _group);
 
         std::string get_tier_time_for_resc(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         metadata_results get_violating_queries_for_resource(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         uint32_t get_object_limit_for_resource(
+            rcComm_t*          _comm,
             const std::string& _resource_name);
 
         void queue_data_movement(
+            rcComm_t*          _comm,
             const std::string& _plugin_instance_name,
             const std::string& _group_name,
             const std::string& _object_path,
@@ -143,15 +162,15 @@ namespace irods {
             const std::string& _data_movement_params);
 
         void migrate_violating_data_objects(
-            rsComm_t&           _comm,
+            rcComm_t*           _comm,
             const std::string&  _group_name,
             const std::string&  _partial_list,
             const std::string&  _source_resource,
             const std::string&  _destination_resource);
 
-        // Attributes 
+        // Attributes
         ruleExecInfo_t*               rei_;
-        rsComm_t*                     comm_;
+        rcComm_t*                     comm_;
         storage_tiering_configuration config_;
 
 
