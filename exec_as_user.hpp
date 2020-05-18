@@ -6,9 +6,9 @@
 
 namespace irods {
     template <typename Function>
-    int exec_as_user(rsComm_t& _comm, const std::string& _user_name, Function _func)
+    int exec_as_user(rcComm_t* _comm, const std::string& _user_name, Function _func)
     {
-        auto& user = _comm.clientUser;
+        auto& user = _comm->clientUser;
 
         // need to be able to have a rodsuser/rodsuser 'switch hats'
         //if (user.authInfo.authFlag < LOCAL_PRIV_USER_AUTH) {
