@@ -1,5 +1,5 @@
 
-
+#undef RODS_SERVER
 
 #include "irods_query.hpp"
 #include "irods_resource_manager.hpp"
@@ -7,11 +7,11 @@
 #include "data_verification_utilities.hpp"
 #include "storage_tiering_configuration.hpp"
 
-#include "rsDataObjChksum.hpp"
-#include "rsFileStat.hpp"
+#include "dataObjChksum.h"
+#include "fileStat.h"
 
 #include <boost/lexical_cast.hpp>
-    
+
 extern irods::resource_manager resc_mgr;
 
 namespace {
@@ -20,7 +20,7 @@ namespace {
     static const std::string VERIFY_CATALOG{"catalog"};
 
     rodsLong_t get_file_size_from_filesystem(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _object_path,
         const std::string& _resource_hierarchy,
         const std::string& _file_path ) {
@@ -29,7 +29,7 @@ namespace {
         rstrcpy(stat_inp.rescHier, _resource_hierarchy.c_str(), sizeof(stat_inp.rescHier));
         rstrcpy(stat_inp.fileName, _file_path.c_str(), sizeof(stat_inp.fileName));
         rodsStat_t *stat_out{};
-        const auto status_rsFileStat = rsFileStat(_comm, &stat_inp, &stat_out);
+        const auto status_rsFileStat = rcFileStat(_comm, &stat_inp, &stat_out);
         if(status_rsFileStat < 0) {
             THROW(
                 status_rsFileStat,
@@ -58,11 +58,11 @@ namespace {
         }
 
         try {
-            std::vector<irods::resource_manager::leaf_bundle_t> leaf_bundles = 
+            std::vector<irods::resource_manager::leaf_bundle_t> leaf_bundles =
                 resc_mgr.gather_leaf_bundles_for_resc(_resource_name);
             for(const auto & bundle : leaf_bundles) {
                 for(const auto & leaf_id : bundle) {
-                    leaf_id_str += 
+                    leaf_id_str +=
                         "'" + boost::str(boost::format("%s") % leaf_id) + "',";
                 } // for
             } // for
@@ -100,7 +100,7 @@ namespace {
     } // get_object_and_collection_from_path
 
     std::string compute_checksum_for_resource(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _object_path,
         const std::string& _resource_name ) {
         // query if a checksum exists
@@ -115,7 +115,7 @@ namespace {
                         obj_name %
                         coll_name %
                         _resource_name);
-        irods::query<rsComm_t> qobj(_comm, query_str, 1);
+        irods::query<rcComm_t> qobj(_comm, query_str, 1);
         if(qobj.size() > 0) {
             const auto& result = qobj.front();
             const auto& data_checksum = result[0];
@@ -130,7 +130,7 @@ namespace {
         addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW, _resource_name.c_str());
 
         char* chksum{};
-        const auto chksum_err = rsDataObjChksum(_comm, &data_obj_inp, &chksum);
+        const auto chksum_err = rcDataObjChksum(_comm, &data_obj_inp, &chksum);
         if(chksum_err < 0) {
             THROW(
                 chksum_err,
@@ -143,7 +143,7 @@ namespace {
     } // compute_checksum_for_resource
 
     void capture_replica_attributes(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _object_path,
         const std::string& _resource_name,
         std::string&       _file_path,
@@ -162,7 +162,7 @@ namespace {
                         obj_name %
                         coll_name %
                         leaf_str);
-        irods::query<rsComm_t> qobj{_comm, query_str, 1};
+        irods::query<rcComm_t> qobj{_comm, query_str, 1};
         if(qobj.size() > 0) {
             const auto result = qobj.front();
             _file_path      = result[0];
@@ -177,7 +177,7 @@ namespace {
 namespace irods {
 
     bool verify_replica_for_destination_resource(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _verification_type,
         const std::string& _object_path,
@@ -275,7 +275,6 @@ namespace irods {
                     query_size);
 
                 return match;
-               
             }
             else if(VERIFY_CHECKSUM == _verification_type) {
                 if(source_data_checksum.size() == 0) {

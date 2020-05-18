@@ -5,7 +5,7 @@
 
 namespace irods {
     bool verify_replica_for_destination_resource(
-        rsComm_t*          _comm,
+        rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _verification_type,
         const std::string& _object_path,
