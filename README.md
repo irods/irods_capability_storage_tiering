@@ -84,7 +84,7 @@ For a default installation the following values are used:
 
 ### Randomizing Data Movement Times
 
-Data movement within a tier group is scheduled asynchronously using the iRODS delayed execution queue, which allows for many jobs to be run simultaneously.  In order to prevent the delayed execution server from being overwhelmed a wait time is applied to each job.  This time is determined randomly between two separate values configured through metadata.  By default the minum value is 1 second, and the maximum value is 30 seconds.  Should a tier within a group expect a high volume of traffic, these values can be adjusted to smaller or larger values.
+Data movement within a tier group is scheduled asynchronously using the iRODS delayed execution queue, which allows for many jobs to be run simultaneously.  In order to prevent the delayed execution server from being overwhelmed a wait time is applied to each job.  This time is determined randomly between two separate values configured through metadata.  By default the minimum value is 1 second, and the maximum value is 30 seconds.  Should a tier within a group expect a high volume of traffic, these values can be adjusted to smaller or larger values.
 
 ```
 imeta add -R ufs0 irods::storage_tiering::minimum_delay_time_in_seconds 1
