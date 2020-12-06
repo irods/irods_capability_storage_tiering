@@ -59,7 +59,7 @@ install(
   TARGETS
   ${TARGET_NAME}
   LIBRARY
-  DESTINATION usr/lib/irods/plugins/rule_engines
+  DESTINATION ${IRODS_PLUGINS_DIRECTORY}/rule_engines
   COMPONENT ${IRODS_PACKAGE_COMPONENT_POLICY_NAME}
   )
 
