@@ -8,10 +8,11 @@ set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
 
-set(PROJECT_NAME irods_rule_engine_plugin)
-string(REPLACE "_" "-" PROJECT_NAME_HYPHENS ${PROJECT_NAME})
+set(IRODS_TARGET_NAME_PREFIX irods_rule_engine_plugin)
 
-project( ${PROJECT_NAME} C CXX)
+project(irods_capability-storage_tiering
+  VERSION "${IRODS_PLUGIN_VERSION}"
+  LANGUAGES C CXX)
 include(${IRODS_TARGETS_PATH})
 
 include(GNUInstallDirs)
