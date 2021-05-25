@@ -676,9 +676,8 @@ namespace irods {
 
         nlohmann::json rule_obj =
         {
-            {"policy", "irods_policy_enqueue_rule"}
-          , {"delay_conditions", _data_movement_params}
-          , {"payload",
+            {"policy_to_invoke", "irods_policy_enqueue_rule"}
+          , {"parameters",
                 {
                     {"rule-engine-operation",     policy::data_movement}
                   , {"rule-engine-instance-name", _plugin_instance_name}
@@ -690,6 +689,7 @@ namespace irods {
                   , {"destination-resource",      _destination_resource}
                   , {"preserve-replicas",         _preserve_replicas}
                   , {"verification-type",         _verification_type}
+                  , {"delay_conditions", _data_movement_params}
                 }
             }
          };
