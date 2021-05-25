@@ -997,6 +997,8 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 sleep(5)
                 delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                 delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
+                # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0
+                wait_for_empty_queue(lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'))
 
                 delay_assert_icommand(admin_session, 'iqdel -a')
 
@@ -1021,6 +1023,8 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 sleep(5)
                 delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                 delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
+                # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0
+                wait_for_empty_queue(lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'))
 
                 delay_assert_icommand(admin_session, 'iqdel -a')
 
@@ -1046,8 +1050,10 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 sleep(5)
                 admin_session.assert_icommand('irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F /var/lib/irods/example_unified_tiering_invocation.r')
                 delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
-                delay_assert_icommand(admin_session, ['ils', '-l', last_item_path], 'STDOUT_SINGLELINE', 'ufs0')
-                delay_assert_icommand(admin_session, ['ils', '-l', next_to_last_item_path], 'STDOUT_SINGLELINE', 'ufs0')
+                # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0
+                wait_for_empty_queue(lambda: admin_session.assert_icommand(['ils', '-l', next_to_last_item_path], 'STDOUT', 'ufs1'))
+                # Ensure that the item which is 1 past the object_limit did not tier out from ufs0
+                admin_session.assert_icommand(['ils', '-l', last_item_path], 'STDOUT_SINGLELINE', 'ufs0')
 
                 delay_assert_icommand(admin_session, 'iqdel -a')
 
