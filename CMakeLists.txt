@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.0 FATAL_ERROR) #CPACK_DEBIAN_<COMPONENT>_PACKAGE_NAME
 
-find_package(IRODS 4.2.9 EXACT REQUIRED)
+find_package(IRODS 4.2.10 EXACT REQUIRED)
 set(IRODS_PLUGIN_REVISION "0")
 set(IRODS_PLUGIN_VERSION "${IRODS_VERSION}.${IRODS_PLUGIN_REVISION}")
 
@@ -49,9 +49,8 @@ add_compile_options(-nostdinc++)
 add_compile_options(-std=c++17)
 link_libraries(c++abi)
 include_directories(
-    ${IRODS_EXTERNALS_FULLPATH_CLANG}/include/c++/v1
-    ${IRODS_EXTERNALS_FULLPATH_JSON}/include
-    )
+  ${IRODS_EXTERNALS_FULLPATH_CLANG}/include/c++/v1
+  ${IRODS_EXTERNALS_FULLPATH_JSON}/include)
 
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY OFF)
@@ -83,17 +82,6 @@ set(CPACK_RPM_PACKAGE_AUTOPROV 0)
 #set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 
 include(${CMAKE_SOURCE_DIR}/irods_plugin_common.cmake)
-
-
 include(${CMAKE_SOURCE_DIR}/unified_storage_tiering.cmake)
 
 include(CPack)
-
-
-
-
-
-
-
-
-
