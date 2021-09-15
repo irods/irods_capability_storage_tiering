@@ -10,13 +10,12 @@ namespace irods {
 
         try {
             const auto& rule_engines = get_server_property<
-                const std::vector<boost::any>&>(
+                const nlohmann::json&>(
                         std::vector<std::string>{
                         CFG_PLUGIN_CONFIGURATION_KW,
                         PLUGIN_TYPE_RULE_ENGINE});
-            for ( const auto& elem : rule_engines ) {
-                const auto& rule_engine = boost::any_cast< const std::unordered_map< std::string, boost::any >& >( elem );
-                const auto& inst_name   = boost::any_cast< const std::string& >( rule_engine.at( CFG_INSTANCE_NAME_KW ) );
+            for ( const auto& rule_engine : rule_engines ) {
+                const auto& inst_name = rule_engine.at( CFG_INSTANCE_NAME_KW ).get_ref<const std::string&>();
                 if ( inst_name == _instance_name ) {
                     if(rule_engine.count(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW) > 0) {
                         const auto& plugin_spec_cfg = boost::any_cast<const std::unordered_map<std::string, boost::any>&>(
