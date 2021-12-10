@@ -18,81 +18,65 @@ namespace irods {
                 const auto& inst_name = rule_engine.at( CFG_INSTANCE_NAME_KW ).get_ref<const std::string&>();
                 if ( inst_name == _instance_name ) {
                     if(rule_engine.count(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW) > 0) {
-                        const auto& plugin_spec_cfg = boost::any_cast<const std::unordered_map<std::string, boost::any>&>(
-                                rule_engine.at(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW));
+                        const auto& plugin_spec_cfg = rule_engine.at(CFG_PLUGIN_SPECIFIC_CONFIGURATION_KW);
                         if(plugin_spec_cfg.find("access_time_attribute") != plugin_spec_cfg.end()) {
-                            access_time_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("access_time_attribute"));
+                            access_time_attribute = plugin_spec_cfg.at("access_time_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("group_attribute") != plugin_spec_cfg.end()) {
-                            group_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("group_attribute"));
+                            group_attribute = plugin_spec_cfg.at("group_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("time_attribute") != plugin_spec_cfg.end()) {
-                            time_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("time_attribute"));
+                            time_attribute = plugin_spec_cfg.at("time_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("query_attribute") != plugin_spec_cfg.end()) {
-                            query_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("query_attribute"));
+                            query_attribute = plugin_spec_cfg.at("query_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("verification_attribute") != plugin_spec_cfg.end()) {
-                            verification_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("verification_attribute"));
+                            verification_attribute = plugin_spec_cfg.at("verification_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("data_movement_parameters_attribute") != plugin_spec_cfg.end()) {
-                            data_movement_parameters_attribute = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("data_movement_parameters_attribute"));
+                            data_movement_parameters_attribute = plugin_spec_cfg.at("data_movement_parameters_attribute").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("minimum_restage_tier") != plugin_spec_cfg.end()) {
-                            minimum_restage_tier = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("minimum_restage_tier"));
+                            minimum_restage_tier = plugin_spec_cfg.at("minimum_restage_tier").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("preserve_replicas") != plugin_spec_cfg.end()) {
-                            preserve_replicas = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("preserve_replicas"));
+                            preserve_replicas = plugin_spec_cfg.at("preserve_replicas").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("object_limit") != plugin_spec_cfg.end()) {
-                            object_limit = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("object_limit"));
+                            object_limit = plugin_spec_cfg.at("object_limit").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("default_data_movement_parameters") != plugin_spec_cfg.end()) {
-                            default_data_movement_parameters = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("default_data_movement_parameters"));
+                            default_data_movement_parameters = plugin_spec_cfg.at("default_data_movement_parameters").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("minimum_delay_time") != plugin_spec_cfg.end()) {
-                            default_data_movement_parameters = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("minimum_delay_time"));
+                            default_data_movement_parameters = plugin_spec_cfg.at("minimum_delay_time").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("maximum_delay_time") != plugin_spec_cfg.end()) {
-                            default_data_movement_parameters = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("maximum_delay_time"));
+                            default_data_movement_parameters = plugin_spec_cfg.at("maximum_delay_time").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("time_check_string") != plugin_spec_cfg.end()) {
-                            time_check_string = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at("time_check_string"));
+                            time_check_string = plugin_spec_cfg.at("time_check_string").get<std::string>();
                         }
 
                         if(plugin_spec_cfg.find("number_of_scheduling_threads") != plugin_spec_cfg.end()) {
-                            number_of_scheduling_threads = boost::any_cast<int>(
-                                    plugin_spec_cfg.at("number_of_scheduling_threads"));
+                            number_of_scheduling_threads = plugin_spec_cfg.at("number_of_scheduling_threads").get<int>();
                         }
 
                         if(plugin_spec_cfg.find(data_transfer_log_level_key) != plugin_spec_cfg.end()) {
-                            const std::string val = boost::any_cast<std::string>(
-                                    plugin_spec_cfg.at(data_transfer_log_level_key));
+                            const std::string& val = plugin_spec_cfg.at(data_transfer_log_level_key).get_ref<const std::string&>();
                             if("LOG_NOTICE" == val) {
                                 data_transfer_log_level_value = LOG_NOTICE;
                             }
