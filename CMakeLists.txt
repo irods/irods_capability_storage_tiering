@@ -44,6 +44,7 @@ if (NOT DEFINED THREADS_PREFER_PTHREAD_FLAG)
   set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 endif()
 find_package(Threads REQUIRED)
+find_package(nlohmann_json "3.6.1" REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 # prepare IRODS_LINUX_DISTRIBUTION_VERSION_CODENAME
