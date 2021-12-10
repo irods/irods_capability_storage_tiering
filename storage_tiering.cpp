@@ -31,7 +31,7 @@
 #include <boost/lexical_cast.hpp>
 #include <random>
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include <tuple>
 
 extern irods::resource_manager resc_mgr;

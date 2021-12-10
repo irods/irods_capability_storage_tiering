@@ -36,7 +36,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/optional.hpp>
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
 #include "objDesc.hpp"
 extern l1desc_t L1desc[NUM_L1_DESC];
