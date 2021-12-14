@@ -35,6 +35,7 @@ target_include_directories(
     ${IRODS_INCLUDE_DIRS}
     ${IRODS_EXTERNALS_FULLPATH_ARCHIVE}/include
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/include
+    ${IRODS_EXTERNALS_FULLPATH_FMT}/include
     ${IRODS_EXTERNALS_FULLPATH_JSON}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
@@ -47,6 +48,7 @@ target_link_libraries(
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_regex.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_system.so
     ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_thread.so
+    ${IRODS_EXTERNALS_FULLPATH_FMT}/lib/libfmt.so
     ${OPENSSL_CRYPTO_LIBRARY}
     Threads::Threads
     irods_common
