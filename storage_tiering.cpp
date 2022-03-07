@@ -1,23 +1,23 @@
 
 #undef RODS_SERVER
 
-#include "irods_server_properties.hpp"
-#include "irods_re_plugin.hpp"
+#include <irods/irods_server_properties.hpp>
+#include <irods/irods_re_plugin.hpp>
 #include "storage_tiering.hpp"
 #include "storage_tiering_utilities.hpp"
-#include "irods_query.hpp"
-#include "irods_virtual_path.hpp"
-#include "irods_hierarchy_parser.hpp"
-#include "irods_resource_manager.hpp"
-#include "irods_resource_backport.hpp"
-#include "query_processor.hpp"
+#include <irods/irods_query.hpp>
+#include <irods/irods_virtual_path.hpp>
+#include <irods/irods_hierarchy_parser.hpp>
+#include <irods/irods_resource_manager.hpp>
+#include <irods/irods_resource_backport.hpp>
+#include <irods/query_processor.hpp>
 #include "proxy_connection.hpp"
 
-#include "modAVUMetadata.h"
-#include "rsExecMyRule.hpp"
-#include "rsOpenCollection.hpp"
-#include "rsReadCollection.hpp"
-#include "rsCloseCollection.hpp"
+#include <irods/modAVUMetadata.h>
+#include <irods/rsExecMyRule.hpp>
+#include <irods/rsOpenCollection.hpp>
+#include <irods/rsReadCollection.hpp>
+#include <irods/rsCloseCollection.hpp>
 
 #include "data_verification_utilities.hpp"
 

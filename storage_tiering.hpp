@@ -7,7 +7,7 @@
 #include <boost/any.hpp>
 #include <string>
 
-#include "rcMisc.h"
+#include <irods/rcMisc.h>
 #include "storage_tiering_configuration.hpp"
 
 namespace irods {

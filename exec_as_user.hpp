@@ -1,8 +1,8 @@
 
 
 #include <functional>
-#include "rcConnect.h"
-#include "irods_at_scope_exit.hpp"
+#include <irods/rcConnect.h>
+#include <irods/irods_at_scope_exit.hpp>
 
 namespace irods {
     template <typename Function>

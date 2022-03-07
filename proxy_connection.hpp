@@ -1,7 +1,7 @@
 #ifndef MAKE_CONNECTION_HPP
 #define MAKE_CONNECTION_HPP
 
-#include "rcConnect.h"
+#include <irods/rcConnect.h>
 
 namespace irods {
 
