@@ -1,7 +1,7 @@
 
-#include "irods_re_plugin.hpp"
-#include "irods_exception.hpp"
-#include "rodsError.h"
+#include <irods/irods_re_plugin.hpp>
+#include <irods/irods_exception.hpp>
+#include <irods/rodsError.h>
 
 namespace irods {
 

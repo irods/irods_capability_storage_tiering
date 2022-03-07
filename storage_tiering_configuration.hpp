@@ -2,7 +2,7 @@
 #define STORAGE_TIERING_CONFIGURATION_HPP
 
 #include <string>
-#include "rcMisc.h"
+#include <irods/rcMisc.h>
 
 namespace irods {
     struct storage_tiering_configuration {

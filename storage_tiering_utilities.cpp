@@ -1,6 +1,6 @@
 
 #include "storage_tiering_utilities.hpp"
-#include "rcMisc.h"
+#include <irods/rcMisc.h>
 
 namespace irods {
     std::string any_to_string(boost::any& _a) {

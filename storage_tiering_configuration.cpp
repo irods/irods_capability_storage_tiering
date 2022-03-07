@@ -1,6 +1,6 @@
 
 #include "storage_tiering_configuration.hpp"
-#include "irods_server_properties.hpp"
+#include <irods/irods_server_properties.hpp>
 
 namespace irods {
     storage_tiering_configuration::storage_tiering_configuration(

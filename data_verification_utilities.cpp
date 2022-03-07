@@ -1,14 +1,14 @@
 
 #undef RODS_SERVER
 
-#include "irods_query.hpp"
-#include "irods_resource_manager.hpp"
-#include "physPath.hpp"
+#include <irods/irods_query.hpp>
+#include <irods/irods_resource_manager.hpp>
+#include <irods/physPath.hpp>
 #include "data_verification_utilities.hpp"
 #include "storage_tiering_configuration.hpp"
 
-#include "dataObjChksum.h"
-#include "fileStat.h"
+#include <irods/dataObjChksum.h>
+#include <irods/fileStat.h>
 
 #include <boost/lexical_cast.hpp>
 

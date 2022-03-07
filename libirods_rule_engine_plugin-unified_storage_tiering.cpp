@@ -1,23 +1,23 @@
 // =-=-=-=-=-=-=-
 // irods includes
-#include "irods_re_plugin.hpp"
+#include <irods/irods_re_plugin.hpp>
 #include "storage_tiering.hpp"
-#include "irods_re_ruleexistshelper.hpp"
+#include <irods/irods_re_ruleexistshelper.hpp>
 #include "storage_tiering_utilities.hpp"
-#include "irods_resource_backport.hpp"
+#include <irods/irods_resource_backport.hpp>
 #include "proxy_connection.hpp"
 
-#include "rsModAVUMetadata.hpp"
-#include "rsOpenCollection.hpp"
-#include "rsReadCollection.hpp"
-#include "rsCloseCollection.hpp"
-#include "irods_virtual_path.hpp"
-#include "dataObjRepl.h"
-#include "dataObjTrim.h"
-#include "physPath.hpp"
-#include "apiNumber.h"
+#include <irods/rsModAVUMetadata.hpp>
+#include <irods/rsOpenCollection.hpp>
+#include <irods/rsReadCollection.hpp>
+#include <irods/rsCloseCollection.hpp>
+#include <irods/irods_virtual_path.hpp>
+#include <irods/dataObjRepl.h>
+#include <irods/dataObjTrim.h>
+#include <irods/physPath.hpp>
+#include <irods/apiNumber.h>
 #include "data_verification_utilities.hpp"
-#include "irods_server_api_call.hpp"
+#include <irods/irods_server_api_call.hpp>
 #include "exec_as_user.hpp"
 
 #undef LIST
@@ -38,7 +38,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "objDesc.hpp"
+#include <irods/objDesc.hpp>
 extern l1desc_t L1desc[NUM_L1_DESC];
 
 int _delayExec(
