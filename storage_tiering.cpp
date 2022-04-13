@@ -689,7 +689,7 @@ namespace irods {
                   , {"destination-resource",      _destination_resource}
                   , {"preserve-replicas",         _preserve_replicas}
                   , {"verification-type",         _verification_type}
-                  , {"delay_conditions", _data_movement_params}
+                  , {"delay_conditions",          _data_movement_params}
                 }
             }
          };
