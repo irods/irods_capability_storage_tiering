@@ -17,11 +17,11 @@ from .. import lib
 from . import ustrings
 
 @contextlib.contextmanager
-def storage_tiering_configured_custom(arg=None):
+def storage_tiering_configured_custom(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
@@ -48,11 +48,11 @@ def storage_tiering_configured_custom(arg=None):
             pass
 
 @contextlib.contextmanager
-def storage_tiering_configured(arg=None):
+def storage_tiering_configured(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
@@ -70,11 +70,11 @@ def storage_tiering_configured(arg=None):
             pass
 
 @contextlib.contextmanager
-def storage_tiering_configured_with_log(arg=None):
+def storage_tiering_configured_with_log(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
@@ -94,11 +94,11 @@ def storage_tiering_configured_with_log(arg=None):
             pass
 
 @contextlib.contextmanager
-def storage_tiering_configured_without_replication(arg=None):
+def storage_tiering_configured_without_replication(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
@@ -116,11 +116,11 @@ def storage_tiering_configured_without_replication(arg=None):
             pass
 
 @contextlib.contextmanager
-def storage_tiering_configured_without_verification(arg=None):
+def storage_tiering_configured_without_verification(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
@@ -138,11 +138,11 @@ def storage_tiering_configured_without_verification(arg=None):
             pass
 
 @contextlib.contextmanager
-def storage_tiering_configured_without_access_time(arg=None):
+def storage_tiering_configured_without_access_time(arg=None, sleep_time=1):
     filename = paths.server_config_path()
     with lib.file_backed_up(filename):
         irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = 1
+        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
 
         irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
             {
