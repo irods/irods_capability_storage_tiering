@@ -699,7 +699,7 @@ namespace irods {
         msParamArray_t* out_arr{};
         addKeyVal(
             &exec_inp.condInput
-          , irods::CFG_INSTANCE_NAME_KW.c_str()
+          , irods::KW_CFG_INSTANCE_NAME
           , "irods_rule_engine_plugin-cpp_default_policy-instance");
 
         auto err = rcExecMyRule(_comm, &exec_inp, &out_arr);
