@@ -1,6 +1,8 @@
-
 #include "storage_tiering_utilities.hpp"
+
 #include "rcMisc.h"
+
+#include <cstring>
 
 namespace irods {
     std::string any_to_string(boost::any& _a) {
@@ -12,7 +14,7 @@ namespace irods {
         }
         else if(_a.type() == typeid(msParam_t*)) {
             msParam_t* msp = boost::any_cast<msParam_t*>(_a);
-            if(msp->type == STR_MS_T) {
+            if(std::strcmp(msp->type, STR_MS_T) == 0) {
                 return static_cast<char*>(msp->inOutStruct);
             }
             else {
