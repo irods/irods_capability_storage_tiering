@@ -54,6 +54,44 @@ We can then configure the `medium_resc` to hold data for 8 hours:
 imeta add -R medium_resc irods::storage_tiering::time 28800
 ```
 
+### Adding a Recurring Rule
+
+Administrators will most likely want the storage tiering policy to execute on a regular basis to check for violating data objects in need of movement.
+
+The simplest way to do this is to add a recurring rule to the delay queue once with `irule`.
+
+An example rulefile, `start_tiering.r`:
+```
+{
+   "rule-engine-instance-name": "irods_rule_engine_plugin-unified_storage_tiering-instance",
+   "rule-engine-operation": "irods_policy_schedule_storage_tiering",
+   "delay-parameters": "<INST_NAME>irods_rule_engine_plugin-unified_storage_tiering-instance</INST_NAME><PLUSET>1s</PLUSET><EF>60s REPEAT FOR EVER</EF>",
+   "storage-tier-groups": [
+       "example_group_1",
+       "example_group_2"
+   ]
+}
+INPUT null
+OUTPUT ruleExecOut
+```
+
+Update the Execution Frequency (EF) and storage-tier-groups, as appropriate.
+
+Then, execute this rule:
+
+```
+$ irule -r irods_rule_engine_plugin-unified_storage_tiering-instance -F start_tiering.r
+```
+
+The rule will appear in the delay queue:
+
+```
+$ iqstat
+id     name
+10240 {"rule-engine-operation":"irods_policy_storage_tiering","storage-tier-groups":["example_group_1","example_group_2"]}
+```
+
+
 ## Optional Configuration
 
 ### Customizing Metadata Attributes
