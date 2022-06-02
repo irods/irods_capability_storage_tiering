@@ -990,7 +990,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
                 dest_path = '/tempZone/home/rods/reg_coll'
 
                 try:
-                    admin_session.assert_icommand('ireg -CR ufs0 ' + local_dir_name + ' ' + dest_path)
+                    admin_session.assert_icommand('ireg -r -R ufs0 ' + local_dir_name + ' ' + dest_path)
                     admin_session.assert_icommand('ils -rL ' + dest_path, 'STDOUT_SINGLELINE', dest_path)
 
                     # test stage to tier 1
