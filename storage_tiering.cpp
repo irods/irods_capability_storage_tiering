@@ -15,6 +15,7 @@
 
 #include <irods/modAVUMetadata.h>
 #include <irods/rsExecMyRule.hpp>
+#include <irods/execMyRule.h>
 #include <irods/rsOpenCollection.hpp>
 #include <irods/rsReadCollection.hpp>
 #include <irods/rsCloseCollection.hpp>
