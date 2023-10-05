@@ -167,6 +167,10 @@ namespace {
             const_cast<char*>(ts.c_str()),
             ""};
 
+        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(&avuOp.condInput, ADMIN_KW, "");
+        }
+
         auto status = rsModAVUMetadata(_comm, &avuOp);
         if(status < 0) {
             THROW(
@@ -248,6 +252,7 @@ namespace {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
+                    rodsLog(LOG_ERROR, "%s:%d: Invalid number of arguments [PEP=%s].", __func__, __LINE__, _rn.c_str());
                     THROW(
                         SYS_INVALID_INPUT_PARAM,
                         "invalid number of arguments");
