@@ -407,6 +407,55 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                     finally:
                         alice_session.assert_icommand('irm -f ' + cmd_filename)
 
+    def test_storage_tiering_sets_admin_keyword_when_updating_access_time_as_rodsadmin__222(self):
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            with session.make_session_for_existing_admin() as admin_session:
+                zone_name = IrodsConfig().client_environment['irods_zone_name']
+
+                with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
+                    resc_name = 'storage_tiering_ufs_222'
+                    filename = 'test_file_issue_222'
+
+                    try:
+                        lib.create_local_testfile(filename)
+                        alice_session.assert_icommand(f'iput -R rnd0 {filename}')
+                        alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
+                        alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
+                        sleep(5)
+
+                        # test stage to tier 1.
+                        invoke_storage_tiering_rule()
+                        delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd1')
+
+                        # test stage to tier 2.
+                        sleep(15)
+                        invoke_storage_tiering_rule()
+                        delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd2')
+
+                        # capture the access time.
+                        _, out, _ = admin_session.assert_icommand(
+                            ['iquest', '%s', f"select META_DATA_ATTR_VALUE where DATA_NAME = '{filename}' and META_DATA_ATTR_NAME = 'irods::access_time'"], 'STDOUT')
+                        access_time = out.strip()
+                        self.assertGreater(len(access_time), 0)
+
+                        # show the access time is updated correctly.
+                        lib.create_ufs_resource(admin_session, resc_name)
+                        admin_session.assert_icommand(f'irepl -M -R {resc_name} {alice_session.home_collection}/{filename}')
+
+                        _, out, _ = admin_session.assert_icommand(
+                            ['iquest', '%s', f"select META_DATA_ATTR_VALUE where DATA_NAME = '{filename}' and META_DATA_ATTR_NAME = 'irods::access_time'"], 'STDOUT')
+                        new_access_time = out.strip()
+                        self.assertGreater(len(new_access_time), 0)
+
+                        # this assertion is the primary focus of the test.
+                        self.assertGreater(int(new_access_time), int(access_time))
+
+                    finally:
+                        alice_session.assert_icommand(f'irm -f {filename}')
+                        admin_session.assert_icommand(f'iadmin rmresc {resc_name}')
+
 class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
     def setUp(self):
         super(TestStorageTieringPluginMultiGroup, self).setUp()
