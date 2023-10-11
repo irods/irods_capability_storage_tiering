@@ -48,6 +48,7 @@ def install_os_specific_dependencies():
         'Centos': install_os_specific_dependencies_yum,
         'Debian gnu_linux': install_os_specific_dependencies_apt,
         'Opensuse ': install_os_specific_dependencies_yum,
+        'Rocky linux': install_os_specific_dependencies_yum,
         'Ubuntu': install_os_specific_dependencies_apt
     }
     try:
