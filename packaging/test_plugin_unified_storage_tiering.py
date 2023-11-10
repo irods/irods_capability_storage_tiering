@@ -440,6 +440,9 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         access_time = out.strip()
                         self.assertGreater(len(access_time), 0)
 
+                        # sleeping guarantees the access time will be different following the call to irepl.
+                        sleep(2)
+
                         # show the access time is updated correctly.
                         lib.create_ufs_resource(admin_session, resc_name)
                         admin_session.assert_icommand(f'irepl -M -R {resc_name} {alice_session.home_collection}/{filename}')
