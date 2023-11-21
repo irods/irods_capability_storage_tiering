@@ -9,7 +9,7 @@ namespace irods {
         rErrMsg_t err_msg;
         rcComm_t* conn;
 
-        auto make(const std::string client = "") -> rcComm_t*
+        auto make(const std::string clientUser = "", const std::string clientZone = "") -> rcComm_t*
         {
             rodsEnv env{};
             _getRodsEnv(env);
@@ -19,10 +19,12 @@ namespace irods {
                        env.rodsPort,
                        env.rodsUserName,
                        env.rodsZone,
-                       !client.empty() ?
-                           client.c_str() :
+                       !clientUser.empty() ?
+                           clientUser.c_str() :
                            env.rodsUserName,
-                       env.rodsZone,
+                       !clientZone.empty() ?
+                           clientZone.c_str() :
+                           env.rodsZone,
                        &err_msg,
                        0, 0);
 
