@@ -6,7 +6,7 @@
 
 namespace irods {
     template <typename Function>
-    int exec_as_user(rcComm_t* _comm, const std::string& _user_name, Function _func)
+    int exec_as_user(rcComm_t* _comm, const std::string& _user_name, const std::string& _user_zone, Function _func)
     {
         auto& user = _comm->clientUser;
 
@@ -16,11 +16,20 @@ namespace irods {
         //}
 
         const std::string old_user_name = user.userName;
+        const std::string old_user_zone = user.rodsZone;
 
         rstrcpy(user.userName, _user_name.data(), NAME_LEN);
+        rstrcpy(user.rodsZone, _user_zone.data(), NAME_LEN);
 
-        irods::at_scope_exit<std::function<void()>> at_scope_exit{[&user, &old_user_name] {
+        rodsLog(
+            LOG_DEBUG,
+                "Executing as user [%s] fom zone [%s]",
+                user.userName,
+                user.rodsZone);
+
+        irods::at_scope_exit<std::function<void()>> at_scope_exit{[&user, &old_user_name, &old_user_zone] {
             rstrcpy(user.userName, old_user_name.c_str(), MAX_NAME_LEN);
+            rstrcpy(user.rodsZone, old_user_zone.c_str(), MAX_NAME_LEN);
         }};
 
         return _func(_comm);
