@@ -160,10 +160,10 @@ imeta add -R medium_resc irods::storage_tiering::minimum_restage_tier true
 
 A tier within a tier group may identify data objects which are in violation by an alternate mechanism beyond the built-in time-based constraint.  This allows the data grid administrator to take additional context into account when identifying data objects to migrate.
 
-Data objects which have been labeled via particular metadata, or within a specific collection, owned by a particular user, or belonging to a particular project may be identified through a custom query.  The default attribute **irods::storage_tiering::query** is used to hold this custom query.  To configure the custom query, attach the query to the root resource of the tier within the tier group.  This query will be used in place of the default time-based query for that tier.  For efficiency this example query checks for the existence in the root resource's list of leaves by resource ID.  Please note that any custom query must return DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM in that order as it is a convention of this rule engine plugin.
+Data objects which have been labeled via particular metadata, or within a specific collection, owned by a particular user, or belonging to a particular project may be identified through a custom query.  The default attribute **irods::storage_tiering::query** is used to hold this custom query.  To configure the custom query, attach the query to the root resource of the tier within the tier group.  This query will be used in place of the default time-based query for that tier.  For efficiency this example query checks for the existence in the root resource's list of leaves by resource ID.  Please note that any custom query must return DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM in that order as it is a convention of this rule engine plugin.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'irods::access_time' AND META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' AND DATA_RESC_ID IN ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'irods::access_time' AND META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' AND DATA_RESC_ID IN ('10068', '10069')"
 ```
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
@@ -171,13 +171,13 @@ The example above implements the default query.  Note that the string `TIME_CHEC
 Any number of queries may be attached in order provide a range of criteria by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as `archive_object true`.  The tier may then have a query added to support this.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')"
 ```
 
 Queries may also be provided by using the Specific Query interface within iRODS.  The archive object query may be stored by an iRODS administrator as follows.
 
 ```
-'iadmin asq "SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
+'iadmin asq "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
 ```
 
 At which point the query attached to the root of a storage tier would require the use of a metadata unit of `specific`:
