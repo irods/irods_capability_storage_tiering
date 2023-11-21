@@ -447,7 +447,7 @@ namespace irods {
             metadata_results results;
             results.push_back(
                 std::make_pair(boost::str(
-                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND META_DATA_ATTR_UNITS <> '%s' AND DATA_RESC_ID IN (%s)")
+                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND META_DATA_ATTR_UNITS <> '%s' AND DATA_RESC_ID IN (%s)")
                 % config_.access_time_attribute
                 % tier_time
                 % config_.migration_scheduled_flag
@@ -567,7 +567,7 @@ namespace irods {
                     object_is_processed[object_path] = 1;
 
                     auto proxy_conn = irods::proxy_connection();
-                    rcComm_t* comm = proxy_conn.make(_results[2]);
+                    rcComm_t* comm = proxy_conn.make(_results[2], _results[3]);
 
                     if(preserve_replicas) {
                         if(skip_object_in_lower_tier(
@@ -585,6 +585,7 @@ namespace irods {
                         object_path,
                         _results[2],
                         _results[3],
+                        _results[4],
                         _source_resource,
                         _destination_resource,
                         get_verification_for_resc(comm, _destination_resource),
@@ -662,17 +663,18 @@ namespace irods {
         const std::string& _group_name,
         const std::string& _object_path,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _source_replica_number,
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _verification_type,
         const bool         _preserve_replicas,
         const std::string& _data_movement_params) {
-        if(object_has_migration_metadata_flag(_comm, _user_name, _object_path)) {
+        if(object_has_migration_metadata_flag(_comm, _user_name, _user_zone, _object_path)) {
             return;
         }
 
-        set_migration_metadata_flag_for_object(_comm, _user_name, _object_path);
+        set_migration_metadata_flag_for_object(_comm, _user_name, _user_zone, _object_path);
 
         nlohmann::json rule_obj =
         {
@@ -684,6 +686,7 @@ namespace irods {
                   , {"group-name",                _group_name}
                   , {"object-path",               _object_path}
                   , {"user-name",                 _user_name}
+                  , {"user-zone",                 _user_zone}
                   , {"source-replica-number",     _source_replica_number}
                   , {"source-resource",           _source_resource}
                   , {"destination-resource",      _destination_resource}
@@ -780,6 +783,7 @@ namespace irods {
     void storage_tiering::migrate_object_to_minimum_restage_tier(
         const std::string& _object_path,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _source_resource) {
 
         try {
@@ -807,6 +811,7 @@ namespace irods {
                 group_name,
                 _object_path,
                 _user_name,
+                _user_zone,
                 source_replica_number,
                 _source_resource,
                 low_tier_resource_name,
@@ -875,6 +880,7 @@ namespace irods {
     void storage_tiering::set_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _object_path) {
         auto access_time = get_metadata_for_data_object(
                                _comm,
@@ -889,7 +895,7 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            const_cast<char*>(config_.migration_scheduled_flag.c_str())};
 
-        auto status = exec_as_user(_comm, _user_name, [&set_op](auto comm) -> int {
+        auto status = exec_as_user(_comm, _user_name, _user_zone, [&set_op](auto comm) -> int {
                             return rcModAVUMetadata(comm, &set_op);
                             });
         if(status < 0) {
@@ -903,6 +909,7 @@ namespace irods {
     void storage_tiering::unset_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _object_path) {
         auto access_time = get_metadata_for_data_object(
                                _comm,
@@ -916,7 +923,7 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            nullptr};
 
-        const auto status = exec_as_user(_comm, _user_name, [&set_op](auto comm) -> int {
+        const auto status = exec_as_user(_comm, _user_name, _user_zone, [&set_op](auto comm) -> int {
                            return rcModAVUMetadata(comm, &set_op);
                            });
         if(status < 0) {
@@ -931,6 +938,7 @@ namespace irods {
     bool storage_tiering::object_has_migration_metadata_flag(
         rcComm_t*          _comm,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _object_path) {
         boost::filesystem::path p{_object_path};
         std::string coll_name = p.parent_path().string();
@@ -944,7 +952,7 @@ namespace irods {
                 % data_name
                 % coll_name) };
 
-        const auto status = exec_as_user(_comm, _user_name, [& query_str](auto& _comm) -> int {
+        const auto status = exec_as_user(_comm, _user_name, _user_zone, [& query_str](auto& _comm) -> int {
                             query<rcComm_t> qobj{_comm, query_str, 1};
                             return qobj.size();
                            });
@@ -957,11 +965,12 @@ namespace irods {
         const std::string& _group_name,
         const std::string& _object_path,
         const std::string& _user_name,
+        const std::string& _user_zone,
         const std::string& _source_replica_number,
         const std::string& _source_resource,
         const std::string& _destination_resource) {
         try {
-            unset_migration_metadata_flag_for_object(comm_, _user_name, _object_path);
+            unset_migration_metadata_flag_for_object(comm_, _user_name, _user_zone, _object_path);
         }
         catch(const exception&) {
         }
