@@ -814,7 +814,7 @@ namespace irods {
                 _source_resource,
                 low_tier_resource_name,
                 get_verification_for_resc(comm_, low_tier_resource_name),
-                false,
+                get_preserve_replicas_for_resc(comm_, _source_resource),
                 get_data_movement_parameters_for_resource(comm_, _source_resource));
         }
         catch(const exception& _e) {
