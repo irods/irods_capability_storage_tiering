@@ -213,6 +213,15 @@ def invoke_storage_tiering_rule():
     with session.make_session_for_existing_admin() as admin_session:
         admin_session.assert_icommand(['irule', '-r', rep_instance, '-F', rule_file_path])
 
+def get_tracked_replica(session, logical_path):
+    coll_name = os.path.dirname(logical_path)
+    data_name = os.path.basename(logical_path)
+
+    tracked_replica_query = 'select META_DATA_ATTR_UNITS where DATA_NAME = \'{}\' and COLL_NAME = \'{}\' ' \
+        'and META_DATA_ATTR_NAME = \'irods::storage_tiering::group\''.format(data_name, coll_name)
+
+    return session.run_icommand(['iquest', '%s', tracked_replica_query])[0].strip()
+
 
 class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
     def setUp(self):
@@ -714,6 +723,7 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
 
+
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
     def setUp(self):
         super(TestStorageTieringPluginPreserveReplica, self).setUp()
@@ -775,6 +785,162 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
+
+    def test_tiering_out_with_existing_replica_in_higher_tier__issue_235(self):
+        with storage_tiering_configured_with_log():
+            IrodsController().restart(test_mode=True)
+            with session.make_session_for_existing_admin() as admin_session:
+                filename = 'test_put_file'
+                logical_path = '/'.join([admin_session.home_collection, filename])
+
+                try:
+                    # Preserve replicas on tier 1 and tier 2, not tier 0. Make tier 1 NOT the minimum restage tier.
+                    admin_session.assert_icommand('imeta rm -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta rm -R ufs1 irods::storage_tiering::minimum_restage_tier true')
+
+                    lib.create_local_testfile(filename)
+                    admin_session.assert_icommand('iput -R ufs0 ' + filename)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+
+                    # Tier out replica from ufs0 to ufs1.
+                    sleep(6)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
+
+                    # Ensure that the replica was tiered out to ufs1 and not preserved on ufs0.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
+
+                    # Ensure that the "tracked" replica updates to replica 1, which is the tiered-out replica on ufs1.
+                    self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
+
+                    # Tier out replica from ufs1 to ufs2.
+                    sleep(15)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
+
+                    # Ensure that the replica was tiered out to ufs2 and preserved on ufs1, and no replica exists on
+                    # ufs0.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+
+                    # Ensure that the "tracked" replica updates to replica 2, which is the tiered-out replica on ufs2.
+                    self.assertEqual('2', get_tracked_replica(admin_session, logical_path))
+
+                    # Get the data object in order to trigger a restage, targeting replica 2 to ensure it is the replica
+                    # that gets restaged.
+                    admin_session.assert_icommand(['iget', '-n', '2', filename, '-'], 'STDOUT', 'TESTFILE')
+
+                    # Ensure that the restage has been scheduled.
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_data_movement')
+
+                    # Ensure that the replica is restaged to the minimum restage tier (ufs0) and the replica on ufs2
+                    # is trimmed. Also make sure ufs1 still has a replica. The restage is signified by the
+                    # trimming of the higher tier replica and an updated group AVU.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2') == False)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+
+                    # Ensure that the "tracked" replica updates to replica 1, which is the replica on ufs1 that has not
+                    # moved since it was created.
+                    self.assertEqual('3', get_tracked_replica(admin_session, logical_path))
+
+                    # Now for the actual test. Tier out replica from ufs0 to ufs1.
+                    sleep(6)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
+
+                    # Ensure that the replica was tiered out to ufs1 and not preserved on ufs0. We test for the absence
+                    # of a replica on ufs0 because the restage is signified by the trimming of the lower tier replica
+                    # and an updated group AVU.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0') == False)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
+
+                    # Ensure that the "tracked" replica updates to replica 1, which is the replica on ufs1 that has not
+                    # moved since it was created.
+                    self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
+
+                finally:
+                    # Ensure that the preservation policy for each resource is set back to what it was before.
+                    admin_session.run_icommand('imeta add -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.run_icommand('imeta rm -R ufs1 irods::storage_tiering::preserve_replicas true')
+                    admin_session.run_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
+
+                    admin_session.assert_icommand('irm -f ' + filename)
+
+    def test_restaging_with_existing_replica_in_lower_tier__issue_235(self):
+        with storage_tiering_configured_with_log():
+            IrodsController().restart(test_mode=True)
+            with session.make_session_for_existing_admin() as admin_session:
+                filename = 'test_put_file'
+                logical_path = '/'.join([admin_session.home_collection, filename])
+
+                try:
+                    # Preserve replicas on tier 1, not tier 0 or tier 2.
+                    admin_session.assert_icommand('imeta rm -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::preserve_replicas true')
+
+                    lib.create_local_testfile(filename)
+                    admin_session.assert_icommand('iput -R ufs0 ' + filename)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+
+                    # Tier out replica from ufs0 to ufs1.
+                    sleep(6)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
+
+                    # Ensure that the replica was tiered out to ufs1 and not preserved on ufs0.
+                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
+
+                    # Ensure that the "tracked" replica updates to replica 1, which is the tiered-out replica on ufs1.
+                    self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
+
+                    # Tier out replica from ufs1 to ufs2.
+                    sleep(15)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
+
+                    # Ensure that the replica was tiered out to ufs2 and preserved on ufs1, and no replica exists on
+                    # ufs0.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+
+                    # Ensure that the "tracked" replica updates to replica 2, which is the tiered-out replica on ufs2.
+                    self.assertEqual('2', get_tracked_replica(admin_session, logical_path))
+
+                    # Now for the actual test. Get the data object in order to trigger a restage, targeting replica 2
+                    # to ensure it is the replica that gets restaged.
+                    admin_session.assert_icommand(['iget', '-n', '2', filename, '-'], 'STDOUT', 'TESTFILE')
+
+                    # Ensure that the restage has been scheduled.
+                    admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_data_movement')
+
+                    # Ensure that the replica is restaged to the minimum restage tier (ufs1) and the replica on ufs2
+                    # is trimmed. Also make sure ufs0 still does not have a replica. We test for the absence of a
+                    # replica on ufs2 because the restage is signified by the trimming of the higher tier replica and an
+                    # updated group AVU.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2') == False)
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
+
+                    # Ensure that the "tracked" replica updates to replica 1, which is the replica on ufs1 that has not
+                    # moved since it was created.
+                    self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
+
+                finally:
+                    # Ensure that the preservation policy for each resource is set back to what it was before.
+                    admin_session.run_icommand('imeta add -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.run_icommand('imeta rm -R ufs1 irods::storage_tiering::preserve_replicas true')
+
+                    admin_session.assert_icommand('irm -f ' + filename)
+
 
 class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
     def setUp(self):
