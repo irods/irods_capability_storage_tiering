@@ -20,6 +20,9 @@
 #include <irods/irods_server_api_call.hpp>
 #include "exec_as_user.hpp"
 
+#include <irods/filesystem.hpp>
+#include <irods/irods_query.hpp>
+
 #undef LIST
 
 // =-=-=-=-=-=-=-
@@ -84,12 +87,36 @@ namespace {
         return std::make_tuple(l1_idx, resource_name);
     } // get_index_and_resource
 
+    auto resource_hierarchy_has_good_replica(RcComm* _comm,
+                                             const std::string& _object_path,
+                                             const std::string& _root_resource) -> bool
+    {
+        namespace fs = irods::experimental::filesystem;
+
+        const auto object_path = fs::path{_object_path};
+
+        const auto query_string = fmt::format("select DATA_ID where DATA_NAME = '{0}' and COLL_NAME = '{1}' and "
+                                              "DATA_RESC_HIER like '{2};%' || = '{2}' and DATA_REPL_STATUS = '{3}'",
+                                              object_path.object_name().c_str(),
+                                              object_path.parent_path().c_str(),
+                                              _root_resource,
+                                              GOOD_REPLICA);
+
+        const auto query = irods::query{_comm, query_string};
+
+        return query.size() > 0;
+    } // resource_hierarchy_has_good_replica
+
     void replicate_object_to_resource(
         rcComm_t*          _comm,
         const std::string& _instance_name,
         const std::string& _source_resource,
         const std::string& _destination_resource,
         const std::string& _object_path) {
+        // If the destination resource has a good replica of the data object, skip replication.
+        if (resource_hierarchy_has_good_replica(_comm, _object_path, _destination_resource)) {
+            return;
+        }
 
         dataObjInp_t data_obj_inp{};
         rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
