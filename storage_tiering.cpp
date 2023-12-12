@@ -753,33 +753,31 @@ namespace irods {
 
     } // get_replica_number_for_resource
 
-    std::string storage_tiering::get_group_name_by_replica_number(
+    std::string storage_tiering::get_group_name_for_object(
         rcComm_t*          _comm,
         const std::string& _attribute_name,
-        const std::string& _object_path,
-        const std::string& _replica_number) {
+        const std::string& _object_path) {
         boost::filesystem::path p{_object_path};
         std::string data_name = p.filename().string();
         std::string coll_name = p.parent_path().string();
 
         std::string qstr{boost::str(
-            boost::format("SELECT META_DATA_ATTR_VALUE WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_UNITS = '%s'")
+            boost::format("SELECT META_DATA_ATTR_VALUE WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND META_DATA_ATTR_NAME = '%s'")
             % data_name
             % coll_name
-            % _attribute_name
-            % _replica_number)};
+            % _attribute_name)};
 
         query<rcComm_t> qobj{_comm, qstr};
 
         if(qobj.size() == 0) {
             THROW(
                 CAT_NO_ROWS_FOUND,
-                "failed to fetch group name by resource and replica number");
+                "failed to fetch group name by object and resource");
         }
 
         return qobj.front()[0];
 
-    } // get_group_name_by_replica_number
+    } // get_group_name_for_object
 
     void storage_tiering::migrate_object_to_minimum_restage_tier(
         const std::string& _object_path,
@@ -792,11 +790,10 @@ namespace irods {
                                                    comm_,
                                                    _object_path,
                                                    _source_resource);
-            const auto group_name = get_group_name_by_replica_number(
+            const auto group_name = get_group_name_for_object(
                                         comm_,
                                         config_.group_attribute,
-                                        _object_path,
-                                        source_replica_number);
+                                        _object_path);
             const auto low_tier_resource_name = get_restage_tier_resource_name(
                                                     comm_,
                                                     group_name);

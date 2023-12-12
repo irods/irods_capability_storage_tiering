@@ -130,11 +130,10 @@ namespace irods {
             const std::string& _object_path,
             const std::string& _resource_name);
 
-        std::string get_group_name_by_replica_number(
+        std::string get_group_name_for_object(
             rcComm_t*          _comm,
             const std::string& _attribute_name,
-            const std::string& _object_path,
-            const std::string& _replica_number);
+            const std::string& _object_path);
 
         resource_index_map
         get_resource_map_for_group(
