@@ -218,11 +218,7 @@ namespace irods {
                                   _comm,
                                   config_.preserve_replicas,
                                   _resource_name);
-            std::transform(
-                pres.begin(),
-                pres.end(),
-                pres.begin(),
-                ::tolower);
+            std::transform(pres.begin(), pres.end(), pres.begin(), [](unsigned char c) { return std::tolower(c); });
             return ("true" == pres);
         }
         catch(const exception& _e) {
