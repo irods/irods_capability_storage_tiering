@@ -216,3 +216,49 @@ In order to log the transfer of data objects from one tier to the next, set `dat
 },
 ```
 
+## Limitations
+
+There are a few known limitations to the storage tiering plugin which should be noted explicitly for understanding different failure modes which users may experience.
+
+### A data object should only have replicas in one tiering group
+
+Any given data object should only have replicas in a single tiering group. Stated negatively, a data object should NOT have replicas in multiple tiering groups. The tiering group for a data object is tracked by an AVU that looks like this:
+```
+attribute: irods::storage_tiering::group
+value: example_group_1
+units: 1
+```
+
+The value is the tiering group to which this object belongs. There should only be one AVU with the attribute `irods::storage_tiering::group` associated with it. Here is an example of the AVUs an object with multiple tiering groups would have:
+```
+attribute: irods::storage_tiering::group
+value: example_group_1
+units: 1
+---
+attribute: irods::storage_tiering::group
+value: example_group_2
+units: 2
+```
+
+Notice the different values indicating that the object has replicas in two different tiering groups.
+
+Support for multi-group data objects may become available in the future, but it should be avoided at this time.
+
+### Managing replicas and metadata outside of storage tiering should be done with caution
+
+Replicating, trimming, and manipulating `irods::storage_tiering`-namespaced metadata on data objects which are under management in a tiering group using the storage tiering plugin should be done only when necessary. If any metadata is not in the expected state or replicas are not found in their expected resources, unexpected behavior can and will occur as it relates to storage tiering operations.
+
+### A resource should only belong to one tier in a given group
+
+Resources may belong to multiple tiering groups (e.g. a common archive). It is not recommended for a resource to be tagged with multiple tiers for a given group as the storage tiering plugin assumes that a resource only represents a single tier in any given group. In other words, a resource should not have multiple AVUs like this:
+```
+attribute: irods::storage_tiering::group
+value: example_group_1
+units: 0
+---
+attribute: irods::storage_tiering::group
+value: example_group_1
+units: 1
+```
+
+The above AVUs indicate that the resource represents tier 0 AND tier 1 in example_group_1. This should not be done.
