@@ -121,6 +121,10 @@ namespace irods {
             rcComm_t*          _comm,
             const std::string& _resource_name);
 
+        auto get_group_tier_for_resource(RcComm* _comm,
+                                         const std::string& _resource_name,
+                                         const std::string& _group_name) -> int;
+
         std::string get_data_movement_parameters_for_resource(
             rcComm_t*          _comm,
             const std::string& _resource_name);
