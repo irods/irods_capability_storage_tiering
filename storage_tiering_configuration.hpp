@@ -29,7 +29,7 @@ namespace irods {
         int number_of_scheduling_threads{4};
         int default_minimum_delay_time{1};
         int default_maximum_delay_time{30};
-        std::string default_data_movement_parameters{"<EF>60s DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>"};
+        std::string default_data_movement_parameters{"<EF>60s REPEAT UNTIL SUCCESS OR 5 TIMES</EF>"};
 
         const std::string instance_name{};
         explicit storage_tiering_configuration(const std::string& _instance_name);
