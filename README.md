@@ -112,7 +112,7 @@ For a default installation the following values are used:
     "minimum_restage_tier" : "irods::storage_tiering::minimum_restage_tier",
     "preserve_replicas" : "irods::storage_tiering::preserve_replicas",
     "object_limit" : "irods::storage_tiering::object_limit",
-    "default_data_movement_parameters" : "<EF>60s DOUBLE UNTIL SUCCESS OR 5 TIMES</EF>",
+    "default_data_movement_parameters" : "<EF>60s REPEAT UNTIL SUCCESS OR 5 TIMES</EF>",
     "minumum_delay_time" : "irods::storage_tiering::minimum_delay_time_in_seconds",
     "maximum_delay_time" : "irods::storage_tiering::maximum_delay_time_in_seconds",
     "time_check_string" : "TIME_CHECK_STRING",
