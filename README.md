@@ -34,12 +34,12 @@ In iRODS terminology, the `attribute` is defined by a **plugin_specific_configur
 
 For example:
 ```
-imeta add -R fast_resc irods::storage_tiering::group example_group 0
-imeta add -R medium_resc irods::storage_tiering::group example_group 1
-imeta add -R slow_resc irods::storage_tiering::group example_group 2
+imeta add -R fast_resc irods::storage_tiering::group example_group_1 0
+imeta add -R medium_resc irods::storage_tiering::group example_group_1 1
+imeta add -R slow_resc irods::storage_tiering::group example_group_1 2
 ```
 
-This example defines three tiers of the group `example_group` where data will flow from tier 0 to tier 2 as it ages.  In this example `fast_resc` is a single resource, but it could have been set to `fast_tier_root_resc` and represent the root of a resource hierarchy consisting of many resources.
+This example defines three tiers of the group `example_group_1` where data will flow from tier 0 to tier 2 as it ages.  In this example `fast_resc` is a single resource, but it could have been set to the root of a resource hierarchy consisting of many resources.
 
 ### Setting Tiering Policy
 
