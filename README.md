@@ -162,6 +162,8 @@ A tier within a tier group may identify data objects which are in violation by a
 
 Data objects which have been labeled via particular metadata, or within a specific collection, owned by a particular user, or belonging to a particular project may be identified through a custom query.  The default attribute **irods::storage_tiering::query** is used to hold this custom query.  To configure the custom query, attach the query to the root resource of the tier within the tier group.  This query will be used in place of the default time-based query for that tier.  For efficiency this example query checks for the existence in the root resource's list of leaves by resource ID.  Please note that any custom query must return DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM in that order as it is a convention of this rule engine plugin.
 
+**Checking for resources in violating queries is required to prevent erroneous data migrations for replicas on other resources which may represent other tiers in the storage tiering group.** This can be done in the manner shown below (`DATA_RESC_ID in ('10068', '10069')`) or via resource hierarchy (e.g. `DATA_RESC_HIER like 'root_resc;%`), but the query must filter on resources to correctly identify violating objects.
+
 ```
 imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'irods::access_time' AND META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' AND DATA_RESC_ID IN ('10068', '10069')"
 ```
