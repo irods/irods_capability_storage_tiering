@@ -30,9 +30,12 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
-#include <random>
 
 #include <nlohmann/json.hpp>
+
+#include <charconv>
+#include <random>
+#include <system_error>
 #include <tuple>
 
 extern irods::resource_manager resc_mgr;
@@ -287,6 +290,59 @@ namespace irods {
         }
 
     } // get_restage_tier_resource_name
+
+    auto storage_tiering::get_group_tier_for_resource(RcComm* _comm,
+                                                      const std::string& _resource_name,
+                                                      const std::string& _group_name) -> int
+    {
+        const auto query_string = fmt::format("select META_RESC_ATTR_UNITS where META_RESC_ATTR_NAME = '{}' and "
+                                              "META_RESC_ATTR_VALUE = '{}' and RESC_NAME = '{}'",
+                                              config_.group_attribute,
+                                              _group_name,
+                                              _resource_name);
+
+        const auto query = irods::query{_comm, query_string};
+
+        if (query.empty()) {
+            THROW(CAT_NO_ROWS_FOUND,
+                  fmt::format("Resource [{}] has no tier for group [{}].", _resource_name, _group_name));
+        }
+
+        if (query.size() > 1) {
+            THROW(CONFIGURATION_ERROR,
+                  fmt::format("Resource [{}] has multiple tiers for group [{}].", _resource_name, _group_name));
+        }
+
+        int tier_value{};
+        const auto meta_resc_attr_units = query.front()[0];
+        const auto [str_ptr, ec] = std::from_chars(
+            meta_resc_attr_units.c_str(), meta_resc_attr_units.c_str() + meta_resc_attr_units.size(), tier_value);
+
+        if (ec == std::errc::invalid_argument) {
+            THROW(CONFIGURATION_ERROR,
+                  fmt::format("Resource [{}] has invalid tier [{}] for group [{}]: not a number",
+                              _resource_name,
+                              meta_resc_attr_units,
+                              _group_name));
+        }
+        else if (ec == std::errc::result_out_of_range) {
+            THROW(CONFIGURATION_ERROR,
+                  fmt::format("Resource [{}] has invalid tier [{}] for group [{}]: out of range",
+                              _resource_name,
+                              meta_resc_attr_units,
+                              _group_name));
+        }
+
+        if (tier_value < 0) {
+            THROW(CONFIGURATION_ERROR,
+                  fmt::format("Resource [{}] has invalid tier [{}] for group [{}]: negative value",
+                              _resource_name,
+                              meta_resc_attr_units,
+                              _group_name));
+        }
+
+        return tier_value;
+    } // get_group_tier_for_resource
 
     std::string storage_tiering::get_data_movement_parameters_for_resource(
         rcComm_t*          _comm,
@@ -790,12 +846,23 @@ namespace irods {
                                         comm_,
                                         config_.group_attribute,
                                         _object_path);
-            const auto low_tier_resource_name = get_restage_tier_resource_name(
-                                                    comm_,
-                                                    group_name);
-            // do not queue movement if data is on minimum tier
+            const auto low_tier_resource_name = get_restage_tier_resource_name(comm_, group_name);
+            const auto source_resource_tier = get_group_tier_for_resource(comm_, _source_resource, group_name);
+            const auto low_tier_resource_tier = get_group_tier_for_resource(comm_, low_tier_resource_name, group_name);
+
+            // do not queue movement if data is on minimum tier or lower
             // TODO:: query for already queued movement?
-            if(low_tier_resource_name == _source_resource) {
+            if (source_resource_tier <= low_tier_resource_tier) {
+                rodsLog(
+                    LOG_DEBUG,
+                    fmt::format("Replica for object [{}] on resource [{}] (tier [{}]) already exists on the minimum "
+                                "restage tier resource [{}] (tier [{}]) or an even lower tier. Skipping restage.",
+                                _object_path,
+                                _source_resource,
+                                source_resource_tier,
+                                low_tier_resource_name,
+                                low_tier_resource_tier)
+                        .c_str());
                 return;
             }
 
