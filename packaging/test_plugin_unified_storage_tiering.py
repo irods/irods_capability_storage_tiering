@@ -792,42 +792,54 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
             IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
+                logical_path = '/'.join([admin_session.home_collection, filename])
 
                 try:
-                    # make sure replicas stored on tier 2 are preserved
+                    # Replicas should be preserved on ufs1 and ufs2. ufs1 should not be the minimum restage tier to
+                    # ensure that a restage to a lower tier can occur.
+                    admin_session.assert_icommand('imeta rm -R ufs1 irods::storage_tiering::minimum_restage_tier true')
+                    admin_session.assert_icommand('imeta rm -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::preserve_replicas true')
                     admin_session.assert_icommand('imeta add -R ufs2 irods::storage_tiering::preserve_replicas true')
 
-                    # create test file and upload it
+                    # Create test file and upload it.
                     lib.create_local_testfile(filename)
                     admin_session.assert_icommand('iput -R ufs0 ' + filename)
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
-                    # stage to tier 1, look for both replicas
+                    # Stage to tier 1 and ensure that the replica on ufs0 was trimmed.
                     sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '0 ufs0')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
+                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
 
+                    # Stage to tier 2, look for replica in tier 1 and tier 2.
                     sleep(15)
-                    # stage to tier 2, look for replica in tier 0 and tier 2
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '0 ufs0')
+                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '2 ufs2')
 
-                    # test restage to tier 1 using replica from tier 0, look for replica in all tiers afterwards
-                    admin_session.assert_icommand('iget -R ufs0 ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
+                    # Test restage to tier 0 using replica from tier 1 to ensure that a replica that is not the
+                    # "tracked" replica (the tracked replica is in ufs2) gets restaged. Look for replica in all tiers
+                    # afterwards.
+                    admin_session.assert_icommand('iget -R ufs1 ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
 
                     sleep(15)
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '0 ufs0')
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '3 ufs1')
+                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '3 ufs0')
+                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '2 ufs2')
 
 
                 finally:
+                    admin_session.assert_icommand('imeta rm -R ufs1 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta rm -R ufs2 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::preserve_replicas true')
+                    admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_restage_tier true')
+
                     admin_session.assert_icommand('irm -f ' + filename)
 
     def test_preserve_replicas_works_with_restage_when_replica_only_exists_in_last_tier__issue_233(self):
