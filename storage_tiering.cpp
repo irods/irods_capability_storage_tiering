@@ -573,6 +573,8 @@ namespace irods {
         const std::string& _destination_resource) {
         using result_row = irods::query_processor<rcComm_t>::result_row;
 
+        constexpr auto number_of_columns_required_from_query = 5;
+
         irods::thread_pool thread_pool{config_.number_of_scheduling_threads};
         try {
             std::map<std::string, uint8_t> object_is_processed;
@@ -595,13 +597,17 @@ namespace irods {
                         return;
                     }
 
-                    // users could possbily configure an incorrect query
-                    if(_results.size() < 4) {
-                        rodsLog(
-                            LOG_ERROR,
-                            "invalid number of columns returned [%d] for query [%s]",
-                            _results.size(),
-                            violating_query_string.c_str());
+                    // Log an error and continue if the violating query does not return exactly 5 items:
+                    // DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM
+                    if (_results.size() != number_of_columns_required_from_query) {
+                        rodsLog(LOG_ERROR,
+                                fmt::format("Query on resource [{}] returned [{}] columns. Violating queries must "
+                                            "select these 5 columns in order: [DATA_NAME, COLL_NAME, USER_NAME, "
+                                            "USER_ZONE, DATA_REPL_NUM]. Violating query: [{}]",
+                                            _source_resource,
+                                            _results.size(),
+                                            violating_query_string)
+                                    .c_str());
                         return;
                     }
 
