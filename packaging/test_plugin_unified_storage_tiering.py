@@ -469,6 +469,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand(f'irm -f {filename}')
                         admin_session.assert_icommand(f'iadmin rmresc {resc_name}')
 
+
 class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
     def setUp(self):
         super(TestStorageTieringPluginMultiGroup, self).setUp()
@@ -1580,5 +1581,97 @@ class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase)
                     admin_session.assert_icommand('irm -f ' + filename)
 
 
+class test_incorrect_custom_violating_queries(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.user = session.mkuser_and_return_session('rodsuser', 'alice', 'apass', lib.get_hostname())
 
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(['iqdel', '-a'])
 
+            lib.create_ufs_resource(admin_session, 'ufs0', test.settings.HOSTNAME_2)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', 'ufs0', 'irods::storage_tiering::group', 'example_group', '0'])
+            admin_session.assert_icommand(['imeta', 'add', '-R', 'ufs0', 'irods::storage_tiering::time', '5'])
+            admin_session.assert_icommand(
+                ['imeta', 'ls', '-R', 'ufs0'], 'STDOUT_MULTILINE', ['value: 5', 'value: example_group'])
+
+            lib.create_ufs_resource(admin_session, 'ufs1', test.settings.HOSTNAME_3)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', 'ufs1', 'irods::storage_tiering::group', 'example_group', '1'])
+            admin_session.assert_icommand(['imeta', 'ls', '-R', 'ufs1'], 'STDOUT', 'value: example_group')
+
+    @classmethod
+    def tearDownClass(self):
+        self.user.__exit__()
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(['iadmin', 'rmuser', self.user.username])
+
+            admin_session.assert_icommand(['iadmin', 'rmresc', 'ufs0'])
+            admin_session.assert_icommand(['iadmin', 'rmresc', 'ufs1'])
+            admin_session.assert_icommand(['iadmin', 'rum'])
+
+    def do_incorrect_violating_query_test(self, columns_to_select):
+        with storage_tiering_configured_with_log():
+            IrodsController().restart(test_mode=True)
+
+            with session.make_session_for_existing_admin() as admin_session:
+                zone_name = IrodsConfig().client_environment['irods_zone_name']
+
+                filename = 'test_incorrect_violating_query.txt'
+                logical_path = '/'.join([self.user.session_collection, filename])
+                resource = 'ufs0'
+                other_resource = 'ufs1'
+                query_attribute_name = 'irods::storage_tiering::query'
+                custom_violating_query = '''"SELECT {} where RESC_NAME = '{}' ''' \
+                                         '''and META_DATA_ATTR_NAME = 'irods::access_time' ''' \
+                                         '''and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"'''.format(
+                                         columns_to_select, resource)
+
+                try:
+                    lib.create_local_testfile(filename)
+
+                    admin_session.assert_icommand(
+                        ['imeta', 'add', '-R', resource, query_attribute_name, custom_violating_query])
+
+                    self.user.assert_icommand(['iput', '-R', resource, filename])
+                    delay_assert_icommand(self.user, f'ils -l {filename}', 'STDOUT', resource)
+
+                    # Attempt tiering out to tier 1. This should fail because the custom violating query is
+                    # incorrect. Wait for the delay queue to empty and ensure that nothing has moved. There should
+                    # be an error message in the log, but we don't assert that in the test here due to log
+                    # reliability issues.
+                    sleep(6)
+                    invoke_storage_tiering_rule()
+                    admin_session.assert_icommand(['iqstat', '-a'], 'STDOUT', 'irods_policy_storage_tiering')
+                    lib.delayAssert(lambda:
+                        'No delayed rules pending' in admin_session.run_icommand(['iqstat', '-a'])[0].strip())
+                    self.user.assert_icommand_fail(['ils', '-l', logical_path], 'STDOUT', other_resource)
+                    self.user.assert_icommand(['ils', '-l', logical_path], 'STDOUT', resource)
+
+                finally:
+                    self.user.run_icommand(['irm', '-f', logical_path])
+
+                    admin_session.run_icommand(
+                        ['imeta', 'rm', '-R', resource, query_attribute_name, custom_violating_query])
+
+    def test_no_tiering_occurs_when_custom_violating_query_selects_fewer_columns_than_necessary__issue_231(self):
+        # Missing USER_ZONE in query.
+        columns = 'DATA_NAME, COLL_NAME, USER_NAME, DATA_REPL_NUM'
+        self.do_incorrect_violating_query_test(columns)
+
+    def test_no_tiering_occurs_when_custom_violating_query_selects_more_columns_than_necessary__issue_231(self):
+        # Should not be selecting DATA_ID.
+        columns = 'DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM, DATA_ID'
+        self.do_incorrect_violating_query_test(columns)
+
+    def test_no_tiering_occurs_when_custom_violating_query_selects_wrong_columns__issue_231(self):
+        # DATA_ID is supposed to be DATA_NAME.
+        columns = 'DATA_ID, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM'
+        self.do_incorrect_violating_query_test(columns)
+
+    def test_no_tiering_occurs_when_custom_violating_query_selects_correct_columns_in_the_wrong_order__issue_231(self):
+        # The ordering of DATA_NAME and COLL_NAME is flipped.
+        columns = 'COLL_NAME, DATA_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM'
+        self.do_incorrect_violating_query_test(columns)
