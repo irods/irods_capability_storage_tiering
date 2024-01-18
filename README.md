@@ -179,7 +179,7 @@ imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAM
 Queries may also be provided by using the Specific Query interface within iRODS.  The archive object query may be stored by an iRODS administrator as follows.
 
 ```
-'iadmin asq "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')" archive_query
+'iadmin asq "SELECT DISTINCT R_DATA_MAIN.data_name, R_COLL_MAIN.coll_name, R_USER_MAIN.user_name, R_USER_MAIN.zone_name, R_DATA_MAIN.data_repl_num FROM R_DATA_MAIN INNER JOIN R_COLL_MAIN ON R_DATA_MAIN.coll_id = R_COLL_MAIN.coll_id INNER JOIN R_OBJT_ACCESS r_data_access ON R_DATA_MAIN.data_id = r_data_access.object_id INNER JOIN R_OBJT_METAMAP r_data_metamap ON R_DATA_MAIN.data_id = r_data_metamap.object_id INNER JOIN R_META_MAIN r_data_meta_main ON r_data_metamap.meta_id = r_data_meta_main.meta_id INNER JOIN R_USER_MAIN ON r_data_access.user_id = R_USER_MAIN.user_id WHERE r_data_meta_main.meta_attr_name = 'archive_object' AND r_data_meta_main.meta_attr_value = 'true' AND R_DATA_MAIN.resc_id IN ('10068', '10069') ORDER BY R_COLL_MAIN.coll_name, R_DATA_MAIN.data_name, R_DATA_MAIN.data_repl_num" archive_query
 ```
 
 At which point the query attached to the root of a storage tier would require the use of a metadata unit of `specific`:
