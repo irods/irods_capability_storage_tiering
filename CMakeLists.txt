@@ -24,7 +24,6 @@ project(irods_capability-storage_tiering
 include(${IRODS_TARGETS_PATH})
 
 include(GNUInstallDirs)
-include(UseLibCXX)
 
 if (NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build {Debug, Release}." FORCE)
