@@ -1,11 +1,11 @@
 // =-=-=-=-=-=-=-
 // irods includes
 #include <irods/irods_re_plugin.hpp>
-#include "storage_tiering.hpp"
+#include "irods/private/storage_tiering/storage_tiering.hpp"
 #include <irods/irods_re_ruleexistshelper.hpp>
-#include "storage_tiering_utilities.hpp"
+#include "irods/private/storage_tiering/utilities.hpp"
 #include <irods/irods_resource_backport.hpp>
-#include "proxy_connection.hpp"
+#include "irods/private/storage_tiering/proxy_connection.hpp"
 
 #include <irods/rsModAVUMetadata.hpp>
 #include <irods/rsOpenCollection.hpp>
@@ -16,9 +16,9 @@
 #include <irods/dataObjTrim.h>
 #include <irods/physPath.hpp>
 #include <irods/apiNumber.h>
-#include "data_verification_utilities.hpp"
+#include "irods/private/storage_tiering/data_verification_utilities.hpp"
 #include <irods/irods_server_api_call.hpp>
-#include "exec_as_user.hpp"
+#include "irods/private/storage_tiering/exec_as_user.hpp"
 
 #include <irods/filesystem.hpp>
 #include <irods/irods_query.hpp>

@@ -4,8 +4,8 @@
 #include <irods/irods_query.hpp>
 #include <irods/irods_resource_manager.hpp>
 #include <irods/physPath.hpp>
-#include "data_verification_utilities.hpp"
-#include "storage_tiering_configuration.hpp"
+#include "irods/private/storage_tiering/data_verification_utilities.hpp"
+#include "irods/private/storage_tiering/configuration.hpp"
 
 #include <irods/dataObjChksum.h>
 #include <irods/fileStat.h>
