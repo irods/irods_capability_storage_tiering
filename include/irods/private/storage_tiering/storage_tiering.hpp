@@ -1,14 +1,12 @@
-
-
-#ifndef IRODS_STORAGE_TIERING_HPP
-#define IRODS_STORAGE_TIERING_HPP
+#ifndef IRODS_CAPABILITY_STORAGE_TIERING_HPP
+#define IRODS_CAPABILITY_STORAGE_TIERING_HPP
 
 #include <list>
 #include <boost/any.hpp>
 #include <string>
 
 #include <irods/rcMisc.h>
-#include "storage_tiering_configuration.hpp"
+#include "irods/private/storage_tiering/configuration.hpp"
 
 namespace irods {
     using resource_index_map = std::map<std::string, std::string>;
@@ -186,5 +184,4 @@ namespace irods {
     }; // class storage_tiering
 }; // namespace irods
 
-#endif // IRODS_STORAGE_TIERING_HPP
-
+#endif // IRODS_CAPABILITY_STORAGE_TIERING_HPP
