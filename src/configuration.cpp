@@ -1,5 +1,5 @@
 
-#include "storage_tiering_configuration.hpp"
+#include "irods/private/storage_tiering/configuration.hpp"
 #include <irods/irods_server_properties.hpp>
 
 namespace irods {

@@ -1,4 +1,4 @@
-#include "storage_tiering_utilities.hpp"
+#include "irods/private/storage_tiering/utilities.hpp"
 
 #include <irods/rcMisc.h>
 
