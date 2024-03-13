@@ -1,3 +1,5 @@
+#ifndef IRODS_CAPABILITY_STORAGE_TIERING_UTILITIES_HPP
+#define IRODS_CAPABILITY_STORAGE_TIERING_UTILITIES_HPP
 
 #include <irods/irods_re_plugin.hpp>
 #include <irods/irods_exception.hpp>
@@ -22,3 +24,5 @@ namespace irods {
         std::list<boost::any> _args);
 
 } // namespace irods
+
+#endif // IRODS_CAPABILITY_STORAGE_TIERING_UTILITIES_HPP

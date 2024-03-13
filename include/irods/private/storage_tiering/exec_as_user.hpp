@@ -1,4 +1,5 @@
-
+#ifndef IRODS_CAPABILITY_STORAGE_TIERING_EXEC_AS_USER_HPP
+#define IRODS_CAPABILITY_STORAGE_TIERING_EXEC_AS_USER_HPP
 
 #include <functional>
 #include <irods/rcConnect.h>
@@ -36,3 +37,5 @@ namespace irods {
     } // exec_as_user
 
 } // namespace irods
+
+#endif // IRODS_CAPABILITY_STORAGE_TIERING_EXEC_AS_USER_HPP
