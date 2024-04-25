@@ -14,7 +14,6 @@ from . import session
 from .. import test
 from .. import paths
 from .. import lib
-from . import ustrings
 
 @contextlib.contextmanager
 def storage_tiering_configured_custom(arg=None, sleep_time=1):
@@ -1418,7 +1417,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 try:
                     shutil.rmtree(dirname, ignore_errors=True)
                     lib.make_large_local_tmp_dir(dirname, file_count, 1)
-                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname], 'STDOUT_SINGLELINE', ustrings.recurse_ok_string())
+                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
                     sleep(5)
@@ -1447,7 +1446,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 try:
                     shutil.rmtree(dirname, ignore_errors=True)
                     lib.make_large_local_tmp_dir(dirname, file_count, 1)
-                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname], 'STDOUT_SINGLELINE', ustrings.recurse_ok_string())
+                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
                     sleep(5)
@@ -1479,7 +1478,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     last_item_path = os.path.join(dirname, 'junk0' + str(file_count - 1))
                     next_to_last_item_path = os.path.join(dirname, 'junk0' + str(file_count - 2))
                     lib.make_large_local_tmp_dir(dirname, file_count, 1)
-                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname], 'STDOUT_SINGLELINE', ustrings.recurse_ok_string())
+                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, only the last item should not have been tiered out
                     sleep(5)
@@ -1512,7 +1511,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                 try:
                     shutil.rmtree(dirname, ignore_errors=True)
                     lib.make_large_local_tmp_dir(dirname, file_count, 1)
-                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname], 'STDOUT_SINGLELINE', ustrings.recurse_ok_string())
+                    admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
                     sleep(5)
