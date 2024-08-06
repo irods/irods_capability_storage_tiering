@@ -20,8 +20,6 @@ def main():
     os_specific_directory = irods_python_ci_utilities.append_os_specific_directory(built_packages_root_directory)
 
     if args.do_setup:
-        irods_python_ci_utilities.subprocess_get_output(['sudo', '-EH', 'python3', '-m', 'pip', 'install', 'unittest-xml-reporting==1.14.0'])
-
         irods_python_ci_utilities.install_os_packages_from_files(
             glob.glob(os.path.join(os_specific_directory,
                                    f'irods-rule-engine-plugin-unified-storage-tiering*.{package_suffix}')
