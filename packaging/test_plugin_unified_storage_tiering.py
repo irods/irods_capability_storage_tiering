@@ -5,7 +5,7 @@ import contextlib
 import os.path
 import unittest
 
-from time import sleep
+import time
 
 from ..controller import IrodsController
 from ..configuration import IrodsConfig
@@ -158,16 +158,29 @@ def storage_tiering_configured_without_access_time(arg=None, sleep_time=1):
         finally:
             pass
 
-def wait_for_empty_queue(function):
+def wait_for_empty_queue(function, timeout_function=None, timeout_in_seconds=600):
+    """Wait for empty delay queue and then run the provided function.
+
+    Keyword arguments:
+    timeout_function -- Function to run when a timeout occurs. None means TimeoutError is raised. Default: None
+    timeout_in_seconds -- Time in seconds to wait for delay queue to empty. <=0 means no timeout. Default: 600
+    """
     done = False
+    start_time = time.time()
     while done == False:
         out, err, rc = lib.execute_command_permissive(['iqstat'])
         if -1 != out.find('No delayed rules pending'):
             function()
             done = True
         else:
+            if timeout_in_seconds > 0 and time.time() - start_time > timeout_in_seconds:
+                if timeout_function is None:
+                    raise TimeoutError(f"Timed out after [{timeout_in_seconds}] seconds waiting for queue to empty.")
+                else:
+                    timeout_function()
+                    return
             print(out)
-            sleep(1)
+            time.sleep(1)
 
 def delay_assert(function):
     max_iter = 100
@@ -185,7 +198,7 @@ def delay_assert(function):
             counter = counter + 1
             if(counter > max_iter):
                 assert(False)
-            sleep(1)
+            time.sleep(1)
             continue
         else:
             done = True
@@ -201,7 +214,7 @@ def delay_assert_icommand(session, *args, **kwargs):
             counter = counter + 1
             if(counter > max_iter):
                 assert(False)
-            sleep(1)
+            time.sleep(1)
             continue
         else:
             done = True
@@ -292,14 +305,14 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand('iput -R rnd0 ' + filename)
                         alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
-                        sleep(5)
+                        time.sleep(5)
 
                         # test stage to tier 1
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                         # test stage to tier 2
-                        sleep(15)
+                        time.sleep(15)
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -327,7 +340,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
 
                         # wait for object to age out of tier 0
-                        sleep(5)
+                        time.sleep(5)
 
                         # test stage to tier 1
                         invoke_storage_tiering_rule()
@@ -335,12 +348,12 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         delay_assert_icommand(alice_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                         # wait for object to age back out of tier 0
-                        sleep(5)
+                        time.sleep(5)
 
                         invoke_storage_tiering_rule()
 
                         # wait for rule to execute
-                        sleep(1)
+                        time.sleep(1)
 
                         # check for objects to have been queued from tier 0
                         for i in range(50):
@@ -365,14 +378,14 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand('iput -R rnd0 ' + filename)
                         alice_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
-                        sleep(5)
+                        time.sleep(5)
 
                         # test stage to tier 1
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                         # test stage to tier 2
-                        sleep(15)
+                        time.sleep(15)
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -398,14 +411,14 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand('iput -R rnd0 ' + cmd_filename)
                         alice_session.assert_icommand('imeta ls -d ' + cmd_filename, 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand('ils -L ' + cmd_filename, 'STDOUT_SINGLELINE', filename)
-                        sleep(5)
+                        time.sleep(5)
 
                         # test stage to tier 1
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + cmd_filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                         # test stage to tier 2
-                        sleep(15)
+                        time.sleep(15)
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, 'ils -L ' + cmd_filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -432,14 +445,14 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand(f'iput -R rnd0 {filename}')
                         alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
-                        sleep(5)
+                        time.sleep(5)
 
                         # test stage to tier 1.
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd1')
 
                         # test stage to tier 2.
-                        sleep(15)
+                        time.sleep(15)
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -450,7 +463,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         self.assertGreater(len(access_time), 0)
 
                         # sleeping guarantees the access time will be different following the call to irepl.
-                        sleep(2)
+                        time.sleep(2)
 
                         # show the access time is updated correctly.
                         lib.create_ufs_resource(admin_session, resc_name)
@@ -565,13 +578,13 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ' + filenameg2, 'STDOUT_SINGLELINE', filenameg2)
 
                     # test stage to tier 1
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
                     delay_assert_icommand(admin_session, 'ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs1g2')
 
                     # test stage to tier 2
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
                     delay_assert_icommand(admin_session, 'ils -L ' + filenameg2, 'STDOUT_SINGLELINE', 'ufs2g2')
@@ -654,12 +667,12 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
 
                     # test stage to tier 1
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
 
                     # test stage to tier 2
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
 
@@ -709,11 +722,11 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
                     lib.create_local_testfile(filename)
                     admin_session.assert_icommand('iput -R ufs0 ' + filename)
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
 
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs2')
 
@@ -769,14 +782,14 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # stage to tier 1, look for both replicas
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs0')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
 
-                    sleep(15)
+                    time.sleep(15)
                     # stage to tier 2, look for replica in tier 0 and tier 2
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
@@ -808,7 +821,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # Stage to tier 1 and ensure that the replica on ufs0 was trimmed.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
@@ -816,7 +829,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
 
                     # Stage to tier 2, look for replica in tier 1 and tier 2.
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
@@ -828,7 +841,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     # afterwards.
                     admin_session.assert_icommand('iget -R ufs1 ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
 
-                    sleep(15)
+                    time.sleep(15)
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '3 ufs0')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '2 ufs2')
@@ -862,7 +875,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # stage to tier 1, look for both replicas
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
 
@@ -875,7 +888,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     # test restage to tier 0, look for replica in tier 0 and tier 1
                     admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
 
-                    sleep(15)
+                    time.sleep(15)
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '2 ufs0')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
 
@@ -901,7 +914,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
 
                     # Tier out replica from ufs0 to ufs1.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -914,7 +927,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
 
                     # Tier out replica from ufs1 to ufs2.
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -945,7 +958,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertEqual('3', get_tracked_replica(admin_session, logical_path))
 
                     # Now for the actual test. Tier out replica from ufs0 to ufs1.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -985,7 +998,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
 
                     # Tier out replica from ufs0 to ufs1.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -998,7 +1011,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
 
                     # Tier out replica from ufs1 to ufs2.
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -1050,7 +1063,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
 
                     # Tier out replica from ufs0 to ufs1.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -1063,7 +1076,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     self.assertEqual('1', get_tracked_replica(admin_session, logical_path))
 
                     # Tier out replica from ufs1 to ufs2.
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
@@ -1082,7 +1095,7 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     # Wait for a bit to ensure that no data movement is happening. Assertions about whether anything
                     # happened are made below. The sleep time is 1 second, so 15 seconds of sleep is plenty of time to
                     # let any data migrations (or lack thereof) finish up. This test expects no movement to occur.
-                    sleep(15)
+                    time.sleep(15)
                     admin_session.assert_icommand_fail('iqstat', 'STDOUT', 'irods_policy_data_movement')
 
                     # Ensure that the replica is NOT restaged to the minimum restage tier (ufs1) and the replica on ufs0
@@ -1148,7 +1161,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # stage to tier 1, look for both replicas (only one should move)
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                     delay_assert_icommand(admin_session, 'ils -L ' + self.filename2, 'STDOUT_SINGLELINE', 'ufs0')
@@ -1172,7 +1185,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # stage to tier 1, everything should move
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                     delay_assert_icommand(admin_session, 'ils -L ' + self.filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -1193,7 +1206,7 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
 
                     # stage to tier 1, everything should move
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT_SINGLELINE', 'irods_policy_storage_tiering')
                     delay_assert_icommand(admin_session, 'ils -L ' + self.filename, 'STDOUT_SINGLELINE', 'ufs1')
@@ -1239,9 +1252,9 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 #                       admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
 #
 #                       # test stage to tier 1
-#                       sleep(5)
+#                       time.sleep(5)
 #                       invoke_storage_tiering_rule()
-#                       sleep(60)
+#                       time.sleep(60)
 #
 #                       admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
 #                       admin_session.assert_icommand('irm -f ' + filename)
@@ -1301,7 +1314,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
                     delay_assert_icommand(admin_session, 'ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs0')
 
-                    sleep(15)
+                    time.sleep(15)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename2, 'STDOUT_SINGLELINE', 'ufs1')
 
@@ -1349,7 +1362,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
 
                     # test stage to tier 1
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
 
@@ -1371,7 +1384,7 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('ils -rL ' + dest_path, 'STDOUT_SINGLELINE', dest_path)
 
                     # test stage to tier 1
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, 'ils -L ' + dest_path, 'STDOUT_SINGLELINE', 'ufs1')
 
@@ -1420,13 +1433,15 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
-                    sleep(5)
+                    time.sleep(5)
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
                     # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0
-                    wait_for_empty_queue(lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'))
+                    wait_for_empty_queue(
+                        lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'),
+                        timeout_function=lambda: self.fail("Timed out waiting on queue to empty."))
 
                 finally:
                     delay_assert_icommand(admin_session, 'iqdel -a')
@@ -1449,13 +1464,15 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
-                    sleep(5)
+                    time.sleep(5)
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
                     # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0
-                    wait_for_empty_queue(lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'))
+                    wait_for_empty_queue(
+                        lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT', 'ufs0'),
+                        timeout_function=lambda: self.fail("Timed out waiting on queue to empty."))
 
                 finally:
                     delay_assert_icommand(admin_session, 'iqdel -a')
@@ -1481,13 +1498,15 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, only the last item should not have been tiered out
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
-                    sleep(5)
+                    time.sleep(5)
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                     # Wait for the queue to be emptied and ensure that everything has tiered out from ufs0 except for 1
-                    wait_for_empty_queue(lambda: admin_session.assert_icommand(['ils', '-l', dirname], 'STDOUT', 'ufs0'))
+                    wait_for_empty_queue(
+                        lambda: admin_session.assert_icommand(['ils', '-l', dirname], 'STDOUT', 'ufs0'),
+                        timeout_function=lambda: self.fail("Timed out waiting on queue to empty."))
                     # Ensure that exactly 1 item did not tier out
                     _, out, _ = admin_session.assert_icommand(['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0')
                     self.assertEqual(file_count - 1, out.count('ufs1'))
@@ -1514,7 +1533,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand(['iput', '-R', 'ufs0', '-r', dirname])
 
                     # stage to tier 1, everything should have been tiered out
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, ['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs1')
                     delay_assert(lambda: admin_session.assert_icommand_fail(['ils', '-l', dirname], 'STDOUT_SINGLELINE', 'ufs0'))
@@ -1568,7 +1587,7 @@ class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase)
                     filepath  = lib.create_local_testfile(filename)
                     admin_session.assert_icommand('iput -R ufs0 ' + filename)
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
-                    sleep(5)
+                    time.sleep(5)
                     invoke_storage_tiering_rule()
                     delay_assert_icommand(admin_session, ['ils', '-l', filename], 'STDOUT_SINGLELINE', 'ufs2')
                     admin_session.assert_icommand('imeta ls -d '+filename, 'STDOUT_SINGLELINE', '--')
@@ -1641,7 +1660,7 @@ class test_incorrect_custom_violating_queries(unittest.TestCase):
                     # incorrect. Wait for the delay queue to empty and ensure that nothing has moved. There should
                     # be an error message in the log, but we don't assert that in the test here due to log
                     # reliability issues.
-                    sleep(6)
+                    time.sleep(6)
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand(['iqstat', '-a'], 'STDOUT', 'irods_policy_storage_tiering')
                     lib.delayAssert(lambda:
