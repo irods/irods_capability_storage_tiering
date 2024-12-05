@@ -1523,7 +1523,7 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
                     delay_assert_icommand(admin_session, 'iqdel -a')
 
                     # cleanup
-                    admin_session.assert_icommand('irm -r ' + dirname)
+                    admin_session.assert_icommand(["irm", "-rf", dirname])
                     shutil.rmtree(dirname, ignore_errors=True)
 
 class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase):
