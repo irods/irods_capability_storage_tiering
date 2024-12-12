@@ -1,13 +1,10 @@
-from __future__ import print_function
-
+import argparse
 import glob
 import multiprocessing
-import optparse
 import os
 import tempfile
 
 import irods_python_ci_utilities
-
 
 def add_cmake_to_front_of_path():
     cmake_path = '/opt/irods-externals/cmake3.21.4-0/bin'
@@ -62,25 +59,30 @@ def copy_output_packages(build_directory, output_root_directory):
         irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
         lambda s:s.endswith(irods_python_ci_utilities.get_package_suffix()))
 
-def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory):
+def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory, debug_build=False):
     install_building_dependencies(externals_directory)
     if irods_packages_root_directory:
         irods_python_ci_utilities.install_irods_dev_and_runtime_packages(irods_packages_root_directory)
     build_directory = os.path.abspath(build_directory or tempfile.mkdtemp(prefix='irods_storage_tiering_plugin_build_directory'))
-    irods_python_ci_utilities.subprocess_get_output(['cmake', os.path.dirname(os.path.realpath(__file__))], check_rc=True, cwd=build_directory)
+    build_type = "Debug" if debug_build else "Release"
+    cmake_command = ['cmake', f"-DCMAKE_BUILD_TYPE={build_type}", os.path.dirname(os.path.realpath(__file__))]
+    print(cmake_command)
+    irods_python_ci_utilities.subprocess_get_output(cmake_command, check_rc=True, cwd=build_directory)
     irods_python_ci_utilities.subprocess_get_output(['make', '-j', str(multiprocessing.cpu_count()), 'package'], check_rc=True, cwd=build_directory)
     if output_root_directory:
         copy_output_packages(build_directory, output_root_directory)
 
 if __name__ == '__main__':
-    parser = optparse.OptionParser()
-    parser.add_option('--build_directory')
-    parser.add_option('--output_root_directory')
-    parser.add_option('--irods_packages_root_directory')
-    parser.add_option('--externals_packages_directory')
-    options, _ = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Build unified storage tiering plugin.')
+    parser.add_argument('--build_directory')
+    parser.add_argument('--output_root_directory')
+    parser.add_argument('--irods_packages_root_directory')
+    parser.add_argument('--externals_packages_directory')
+    parser.add_argument('--debug_build', action='store_true')
+    args = parser.parse_args()
 
-    main(options.build_directory,
-         options.output_root_directory,
-         options.irods_packages_root_directory,
-         options.externals_packages_directory)
+    main(args.build_directory,
+         args.output_root_directory,
+         args.irods_packages_root_directory,
+         args.externals_packages_directory,
+         args.debug_build)
