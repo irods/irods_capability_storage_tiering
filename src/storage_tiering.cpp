@@ -757,8 +757,25 @@ namespace irods {
          };
 
         execMyRuleInp_t exec_inp{};
-        rstrcpy(exec_inp.myRule, rule_obj.dump().c_str(), META_STR_LEN);
         msParamArray_t* out_arr{};
+        // Capture out_arr pointer by reference because it is still nullptr at this point.
+        const auto free_inputs_and_outputs = irods::at_scope_exit{[&exec_inp, &out_arr] {
+            clearKeyVal(&exec_inp.condInput);
+
+            if (exec_inp.inpParamArray) {
+                // The second parameter with a value of 1 instructs the function to free the "inOutStruct".
+                clearMsParamArray(exec_inp.inpParamArray, 1);
+                std::free(exec_inp.inpParamArray);
+            }
+
+            if (out_arr) {
+                // The second parameter with a value of 1 instructs the function to free the "inOutStruct".
+                clearMsParamArray(out_arr, 1);
+                std::free(out_arr);
+            }
+        }};
+
+        rstrcpy(exec_inp.myRule, rule_obj.dump().c_str(), META_STR_LEN);
         addKeyVal(
             &exec_inp.condInput
           , irods::KW_CFG_INSTANCE_NAME
