@@ -21,6 +21,7 @@
 #include "irods/private/storage_tiering/exec_as_user.hpp"
 
 #include <irods/filesystem.hpp>
+#include <irods/irods_at_scope_exit.hpp>
 #include <irods/irods_query.hpp>
 
 #undef LIST
@@ -118,6 +119,7 @@ namespace {
         }
 
         dataObjInp_t data_obj_inp{};
+        const auto free_cond_input = irods::at_scope_exit{[&data_obj_inp] { clearKeyVal(&data_obj_inp.condInput); }};
         rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
         data_obj_inp.createMode = getDefFileMode();
         addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW,      _source_resource.c_str());
@@ -149,6 +151,7 @@ namespace {
         }
 
         dataObjInp_t obj_inp{};
+        const auto free_cond_input = irods::at_scope_exit{[&obj_inp] { clearKeyVal(&obj_inp.condInput); }};
         rstrcpy(
             obj_inp.objPath,
             _object_path.c_str(),
@@ -192,6 +195,7 @@ namespace {
             const_cast<char*>(_attribute.c_str()),
             const_cast<char*>(ts.c_str()),
             ""};
+        const auto free_cond_input = irods::at_scope_exit{[&avuOp] { clearKeyVal(&avuOp.condInput); }};
 
         if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
             addKeyVal(&avuOp.condInput, ADMIN_KW, "");
