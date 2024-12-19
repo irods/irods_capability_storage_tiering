@@ -58,14 +58,16 @@ def copy_output_packages(build_directory, output_root_directory):
         irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
         lambda s:s.endswith(irods_python_ci_utilities.get_package_suffix()))
 
-def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory, debug_build=False):
+def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory, debug_build=False, enable_asan=False):
     install_building_dependencies(externals_directory)
     if irods_packages_root_directory:
         irods_python_ci_utilities.install_irods_dev_and_runtime_packages(irods_packages_root_directory)
     build_directory = os.path.abspath(build_directory or tempfile.mkdtemp(prefix='irods_storage_tiering_plugin_build_directory'))
     build_type = "Debug" if debug_build else "Release"
-    cmake_command = ['cmake', f"-DCMAKE_BUILD_TYPE={build_type}", os.path.dirname(os.path.realpath(__file__))]
-    print(cmake_command)
+    cmake_options = [f"-DCMAKE_BUILD_TYPE={build_type}"]
+    if enable_asan:
+        cmake_options.append("-DIRODS_ENABLE_ADDRESS_SANITIZER=YES")
+    cmake_command = ['cmake', os.path.dirname(os.path.realpath(__file__))] + cmake_options
     irods_python_ci_utilities.subprocess_get_output(cmake_command, check_rc=True, cwd=build_directory)
     irods_python_ci_utilities.subprocess_get_output(['make', '-j', str(multiprocessing.cpu_count()), 'package'], check_rc=True, cwd=build_directory)
     if output_root_directory:
@@ -78,10 +80,12 @@ if __name__ == '__main__':
     parser.add_argument('--irods_packages_root_directory')
     parser.add_argument('--externals_packages_directory')
     parser.add_argument('--debug_build', action='store_true')
+    parser.add_argument("--enable_address_sanitizer", dest="enable_asan", action="store_true")
     args = parser.parse_args()
 
     main(args.build_directory,
          args.output_root_directory,
          args.irods_packages_root_directory,
          args.externals_packages_directory,
-         args.debug_build)
+         args.debug_build,
+         args.enable_asan)

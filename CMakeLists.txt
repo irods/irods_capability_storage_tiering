@@ -9,7 +9,7 @@ set(IRODS_PACKAGE_REVISION "0")
 
 include(IrodsCXXCompiler)
 set(CMAKE_CXX_STANDARD ${IRODS_CXX_STANDARD})
-set(CMAKE_MODULE_LINKER_FLAGS_INIT "-Wl,--enable-new-dtags -Wl,--as-needed -Wl,-z,defs")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "-Wl,--enable-new-dtags -Wl,--as-needed")
 set(CMAKE_MODULE_LINKER_FLAGS_RELEASE_INIT "-Wl,--gc-sections -Wl,-z,combreloc")
 include(IrodsRunpathDefaults)
 
@@ -36,6 +36,34 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fpermissive>)
+endif()
+
+option(IRODS_ENABLE_ADDRESS_SANITIZER "Enables detection of memory leaks and other features provided by Address Sanitizer." OFF)
+if (IRODS_ENABLE_ADDRESS_SANITIZER)
+  # Make sure the correct llvm-symbolizer binary is available to Address Sanitizer. This binary
+  # allows debug symbols to be reported appropriately. There are two ways to do this:
+  #
+  #     export PATH=/opt/irods-externals/clang13.0.1-0/bin:$PATH
+  #
+  # - or -
+  #
+  #     export ASAN_SYMBOLIZER_PATH=/opt/irods-externals/clang13.0.1-0/bin/llvm-symbolizer
+  #
+  # detect_container_overflow is disabled to guard against false positives which occur when
+  # parts of the binary are compiled with ASAN and other parts are not.
+  add_compile_definitions(IRODS_ADDRESS_SANITIZER_DEFAULT_OPTIONS="log_path=/tmp/irods_storage_tiering_asan_output:detect_container_overflow=0")
+  add_compile_options(
+    -fsanitize=address
+    -fno-omit-frame-pointer
+    -fno-optimize-sibling-calls
+    -O1)
+  add_link_options(
+    -fsanitize=address
+    -fno-omit-frame-pointer
+    -fno-optimize-sibling-calls
+    -O1)
+else()
+  set(CMAKE_MODULE_LINKER_FLAGS_INIT "${CMAKE_MODULE_LINKER_FLAGS_INIT} -Wl,-z,defs")
 endif()
 
 if (NOT DEFINED THREADS_PREFER_PTHREAD_FLAG)
