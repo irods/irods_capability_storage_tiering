@@ -23,6 +23,8 @@
 #include <irods/filesystem.hpp>
 #include <irods/irods_at_scope_exit.hpp>
 #include <irods/irods_query.hpp>
+#include <irods/irods_rs_comm_query.hpp>
+#include <irods/rcMisc.h>
 
 #undef LIST
 
@@ -640,6 +642,22 @@ irods::error exec_rule_text(
     const std::string&     _out_desc,
     irods::callback        _eff_hdlr) {
     using json = nlohmann::json;
+
+    ruleExecInfo_t* rei{};
+    if (const auto err = _eff_hdlr("unsafe_ms_ctx", &rei); !err.ok()) {
+        return err;
+    }
+
+    if (!rei || !rei->rsComm) {
+        return ERROR(SYS_INTERNAL_NULL_INPUT_ERR, fmt::format("{}: null rei or RsComm in storage tiering.", __func__));
+    }
+
+    if (!irods::is_privileged_client(*rei->rsComm)) {
+        const auto msg = fmt::format("{}: Only rodsadmins are allowed to execute storage tiering rules.", __func__);
+        constexpr auto err = CAT_INSUFFICIENT_PRIVILEGE_LEVEL;
+        addRErrorMsg(&rei->rsComm->rError, err, msg.c_str());
+        return ERROR(err, msg);
+    }
 
     try {
         // skip the first line: @external
