@@ -22,7 +22,6 @@
 
 #include "irods/private/storage_tiering/data_verification_utilities.hpp"
 
-#include "irods/private/storage_tiering/exec_as_user.hpp"
 
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
@@ -626,7 +625,7 @@ namespace irods {
                     object_is_processed[object_path] = 1;
 
                     auto proxy_conn = irods::proxy_connection();
-                    rcComm_t* comm = proxy_conn.make(_results[2], _results[3]);
+                    rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
 
                     if(preserve_replicas) {
                         if(skip_object_in_lower_tier(
@@ -979,14 +978,12 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            const_cast<char*>(config_.migration_scheduled_flag.c_str())};
 
-        auto status = exec_as_user(_comm, _user_name, _user_zone, [&set_op](auto comm) -> int {
-                            return rcModAVUMetadata(comm, &set_op);
-                            });
-        if(status < 0) {
-           THROW(
-               status,
-               boost::format("failed to set migration scheduled flag for [%s]")
-               % _object_path);
+        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(&set_op.condInput, ADMIN_KW, "");
+        }
+
+        if (const auto ec = rcModAVUMetadata(_comm, &set_op); ec < 0) {
+            THROW(ec, fmt::format("failed to set migration scheduled flag for [{}]", _object_path));
         }
     } // set_migration_metadata_flag_for_object
 
@@ -1007,16 +1004,13 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            nullptr};
 
-        const auto status = exec_as_user(_comm, _user_name, _user_zone, [&set_op](auto comm) -> int {
-                           return rcModAVUMetadata(comm, &set_op);
-                           });
-        if(status < 0) {
-            THROW(
-                status,
-                boost::format("failed to unset migration scheduled flag for [%s]")
-                % _object_path);
+        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+            addKeyVal(&set_op.condInput, ADMIN_KW, "");
         }
 
+        if (const auto ec = rcModAVUMetadata(_comm, &set_op); ec < 0) {
+            THROW(ec, fmt::format("failed to unset migration scheduled flag for [{}]", _object_path));
+        }
     } // unset_migration_metadata_flag_for_object
 
     bool storage_tiering::object_has_migration_metadata_flag(
@@ -1036,13 +1030,8 @@ namespace irods {
                 % data_name
                 % coll_name) };
 
-        const auto status = exec_as_user(_comm, _user_name, _user_zone, [& query_str](auto& _comm) -> int {
-                            query<rcComm_t> qobj{_comm, query_str, 1};
-                            return qobj.size();
-                           });
-
-        return status > 0;
-
+        query<rcComm_t> qobj{_comm, query_str, 1};
+        return qobj.size() > 0;
     } // object_has_migration_metadata_flag
 
     void storage_tiering::apply_tier_group_metadata_to_object(
@@ -1072,6 +1061,10 @@ namespace irods {
                 const_cast<char*>(config_.group_attribute.c_str()),
                 const_cast<char*>(_group_name.c_str()),
                 const_cast<char*>(destination_replica_number.c_str())};
+
+            if (comm_->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
+                addKeyVal(&set_op.condInput, ADMIN_KW, "");
+            }
 
             auto status = rcModAVUMetadata(comm_, &set_op);
             if(status < 0) {
