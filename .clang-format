@@ -7,8 +7,8 @@ Standard:        c++20
 ColumnLimit:     120
 UseCRLF:         false
 
-UseTab:          AlignWithSpaces
-#UseTab:          Never
+#UseTab:          AlignWithSpaces
+UseTab:          Never
 TabWidth:        4
 IndentWidth:     4
 ConstructorInitializerIndentWidth: 4
@@ -28,7 +28,7 @@ AlignConsecutiveDeclarations: None
 AlignConsecutiveMacros: AcrossEmptyLinesAndComments
 AlignEscapedNewlines: Left
 AlignOperands:   Align
-AlignTrailingComments: true
+AlignTrailingComments: false
 
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: false
