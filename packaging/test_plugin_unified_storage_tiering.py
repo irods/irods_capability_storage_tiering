@@ -219,11 +219,15 @@ def delay_assert_icommand(session, *args, **kwargs):
         else:
             done = True
 
-def invoke_storage_tiering_rule():
+def invoke_storage_tiering_rule(sess=None):
     rep_instance = 'irods_rule_engine_plugin-unified_storage_tiering-instance'
     rule_file_path = '/var/lib/irods/example_unified_tiering_invocation.r'
-    with session.make_session_for_existing_admin() as admin_session:
-        admin_session.assert_icommand(['irule', '-r', rep_instance, '-F', rule_file_path])
+    rule_command = ['irule', '-r', rep_instance, '-F', rule_file_path]
+    if sess is None:
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(rule_command)
+    else:
+        sess.assert_icommand(rule_command)
 
 def get_tracked_replica(session, logical_path, group_attribute_name=None):
     coll_name = os.path.dirname(logical_path)
@@ -1693,3 +1697,93 @@ class test_incorrect_custom_violating_queries(unittest.TestCase):
         # The ordering of DATA_NAME and COLL_NAME is flipped.
         columns = 'COLL_NAME, DATA_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM'
         self.do_incorrect_violating_query_test(columns)
+
+
+class test_executing_rules_as_rodsuser__issue_293(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
+
+        self.tier0 = "ufs0"
+        self.tier1 = "ufs1"
+        self.tier0_time_in_seconds = 5
+
+        self.filename = "test_executing_rules_as_rodsuser__issue_293"
+        if not os.path.exists(self.filename):
+            lib.create_local_testfile(self.filename)
+
+        self.collection_path = self.user1.home_collection
+        self.object_path = "/".join([self.collection_path, self.filename])
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(['iqdel', '-a'])
+
+            # Using HOSTNAME_2 here so that topology testing takes effect should we ever employ it in plugin testing.
+            lib.create_ufs_resource(admin_session, self.tier0, test.settings.HOSTNAME_2)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier0, 'irods::storage_tiering::group', 'example_group', '0'])
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier0, 'irods::storage_tiering::time', str(self.tier0_time_in_seconds)])
+            admin_session.assert_icommand(
+                ['imeta', 'ls', '-R', self.tier0], 'STDOUT', [f'value: {self.tier0_time_in_seconds}', 'value: example_group'])
+
+            # Using HOSTNAME_3 here so that topology testing takes effect should we ever employ it in plugin testing.
+            lib.create_ufs_resource(admin_session, self.tier1, test.settings.HOSTNAME_3)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier1, 'irods::storage_tiering::group', 'example_group', '1'])
+            admin_session.assert_icommand(['imeta', 'ls', '-R', self.tier1], 'STDOUT', 'value: example_group')
+
+    @classmethod
+    def tearDownClass(self):
+        if os.path.exists(self.filename):
+            os.unlink(self.filename)
+
+        self.user1.__exit__()
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
+
+            admin_session.run_icommand(['iqdel', '-a'])
+
+            admin_session.run_icommand(['iadmin', 'rmresc', self.tier0])
+            admin_session.run_icommand(['iadmin', 'rmresc', self.tier1])
+            admin_session.run_icommand(['iadmin', 'rum'])
+
+    def tearDown(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
+            admin_session.run_icommand(["irm", "-f", self.object_path])
+
+    def test_rule_invoked_by_rodsuser_directly_via_irule_fails(self):
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            # TODO(#200): Replace with itouch or istream. Have to use put API due to missing PEP support.
+            self.user1.assert_icommand(["iput", "-R", self.tier0, self.filename, self.object_path])
+
+            # Sleep long enough to ensure that the object needs to be tiered out.
+            time.sleep(self.tier0_time_in_seconds)
+
+            # Ensure that the delay queue is empty before attempting to schedule the tiering rule. This is to
+            # prevent false negatives in a later assertion of the emptiness of the delay queue.
+            self.user1.assert_icommand(["iqstat"], "STDOUT", "No delayed rules pending")
+
+            # This implementation is derived from invoke_storage_tiering_rule().
+            rep_instance = "irods_rule_engine_plugin-unified_storage_tiering-instance"
+            rule_file_path = "/var/lib/irods/example_unified_tiering_invocation.r"
+            self.user1.assert_icommand(
+                ["irule", "-r", rep_instance, "-F", rule_file_path], "STDERR", "CAT_INSUFFICIENT_PRIVILEGE_LEVEL")
+
+            # Ensure that nothing is scheduled in the delay queue. The tiering rule should have failed.
+            self.user1.assert_icommand(["iqstat"], "STDOUT", "No delayed rules pending")
+
+            # Ensure that the object did not migrate to the next tier because the tiering rule should have failed.
+            self.user1.assert_icommand(["ils", "-l", self.object_path], "STDOUT", self.tier0)
+
+    @unittest.skip("TODO(#294): Stub for now.")
+    def test_rule_invoked_by_rodsuser_with_remote_via_irule_fails(self):
+        pass
+
+    @unittest.skip("TODO(#294): Stub for now.")
+    def test_rule_invoked_by_rodsuser_with_delay_via_irule_fails(self):
+        pass
