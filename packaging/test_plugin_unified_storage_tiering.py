@@ -239,6 +239,25 @@ def get_tracked_replica(session, logical_path, group_attribute_name=None):
 
     return session.run_icommand(['iquest', '%s', tracked_replica_query])[0].strip()
 
+def get_access_time(session, data_object_path):
+    """Return value of AVU with attribute irods::access_time annotated on provided data_object_path.
+
+    If the provided data object path does not exist or does not have an irods::access_time AVU, the output will contain
+    CAT_NO_ROWS_FOUND.
+
+    Arguments:
+    session - iRODSSession which will run the query
+    data_object_path - Full iRODS logical path to a data object
+    """
+    coll_name = os.path.dirname(data_object_path)
+    data_name = os.path.basename(data_object_path)
+
+    query = "select META_DATA_ATTR_VALUE where " \
+            f"COLL_NAME = '{coll_name}' and DATA_NAME = '{data_name}' and " \
+            "META_DATA_ATTR_NAME = 'irods::access_time'"
+
+    return session.assert_icommand(['iquest', '%s', query], 'STDOUT')[1].strip()
+
 
 class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
     def setUp(self):
@@ -1948,3 +1967,99 @@ class test_tiering_out_one_object_with_various_owners(unittest.TestCase):
         self.tier_out_object_with_specified_permissions_test_impl(
             [(self.user1.username, "own"), (self.admin1.username, "own")]
         )
+
+
+class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
+
+        self.filename = "test_tiering_out_one_object_with_various_owners"
+        if not os.path.exists(self.filename):
+            lib.create_local_testfile(self.filename)
+
+        self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
+        self.object_path = "/".join([self.collection_path, self.filename])
+
+        with session.make_session_for_existing_admin() as admin_session:
+            # Make a place for public group to put stuff.
+            admin_session.assert_icommand(["imkdir", "-p", self.collection_path])
+            admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
+
+            with storage_tiering_configured():
+                IrodsController().restart(test_mode=True)
+                # TODO(#200): Replace with itouch or istream. Have to use put API due to missing PEP support.
+                # For this test, we don't actually care about tiering or restaging objects. We just want to test
+                # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
+                # This is why no tier groups are being configured in this test.
+                admin_session.assert_icommand(["iput", self.filename, self.object_path])
+
+            # Give permissions exclusively to a rodsuser (removing permissions for original owner).
+            admin_session.assert_icommand(["ichmod", "own", self.user1.username, self.object_path])
+            admin_session.assert_icommand(["ichmod", "null", admin_session.username, self.object_path])
+
+        if os.path.exists(self.filename):
+            os.unlink(self.filename)
+
+    @classmethod
+    def tearDownClass(self):
+        self.user1.__exit__()
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(['iadmin', 'rmuser', self.user1.username])
+            admin_session.assert_icommand(['iadmin', 'rum'])
+
+    def tearDown(self):
+        # Make sure the test object is cleaned up after each test runs.
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
+            admin_session.assert_icommand(["irm", "-f", self.object_path])
+
+    def read_object_updates_access_time_test_impl(self, read_command, *read_command_args):
+        """A basic test implementation to show that access_time metadata is updated for reads accessing data.
+
+        Arguments:
+        self - Instance of this class
+        read_command - A callable which will execute some sort of read operation on the object
+        read_command_args - *args to pass to the read_command callable
+        """
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            # Capture the original access time so we have something against which to compare.
+            access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
+
+            # Sleeping guarantees the access time will be different following the access.
+            time.sleep(2)
+
+            # Access the data...
+            read_command(*read_command_args)
+
+            # Ensure the access_time was updated as a result of the access.
+            new_access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
+            self.assertGreater(new_access_time, access_time)
+
+    def test_dataobj_open_read_close_updates_access_time__issue_175_203(self):
+        # This basic test shows that access_time metadata is updated when dataObjOpen/Read/Close APIs access the data.
+        self.read_object_updates_access_time_test_impl(
+            self.user1.assert_icommand, ["irods_test_read_object", self.object_path], "STDOUT")
+
+    @unittest.skip("TODO(#200): Need to implement touch API PEP")
+    def test_touch_updates_access_time(self):
+        # This is a basic test to show that access_time metadata is updated when touch API accesses the data.
+        self.read_object_updates_access_time_test_impl(
+            self.user1.assert_icommand, ["itouch", self.object_path], "STDOUT")
+
+    @unittest.skip("TODO(#200): Need to implement replica_close PEP")
+    def test_replica_open_close_updates_access_time(self):
+        # This basic test shows that access_time metadata is updated when replica_open/close APIs access the data.
+        self.read_object_updates_access_time_test_impl(
+            self.user1.assert_icommand, ["istream", "read", self.object_path], "STDOUT")
+
+    @unittest.skip("TODO(#200): Need to implement get PEP")
+    def test_get_updates_access_time(self):
+        # This basic test shows that access_time metadata is updated when get API accesses the data.
+        self.read_object_updates_access_time_test_impl(
+            self.user1.assert_icommand, ["iget", self.object_path, "-"], "STDOUT")
