@@ -7,10 +7,11 @@
 #include <irods/irods_resource_backport.hpp>
 #include "irods/private/storage_tiering/proxy_connection.hpp"
 
-#include <irods/rsModAVUMetadata.hpp>
-#include <irods/rsOpenCollection.hpp>
-#include <irods/rsReadCollection.hpp>
-#include <irods/rsCloseCollection.hpp>
+#include <irods/modAVUMetadata.h>
+#include <irods/openCollection.h>
+#include <irods/readCollection.h>
+#include <irods/closeCollection.h>
+#include <irods/irods_logger.hpp>
 #include <irods/irods_virtual_path.hpp>
 #include <irods/dataObjRepl.h>
 #include <irods/dataObjTrim.h>
@@ -53,6 +54,8 @@ int _delayExec(
     ruleExecInfo_t *rei );
 
 namespace {
+    using log_re = irods::experimental::log::rule_engine;
+
     std::unique_ptr<irods::storage_tiering_configuration> config;
     std::map<int, std::tuple<std::string, std::string>> opened_objects;
     std::string plugin_instance_name{};
@@ -180,11 +183,10 @@ namespace {
 
     } // apply_data_retention_policy
 
-    void update_access_time_for_data_object(
-        rsComm_t*          _comm,
-        const std::string& _logical_path,
-        const std::string& _attribute) {
-
+    void update_access_time_for_data_object(rcComm_t* _comm,
+                                            const std::string& _logical_path,
+                                            const std::string& _attribute)
+    {
         auto ts = std::to_string(std::time(nullptr));
         modAVUMetadataInp_t avuOp{
             "set",
@@ -199,21 +201,18 @@ namespace {
             addKeyVal(&avuOp.condInput, ADMIN_KW, "");
         }
 
-        auto status = rsModAVUMetadata(_comm, &avuOp);
+        auto status = rcModAVUMetadata(_comm, &avuOp);
         if(status < 0) {
-            THROW(
-                status,
-                boost::format("failed to set access time for [%s]") %
-                _logical_path);
+            const auto msg = fmt::format("{}: failed to set access time for [{}]", __func__, _logical_path);
+            log_re::error(msg);
+            THROW(status, msg);
         }
     } // update_access_time_for_data_object
 
-    void apply_access_time_to_collection(
-        rsComm_t*          _comm,
-        int                _handle,
-        const std::string& _attribute) {
+    void apply_access_time_to_collection(rcComm_t* _comm, int _handle, const std::string& _attribute)
+    {
         collEnt_t* coll_ent{nullptr};
-        int err = rsReadCollection(_comm, &_handle, &coll_ent);
+        int err = rcReadCollection(_comm, _handle, &coll_ent);
         while(err >= 0) {
             if(DATA_OBJ_T == coll_ent->objType) {
                 const auto& vps = irods::get_virtual_path_separator();
@@ -229,12 +228,12 @@ namespace {
                     coll_inp.collName,
                     coll_ent->collName,
                     MAX_NAME_LEN);
-                int handle = rsOpenCollection(_comm, &coll_inp);
+                int handle = rcOpenCollection(_comm, &coll_inp);
                 apply_access_time_to_collection(_comm, handle, _attribute);
-                rsCloseCollection(_comm, &handle);
+                rcCloseCollection(_comm, handle);
             }
 
-            err = rsReadCollection(_comm, &_handle, &coll_ent);
+            err = rcReadCollection(_comm, _handle, &coll_ent);
         } // while
     } // apply_access_time_to_collection
 
@@ -243,8 +242,10 @@ namespace {
         const std::string& _object_path,
         const std::string& _collection_type,
         const std::string& _attribute) {
+        auto proxy_conn = irods::proxy_connection();
+        rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
         if(_collection_type.size() == 0) {
-            update_access_time_for_data_object(_comm, _object_path, _attribute);
+            update_access_time_for_data_object(comm, _object_path, _attribute);
         }
         else {
             // register a collection
@@ -254,9 +255,7 @@ namespace {
                 coll_inp.collName,
                 _object_path.c_str(),
                 MAX_NAME_LEN);
-            int handle = rsOpenCollection(
-                             _comm,
-                             &coll_inp);
+            int handle = rcOpenCollection(comm, &coll_inp);
             if(handle < 0) {
                 THROW(
                     handle,
@@ -264,7 +263,7 @@ namespace {
                     _object_path);
             }
 
-            apply_access_time_to_collection(_comm, handle, _attribute);
+            apply_access_time_to_collection(comm, handle, _attribute);
         }
     } // set_access_time_metadata
 
@@ -295,11 +294,7 @@ namespace {
                     coll_type = "true";
                 }
 
-                set_access_time_metadata(
-                    _rei->rsComm,
-                    object_path,
-                    coll_type,
-                    config->access_time_attribute);
+                set_access_time_metadata(_rei->rsComm, object_path, coll_type, config->access_time_attribute);
             }
             else if("pep_api_data_obj_open_post" == _rn) {
                 auto it = _args.begin();
@@ -362,11 +357,7 @@ namespace {
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
                     auto [object_path, resource_name] = opened_objects[l1_idx];
 
-                    set_access_time_metadata(
-                        _rei->rsComm,
-                        object_path,
-                        "",
-                        config->access_time_attribute);
+                    set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
                 }
             }
         } catch( const boost::bad_any_cast&) {
