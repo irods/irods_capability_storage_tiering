@@ -8,6 +8,12 @@ The example diagram below shows a configuration with three tiers.
 
 ![Storage Tiering Diagram](storage_tiering_diagram.jpg)
 
+## How to build
+
+This project uses a "build hook" which allows the [iRODS Development Environment](https://github.com/irods/irods_development_environment) to build packages in the usual manner. Please see the instructions for building plugins with the development environment: [https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin](https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin)
+
+Use the `--exclude_test_executables` option with the build hook to exclude the special executables in the `test` subdirectory from the built packages.
+
 ## Required Configuration
 
 ### Configuring the Rule Engine
