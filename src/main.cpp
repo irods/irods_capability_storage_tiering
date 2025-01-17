@@ -5,8 +5,8 @@
 #include <irods/irods_re_ruleexistshelper.hpp>
 #include "irods/private/storage_tiering/utilities.hpp"
 #include <irods/irods_resource_backport.hpp>
-#include "irods/private/storage_tiering/proxy_connection.hpp"
 
+#include <irods/client_connection.hpp>
 #include <irods/modAVUMetadata.h>
 #include <irods/openCollection.h>
 #include <irods/readCollection.h>
@@ -129,9 +129,7 @@ namespace {
         addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW,      _source_resource.c_str());
         addKeyVal(&data_obj_inp.condInput, DEST_RESC_NAME_KW, _destination_resource.c_str());
 
-        if(_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-            addKeyVal(&data_obj_inp.condInput, ADMIN_KW, "");
-        }
+        addKeyVal(&data_obj_inp.condInput, ADMIN_KW, "");
 
         transferStat_t* trans_stat{};
         const auto repl_err = rcDataObjRepl(_comm, &data_obj_inp);
@@ -168,9 +166,7 @@ namespace {
             &obj_inp.condInput,
             COPIES_KW,
             "1");
-        if(_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-            addKeyVal(&obj_inp.condInput, ADMIN_KW, "");
-        }
+        addKeyVal(&obj_inp.condInput, ADMIN_KW, "");
 
         const auto trim_err = rcDataObjTrim(_comm, &obj_inp);
         if(trim_err < 0) {
@@ -197,12 +193,10 @@ namespace {
             ""};
         const auto free_cond_input = irods::at_scope_exit{[&avuOp] { clearKeyVal(&avuOp.condInput); }};
 
-        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-            addKeyVal(&avuOp.condInput, ADMIN_KW, "");
-        }
+        addKeyVal(&avuOp.condInput, ADMIN_KW, "");
 
         auto status = rcModAVUMetadata(_comm, &avuOp);
-        if(status < 0) {
+        if (status < 0) {
             const auto msg = fmt::format("{}: failed to set access time for [{}]", __func__, _logical_path);
             log_re::error(msg);
             THROW(status, msg);
@@ -242,10 +236,10 @@ namespace {
         const std::string& _object_path,
         const std::string& _collection_type,
         const std::string& _attribute) {
-        auto proxy_conn = irods::proxy_connection();
-        rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+        irods::experimental::client_connection conn;
+        RcComm& comm = static_cast<RcComm&>(conn);
         if(_collection_type.size() == 0) {
-            update_access_time_for_data_object(comm, _object_path, _attribute);
+            update_access_time_for_data_object(&comm, _object_path, _attribute);
         }
         else {
             // register a collection
@@ -255,7 +249,7 @@ namespace {
                 coll_inp.collName,
                 _object_path.c_str(),
                 MAX_NAME_LEN);
-            int handle = rcOpenCollection(comm, &coll_inp);
+            int handle = rcOpenCollection(&comm, &coll_inp);
             if(handle < 0) {
                 THROW(
                     handle,
@@ -263,7 +257,7 @@ namespace {
                     _object_path);
             }
 
-            apply_access_time_to_collection(comm, handle, _attribute);
+            apply_access_time_to_collection(&comm, handle, _attribute);
         }
     } // set_access_time_metadata
 
@@ -439,16 +433,13 @@ namespace {
                 parser.set_string(source_hier);
                 parser.first_resc(source_resource);
 
-                auto proxy_conn = irods::proxy_connection();
-                rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+                irods::experimental::client_connection conn;
+                RcComm& comm = static_cast<RcComm&>(conn);
 
-                irods::storage_tiering st{comm, _rei, plugin_instance_name};
+                irods::storage_tiering st{&comm, _rei, plugin_instance_name};
 
                 st.migrate_object_to_minimum_restage_tier(
-                    object_path,
-                    _rei->rsComm->clientUser.userName,
-                    _rei->rsComm->clientUser.rodsZone,
-                    source_resource);
+                    object_path, _rei->rsComm->clientUser.userName, _rei->rsComm->clientUser.rodsZone, source_resource);
             }
             else if("pep_api_data_obj_open_post"   == _rn ||
                     "pep_api_data_obj_create_post" == _rn) {
@@ -488,15 +479,14 @@ namespace {
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
                     auto [object_path, resource_name] = opened_objects[l1_idx];
 
-                    auto proxy_conn = irods::proxy_connection();
-                    rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+                    irods::experimental::client_connection conn;
+                    RcComm& comm = static_cast<RcComm&>(conn);
 
-                    irods::storage_tiering st{comm, _rei, plugin_instance_name};
-                    st.migrate_object_to_minimum_restage_tier(
-                        object_path,
-                        _rei->rsComm->clientUser.userName,
-                        _rei->rsComm->clientUser.rodsZone,
-                        resource_name);
+                    irods::storage_tiering st{&comm, _rei, plugin_instance_name};
+                    st.migrate_object_to_minimum_restage_tier(object_path,
+                                                              _rei->rsComm->clientUser.userName,
+                                                              _rei->rsComm->clientUser.rodsZone,
+                                                              resource_name);
                 }
             }
         }
@@ -675,13 +665,11 @@ irods::error exec_rule_text(
             delay_obj["rule-engine-operation"] = irods::storage_tiering::policy::storage_tiering;
             delay_obj["storage-tier-groups"]   = rule_obj["storage-tier-groups"];
 
-            auto proxy_conn = irods::proxy_connection();
-            rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+            irods::experimental::client_connection conn;
+            RcComm& comm = static_cast<RcComm&>(conn);
 
-            irods::storage_tiering st{comm, rei, plugin_instance_name};
-            st.schedule_storage_tiering_policy(
-                delay_obj.dump(),
-                params);
+            irods::storage_tiering st{&comm, rei, plugin_instance_name};
+            st.schedule_storage_tiering_policy(delay_obj.dump(), params);
         }
         else {
             return ERROR(
@@ -735,10 +723,10 @@ irods::error exec_rule_expression(
         if(rule_obj.contains("rule-engine-operation") &&
            irods::storage_tiering::policy::storage_tiering == rule_obj.at("rule-engine-operation")) {
             try {
-                auto proxy_conn = irods::proxy_connection();
-                rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+                irods::experimental::client_connection conn;
+                RcComm& comm = static_cast<RcComm&>(conn);
 
-                irods::storage_tiering st{comm, rei, plugin_instance_name};
+                irods::storage_tiering st{&comm, rei, plugin_instance_name};
                 for(const auto& group : rule_obj["storage-tier-groups"]) {
                     st.apply_policy_for_tier_group(group);
                 }
@@ -759,11 +747,11 @@ irods::error exec_rule_expression(
                 const std::string& user_zone = rule_obj["user-zone"];
                 auto& pin = plugin_instance_name;
 
-                auto proxy_conn = irods::proxy_connection();
-                rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+                irods::experimental::client_connection conn;
+                RcComm& comm = static_cast<RcComm&>(conn);
 
                 // TODO(#297): Use get or get_ref for these parameters.
-                auto status = apply_data_movement_policy(comm,
+                auto status = apply_data_movement_policy(&comm,
                                                          plugin_instance_name,
                                                          rule_obj["object-path"],
                                                          rule_obj["user-name"],
@@ -774,7 +762,7 @@ irods::error exec_rule_expression(
                                                          rule_obj["preserve-replicas"],
                                                          rule_obj["verification-type"]);
 
-                irods::storage_tiering st{comm, rei, plugin_instance_name};
+                irods::storage_tiering st{&comm, rei, plugin_instance_name};
                 // TODO(#297): Use get or get_ref for these parameters.
                 status = apply_tier_group_metadata_policy(st,
                                                           rule_obj["group-name"],
@@ -791,7 +779,6 @@ irods::error exec_rule_expression(
                         _e.code(),
                         _e.what());
             }
-
         }
         else {
             return CODE(RULE_ENGINE_CONTINUE);
