@@ -11,8 +11,8 @@
 #include <irods/irods_resource_manager.hpp>
 #include <irods/irods_resource_backport.hpp>
 #include <irods/query_processor.hpp>
-#include "irods/private/storage_tiering/proxy_connection.hpp"
 
+#include <irods/client_connection.hpp>
 #include <irods/modAVUMetadata.h>
 #include <irods/rsExecMyRule.hpp>
 #include <irods/execMyRule.h>
@@ -635,31 +635,27 @@ namespace irods {
                         object_is_processed[object_path] = 1;
                     }
 
-                    auto proxy_conn = irods::proxy_connection();
-                    rcComm_t* comm = proxy_conn.make_rodsadmin_connection();
+                    irods::experimental::client_connection conn;
+                    RcComm& comm = static_cast<RcComm&>(conn);
 
                     if(preserve_replicas) {
-                        if(skip_object_in_lower_tier(
-                               comm,
-                               object_path,
-                               _partial_list)) {
+                        if (skip_object_in_lower_tier(&comm, object_path, _partial_list)) {
                             return;
                         }
                     }
 
-                    queue_data_movement(
-                        comm,
-                        config_.instance_name,
-                        _group_name,
-                        object_path,
-                        _results[2],
-                        _results[3],
-                        _results[4],
-                        _source_resource,
-                        _destination_resource,
-                        get_verification_for_resc(comm, _destination_resource),
-                        get_preserve_replicas_for_resc(comm, _source_resource),
-                        get_data_movement_parameters_for_resource(comm, _source_resource));
+                    queue_data_movement(&comm,
+                                        config_.instance_name,
+                                        _group_name,
+                                        object_path,
+                                        _results[2],
+                                        _results[3],
+                                        _results[4],
+                                        _source_resource,
+                                        _destination_resource,
+                                        get_verification_for_resc(&comm, _destination_resource),
+                                        get_preserve_replicas_for_resc(&comm, _source_resource),
+                                        get_data_movement_parameters_for_resource(&comm, _source_resource));
 
                 }; // job
 
@@ -989,9 +985,7 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            const_cast<char*>(config_.migration_scheduled_flag.c_str())};
 
-        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-            addKeyVal(&set_op.condInput, ADMIN_KW, "");
-        }
+        addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
         if (const auto ec = rcModAVUMetadata(_comm, &set_op); ec < 0) {
             const auto msg = fmt::format("{}: failed to set migration scheduled flag for [{}]", __func__, _object_path);
@@ -1017,9 +1011,7 @@ namespace irods {
            const_cast<char*>(access_time.c_str()),
            nullptr};
 
-        if (_comm->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-            addKeyVal(&set_op.condInput, ADMIN_KW, "");
-        }
+        addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
         if (const auto ec = rcModAVUMetadata(_comm, &set_op); ec < 0) {
             const auto msg =
@@ -1078,9 +1070,7 @@ namespace irods {
                 const_cast<char*>(_group_name.c_str()),
                 const_cast<char*>(destination_replica_number.c_str())};
 
-            if (comm_->clientUser.authInfo.authFlag >= LOCAL_PRIV_USER_AUTH) {
-                addKeyVal(&set_op.condInput, ADMIN_KW, "");
-            }
+            addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
             auto status = rcModAVUMetadata(comm_, &set_op);
             if (status < 0) {
