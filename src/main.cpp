@@ -732,28 +732,30 @@ irods::error exec_rule_expression(
                 irods::storage_tiering::policy::data_movement ==
                 rule_obj.at("rule-engine-operation")) {
             try {
+                const auto& object_path = rule_obj.at("object-path").get_ref<const std::string&>();
+                const auto& source_replica_number = rule_obj.at("source-replica-number").get_ref<const std::string&>();
+                const auto& source_resource = rule_obj.at("source-resource").get_ref<const std::string&>();
+                const auto& destination_resource = rule_obj.at("destination-resource").get_ref<const std::string&>();
+                const auto preserve_replicas = rule_obj.at("preserve-replicas").get<bool>();
+                const auto& verification_type = rule_obj.at("verification-type").get_ref<const std::string&>();
 
                 irods::experimental::client_connection conn;
                 RcComm& comm = static_cast<RcComm&>(conn);
 
-                // TODO(#297): Use get or get_ref for these parameters.
                 auto status = apply_data_movement_policy(&comm,
                                                          plugin_instance_name,
-                                                         rule_obj["object-path"],
-                                                         rule_obj["source-replica-number"],
-                                                         rule_obj["source-resource"],
-                                                         rule_obj["destination-resource"],
-                                                         rule_obj["preserve-replicas"],
-                                                         rule_obj["verification-type"]);
+                                                         object_path,
+                                                         source_replica_number,
+                                                         source_resource,
+                                                         destination_resource,
+                                                         preserve_replicas,
+                                                         verification_type);
 
                 irods::storage_tiering st{&comm, rei, plugin_instance_name};
-                // TODO(#297): Use get or get_ref for these parameters.
-                status = apply_tier_group_metadata_policy(st,
-                                                          rule_obj["group-name"],
-                                                          rule_obj["object-path"],
-                                                          rule_obj["source-replica-number"],
-                                                          rule_obj["source-resource"],
-                                                          rule_obj["destination-resource"]);
+
+                const auto& group_name = rule_obj.at("group-name").get_ref<const std::string&>();
+                status = apply_tier_group_metadata_policy(
+                    st, group_name, object_path, source_replica_number, source_resource, destination_resource);
             }
             catch(const irods::exception& _e) {
                 printErrorStack(&rei->rsComm->rError);
