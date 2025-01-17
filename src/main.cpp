@@ -633,7 +633,7 @@ irods::error exec_rule_text(
             rule_text = _rule_text.substr(10);
         }
         const auto rule_obj = json::parse(rule_text);
-        const std::string& rule_engine_instance_name = rule_obj["rule-engine-instance-name"];
+        const auto& rule_engine_instance_name = rule_obj.at("rule-engine-instance-name").get_ref<const std::string&>();
         // if the rule text does not have our instance name, fail
         if(plugin_instance_name != rule_engine_instance_name) {
             return ERROR(
@@ -641,19 +641,22 @@ irods::error exec_rule_text(
                     "instance name not found");
         }
 
-        if(irods::storage_tiering::schedule::storage_tiering ==
-           rule_obj["rule-engine-operation"]) {
+        if (const auto& rule_engine_operation = rule_obj.at("rule-engine-operation").get_ref<const std::string&>();
+            irods::storage_tiering::schedule::storage_tiering == rule_engine_operation)
+        {
             ruleExecInfo_t* rei{};
             const auto err = _eff_hdlr("unsafe_ms_ctx", &rei);
             if(!err.ok()) {
                 return err;
             }
 
-            const std::string& params = rule_obj["delay-parameters"];
+            const auto& params = rule_obj.at("delay-parameters").get_ref<const std::string&>();
 
             json delay_obj;
             delay_obj["rule-engine-operation"] = irods::storage_tiering::policy::storage_tiering;
-            delay_obj["storage-tier-groups"]   = rule_obj["storage-tier-groups"];
+
+            const auto& storage_tier_groups = rule_obj.at("storage-tier-groups").get_ref<const json::array_t&>();
+            delay_obj["storage-tier-groups"] = storage_tier_groups;
 
             irods::experimental::client_connection conn;
             RcComm& comm = static_cast<RcComm&>(conn);
@@ -710,14 +713,19 @@ irods::error exec_rule_expression(
 
     try {
         const auto rule_obj = json::parse(_rule_text);
-        if(rule_obj.contains("rule-engine-operation") &&
-           irods::storage_tiering::policy::storage_tiering == rule_obj.at("rule-engine-operation")) {
+        const auto rule_engine_operation_iter = rule_obj.find("rule-engine-operation");
+        if (rule_obj.end() == rule_engine_operation_iter) {
+            return CODE(RULE_ENGINE_CONTINUE);
+        }
+
+        const auto& rule_engine_operation = rule_engine_operation_iter->get_ref<const std::string&>();
+        if (irods::storage_tiering::policy::storage_tiering == rule_engine_operation) {
             try {
                 irods::experimental::client_connection conn;
                 RcComm& comm = static_cast<RcComm&>(conn);
 
                 irods::storage_tiering st{&comm, rei, plugin_instance_name};
-                for(const auto& group : rule_obj["storage-tier-groups"]) {
+                for (const auto& group : rule_obj.at("storage-tier-groups").get_ref<const json::array_t&>()) {
                     st.apply_policy_for_tier_group(group);
                 }
             }
@@ -728,9 +736,7 @@ irods::error exec_rule_expression(
                         _e.what());
             }
         }
-        else if(rule_obj.contains("rule-engine-operation") &&
-                irods::storage_tiering::policy::data_movement ==
-                rule_obj.at("rule-engine-operation")) {
+        else if (irods::storage_tiering::policy::data_movement == rule_engine_operation) {
             try {
                 const auto& object_path = rule_obj.at("object-path").get_ref<const std::string&>();
                 const auto& source_replica_number = rule_obj.at("source-replica-number").get_ref<const std::string&>();
