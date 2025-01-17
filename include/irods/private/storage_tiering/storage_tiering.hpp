@@ -33,8 +33,6 @@ namespace irods {
 
         void migrate_object_to_minimum_restage_tier(
                  const std::string& _object_path,
-                 const std::string& _user_name,
-                 const std::string& _user_zone,
                  const std::string& _source_resource);
 
         void schedule_storage_tiering_policy(
@@ -44,8 +42,6 @@ namespace irods {
         void apply_tier_group_metadata_to_object(
             const std::string& _group_name,
             const std::string& _object_path,
-            const std::string& _user_name,
-            const std::string& _user_zone,
             const std::string& _source_replica_number,
             const std::string& _source_resource,
             const std::string& _destination_resource);
@@ -54,20 +50,14 @@ namespace irods {
 
         void set_migration_metadata_flag_for_object(
             rcComm_t*          _comm,
-            const std::string& _user_name,
-            const std::string& _user_zone,
             const std::string& _object_path);
 
         void unset_migration_metadata_flag_for_object(
             rcComm_t*          _comm,
-            const std::string& _user_name,
-            const std::string& _user_zone,
             const std::string& _object_path);
 
         bool object_has_migration_metadata_flag(
             rcComm_t*          _comm,
-            const std::string& _user_name,
-            const std::string& _user_zone,
             const std::string& _object_path);
 
         bool skip_object_in_lower_tier(
@@ -159,8 +149,6 @@ namespace irods {
             const std::string& _plugin_instance_name,
             const std::string& _group_name,
             const std::string& _object_path,
-            const std::string& _user_name,
-            const std::string& _user_zone,
             const std::string& _source_replica_number,
             const std::string& _source_resource,
             const std::string& _destination_resource,
