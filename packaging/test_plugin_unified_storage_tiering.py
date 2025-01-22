@@ -706,10 +706,16 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
 
-class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
-    def setUp(self):
-        super(TestStorageTieringPluginMinimumRestage, self).setUp()
+class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
         with session.make_session_for_existing_admin() as admin_session:
+            self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
+
+            self.tier0 = "ufs0"
+            self.tier1 = "ufs1"
+            self.tier2 = "ufs2"
+
             admin_session.assert_icommand('iqdel -a')
             admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -726,10 +732,11 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::maximum_delay_time_in_seconds 2')
 
-    def tearDown(self):
-        super(TestStorageTieringPluginMinimumRestage, self).tearDown()
+    @classmethod
+    def tearDownClass(self):
+        self.user1.__exit__()
         with session.make_session_for_existing_admin() as admin_session:
-
+            admin_session.assert_icommand(['iadmin', 'rmuser', self.user1.username])
             admin_session.assert_icommand('iadmin rmresc ufs0')
             admin_session.assert_icommand('iadmin rmresc ufs1')
             admin_session.assert_icommand('iadmin rmresc ufs2')
@@ -759,6 +766,118 @@ class TestStorageTieringPluginMinimumRestage(ResourceBase, unittest.TestCase):
 
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
+
+    def test_open_read_close_triggers_restage__issue_303(self):
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+            filename = "test_open_read_close_triggers_restage__issue_303"
+            try:
+                logical_path = "/".join([self.user1.session_collection, filename])
+                lib.create_local_testfile(filename)
+                self.user1.assert_icommand(["iput", "-R", "ufs0", filename, logical_path])
+
+                # Tier out the object...
+                self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT", self.tier0)
+                time.sleep(5)
+                invoke_storage_tiering_rule()
+                delay_assert_icommand(self.user1, f"ils -L {logical_path}", 'STDOUT', self.tier1)
+
+                # And then again...
+                time.sleep(15)
+                invoke_storage_tiering_rule()
+                delay_assert_icommand(self.user1, f"ils -L {logical_path}", 'STDOUT', self.tier2)
+
+                # Now see if the object is restaged appropriately on open/read/close.
+                self.user1.assert_icommand(["irods_test_read_object", logical_path], "STDOUT")
+                # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                lib.delayAssert(
+                    lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier2) == False)
+                self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier1))
+
+            finally:
+                if os.path.exists(filename):
+                    os.unlink(filename)
+                self.user1.assert_icommand(["irm", "-f", logical_path])
+
+    def creating_data_object_does_not_trigger_restage_test_impl(
+        self, logical_path, expected_destination_resource, create_command, *create_command_args, **create_command_kwargs
+    ):
+        """Implementation of a very basic test to demonstrate that objects do not restage for some operations.
+
+        Arguments:
+        self - Instance of this class
+        logical_path - Logical path to iRODS object being created
+        expected_destination_resource - Resource on which the replica is asserted to reside after not restaging
+        create_command - A callable which will execute some sort of create operation on the object
+        create_command_args - *args to pass to the create_command callable
+        create_command_kwargs - **kwargs to pass to the create_command callable
+        """
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+            try:
+                with session.make_session_for_existing_admin() as admin_session:
+                    # Ensure that the delay queue is empty before creating the data object. This is to prevent false
+                    # negatives in a later assertion of the emptiness of the delay queue.
+                    admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+                    create_command(*create_command_args, **create_command_kwargs)
+
+                    # Immediately check to see whether a restage was scheduled (it should not have been). We do this
+                    # first to ensure that the delay rule was not scheduled and processed by the time we check.
+                    admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+                    # Then, make sure that the object is in the correct tier and has an access_time.
+                    self.assertTrue(
+                        lib.replica_exists_on_resource(admin_session, logical_path, expected_destination_resource)
+                    )
+                    access_time = get_access_time(admin_session, logical_path)
+                    self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
+
+            finally:
+                self.user1.assert_icommand(["irm", "-f", logical_path])
+
+    def test_rcDataObjCreate_does_not_trigger_restage__issue_303(self):
+        # TODO(#280): This test will fail once tiering group metadata is annotated to objects on create. This test
+        # should continue to pass as-is.
+        filename = "test_rcDataObjCreate_does_not_trigger_restage__issue_303"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.creating_data_object_does_not_trigger_restage_test_impl(
+            logical_path,
+            self.tier2,
+            self.user1.assert_icommand,
+            ["irods_test_create_object", "--resource", self.tier2, "--use-create-api", "1", logical_path],
+            "STDOUT")
+
+    def test_rcDataObjOpen_with_O_CREAT_does_not_trigger_restage__issue_303(self):
+        # TODO(#280): This test will fail once tiering group metadata is annotated to objects on create. This test
+        # should continue to pass as-is.
+        filename = "test_rcDataObjOpen_with_O_CREAT_does_not_trigger_restage__issue_303"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.creating_data_object_does_not_trigger_restage_test_impl(
+            logical_path,
+            self.tier2,
+            self.user1.assert_icommand,
+            ["irods_test_create_object", "--resource", self.tier2, logical_path],
+            "STDOUT")
+
+    def test_iput_new_object_does_not_trigger_restage__issue_303(self):
+        # TODO(#280): This test will fail once tiering group metadata is annotated to objects on create. This test
+        # should continue to pass as-is.
+        filename = "test_iput_new_object_does_not_trigger_restage__issue_303"
+        logical_path = "/".join([self.user1.session_collection, filename])
+
+        try:
+            lib.create_local_testfile(filename)
+            self.creating_data_object_does_not_trigger_restage_test_impl(
+                logical_path,
+                self.tier2,
+                self.user1.assert_icommand,
+                ["iput", "-R", self.tier2, filename, logical_path],
+                "STDOUT")
+
+        finally:
+            if os.path.exists(filename):
+                os.unlink(filename)
 
 
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
