@@ -941,9 +941,11 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     invoke_storage_tiering_rule()
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
-                    # Ensure that the replica was tiered out to ufs1 and not preserved on ufs0.
-                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
-                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    # Ensure that the replica is trimmed from ufs0 and tiered out to ufs1. Check for the trim first
+                    # because once that happens, we know the replication should have happened already.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0') == False)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
                     self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
 
                     # Ensure that the "tracked" replica updates to replica 1, which is the tiered-out replica on ufs1.
@@ -1916,7 +1918,9 @@ class test_tiering_out_one_object_with_various_owners(unittest.TestCase):
                 invoke_storage_tiering_rule(admin_session)
 
                 # Wait until the object migrates to the next tier.
-                delay_assert_icommand(self.admin1, ["ils", "-l", self.object_path], "STDOUT", self.tier1)
+                lib.delayAssert(
+                    lambda: lib.replica_exists_on_resource(self.admin1, self.object_path, self.tier0) == False)
+                lib.delayAssert(lambda: lib.replica_exists_on_resource(self.admin1, self.object_path, self.tier1))
 
                 # Ensure that nothing is scheduled in the delay queue. The tiering rule should have completed. If
                 # any failures occurred, it is likely that the delayed rule will be retried so we are making sure
