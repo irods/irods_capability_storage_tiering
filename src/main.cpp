@@ -438,8 +438,7 @@ namespace {
 
                 st.migrate_object_to_minimum_restage_tier(object_path, source_resource);
             }
-            else if("pep_api_data_obj_open_post"   == _rn ||
-                    "pep_api_data_obj_create_post" == _rn) {
+            else if ("pep_api_data_obj_open_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -562,17 +561,9 @@ irods::error exec_rule(
         return err;
     }
 
-    const std::set<std::string> peps_for_restage{
-                                    "pep_api_data_obj_open_post",
-                                    "pep_api_data_obj_get_post"};
-
     try {
-
         apply_access_time_policy(_rn, rei, _args);
-
-        if(peps_for_restage.find(_rn) != peps_for_restage.end()) {
-            apply_restage_movement_policy(_rn, rei, _args);
-        }
+        apply_restage_movement_policy(_rn, rei, _args);
     }
     catch(const  std::invalid_argument& _e) {
         irods::exception_to_rerror(
