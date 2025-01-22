@@ -1241,51 +1241,6 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('irm -f ' + self.filename)
                     admin_session.assert_icommand('irm -f ' + self.filename2)
 
-#   class TestStorageTieringPluginLogMigration(ResourceBase, unittest.TestCase):
-#       def setUp(self):
-#           super(TestStorageTieringPluginLogMigration, self).setUp()
-#           with session.make_session_for_existing_admin() as admin_session:
-#               admin_session.assert_icommand('iqdel -a')
-#               admin_session.assert_icommand('iadmin mkresc ufs0 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0', 'STDOUT_SINGLELINE', 'unixfilesystem')
-#               admin_session.assert_icommand('iadmin mkresc ufs1 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1', 'STDOUT_SINGLELINE', 'unixfilesystem')
-#
-#               admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::group example_group 0')
-#               admin_session.assert_icommand('imeta add -R ufs1 irods::storage_tiering::group example_group 1')
-#
-#               admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 5')
-#               admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::minimum_delay_time_in_seconds 1')
-#               admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::maximum_delay_time_in_seconds 2')
-#
-#               self.max_sql_rows = 256
-#
-#       def tearDown(self):
-#           super(TestStorageTieringPluginLogMigration, self).tearDown()
-#           with session.make_session_for_existing_admin() as admin_session:
-#               admin_session.assert_icommand('iadmin rmresc ufs0')
-#               admin_session.assert_icommand('iadmin rmresc ufs1')
-#               admin_session.assert_icommand('iadmin rum')
-#
-#       def test_put_and_get(self):
-#           with storage_tiering_configured_with_log():
-#               with session.make_session_for_existing_admin() as admin_session:
-#
-#                       initial_log_size = lib.get_file_size_by_path(paths.server_log_path())
-#
-#                       filename = 'test_put_file'
-#                       admin_session.assert_icommand('iput -R ufs0 ' + filename)
-#                       admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', filename)
-#                       admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', filename)
-#
-#                       # test stage to tier 1
-#                       time.sleep(5)
-#                       invoke_storage_tiering_rule()
-#                       time.sleep(60)
-#
-#                       admin_session.assert_icommand('ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
-#                       admin_session.assert_icommand('irm -f ' + filename)
-#
-#                       log_count = lib.count_occurrences_of_string_in_log(paths.server_log_path(), 'irods::storage_tiering migrating', start_index=initial_log_size)
-#                       self.assertTrue(1 == log_count, msg='log_count:{}'.format(log_count))
 
 class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
     def setUp(self):
