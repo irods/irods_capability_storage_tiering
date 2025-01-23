@@ -767,37 +767,108 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
 
-    def test_open_read_close_triggers_restage__issue_303(self):
+    def accessing_existing_data_object_triggers_restage(
+        self, logical_path, expected_destination_resource, access_command, *access_command_args, **access_command_kwargs
+    ):
+        """Implementation of a very basic test to demonstrate that objects restage when accessed from a higher tier.
+
+        Arguments:
+        self - Instance of this class
+        logical_path - Logical path to iRODS object being created
+        expected_destination_resource - Resource on which the replica is asserted to reside after restaging
+        access_command - A callable which will execute some sort of access operation on the object
+        access_command_args - *args to pass to the access_command callable
+        access_command_kwargs - **kwargs to pass to the access_command callable
+        """
         with storage_tiering_configured():
             IrodsController().restart(test_mode=True)
             filename = "test_open_read_close_triggers_restage__issue_303"
             try:
-                logical_path = "/".join([self.user1.session_collection, filename])
-                lib.create_local_testfile(filename)
-                self.user1.assert_icommand(["iput", "-R", "ufs0", filename, logical_path])
+                with session.make_session_for_existing_admin() as admin_session:
+                    lib.create_local_testfile(filename)
+                    self.user1.assert_icommand(["iput", "-R", self.tier0, filename, logical_path])
 
-                # Tier out the object...
-                self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT", self.tier0)
-                time.sleep(5)
-                invoke_storage_tiering_rule()
-                delay_assert_icommand(self.user1, f"ils -L {logical_path}", 'STDOUT', self.tier1)
+                    # Tier out the object...
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier0))
+                    time.sleep(5)
+                    invoke_storage_tiering_rule()
+                    # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier0) == False)
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier1))
 
-                # And then again...
-                time.sleep(15)
-                invoke_storage_tiering_rule()
-                delay_assert_icommand(self.user1, f"ils -L {logical_path}", 'STDOUT', self.tier2)
+                    # And then again...
+                    time.sleep(15)
+                    invoke_storage_tiering_rule()
+                    # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier1) == False)
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier2))
 
-                # Now see if the object is restaged appropriately on open/read/close.
-                self.user1.assert_icommand(["irods_test_read_object", logical_path], "STDOUT")
-                # Wait for the object to be trimmed before checking destination to avoid timing issues.
-                lib.delayAssert(
-                    lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier2) == False)
-                self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier1))
+                    # Ensure that the delay queue is empty before creating the data object. This is to prevent false
+                    # negatives in a later assertion of the emptiness of the delay queue.
+                    admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+                    # Now see if the object is restaged appropriately on access.
+                    access_command(*access_command_args, **access_command_kwargs)
+
+                    # Ensure that the restage is scheduled exactly once.
+                    scheduled_delay_rule_count = admin_session.run_icommand(
+                        ["iquest", "%s", "select COUNT(RULE_EXEC_ID)"])[0].strip()
+                    self.assertEqual("1", scheduled_delay_rule_count)
+
+                    # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier2) == False)
+                    self.assertTrue(
+                        lib.replica_exists_on_resource(self.user1, logical_path, expected_destination_resource))
+
+                    # Ensure that nothing is scheduled in the delay queue. The restage should have completed. If any
+                    # failures occurred, it is likely that the delayed rule will be retried so we are making sure that
+                    # is not happening here.
+                    admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
 
             finally:
+                # Run ils to show the state of the world for debugging purposes.
+                self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT")
                 if os.path.exists(filename):
                     os.unlink(filename)
                 self.user1.assert_icommand(["irm", "-f", logical_path])
+
+    def test_open_read_close_triggers_restage__issue_303(self):
+        filename = "test_open_read_close_triggers_restage__issue_303"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.accessing_existing_data_object_triggers_restage(
+            logical_path, self.tier1, self.user1.assert_icommand, ["irods_test_read_object", logical_path], "STDOUT")
+
+    def test_replica_open_read_replica_close_triggers_restage__issue_316(self):
+        filename = "test_replica_open_read_replica_close_triggers_restage__issue_316"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.accessing_existing_data_object_triggers_restage(
+            logical_path, self.tier1, self.user1.assert_icommand, ["istream", "read", logical_path], "STDOUT")
+
+    def test_replica_open_write_replica_close_triggers_restage__issue_316(self):
+        filename = "test_replica_open_read_replica_close_triggers_restage__issue_316"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.accessing_existing_data_object_triggers_restage(
+            logical_path,
+            self.tier1,
+            self.user1.assert_icommand,
+            # Target tier2 because that is where the data object tiers out in the test implementation.
+            ["istream", "-R", self.tier2, "write", logical_path],
+            "STDOUT",
+            input="restage this data")
+
+    def test_multiple_replica_opens_and_replica_closes_triggers_restage__issue_316(self):
+        filename = "test_multiple_replica_opens_and_replica_closes_triggers_restage__issue_316"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.accessing_existing_data_object_triggers_restage(
+            logical_path,
+            self.tier1,
+            self.user1.assert_icommand,
+            # Target tier2 because that is where the data object tiers out in the test implementation.
+            ["irods_test_multi_open_for_write_object", "--resource", self.tier2, "--open-count", "10", logical_path],
+            "STDOUT")
 
     def creating_data_object_does_not_trigger_restage_test_impl(
         self, logical_path, expected_destination_resource, create_command, *create_command_args, **create_command_kwargs
@@ -878,6 +949,19 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
         finally:
             if os.path.exists(filename):
                 os.unlink(filename)
+
+    def test_replica_open_replica_close_does_not_trigger_restage__issue_316(self):
+        # TODO(#280): This test will fail once tiering group metadata is annotated to objects on create. This test
+        # should continue to pass as-is.
+        filename = "test_replica_open_replica_close_does_not_trigger_restage__issue_316"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.creating_data_object_does_not_trigger_restage_test_impl(
+            logical_path,
+            self.tier2,
+            self.user1.assert_icommand,
+            ["istream", "-R", self.tier2, "write", logical_path],
+            "STDOUT",
+            input="do not restage this")
 
 
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
@@ -2052,7 +2136,7 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
     def setUpClass(self):
         self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
 
-        self.filename = "test_tiering_out_one_object_with_various_owners"
+        self.filename = "test_accessing_read_only_object_updates_access_time"
         if not os.path.exists(self.filename):
             lib.create_local_testfile(self.filename)
 
@@ -2127,7 +2211,6 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
         self.read_object_updates_access_time_test_impl(
             self.user1.assert_icommand, ["itouch", self.object_path], "STDOUT")
 
-    @unittest.skip("TODO(#200): Need to implement replica_close PEP")
     def test_replica_open_close_updates_access_time(self):
         # This basic test shows that access_time metadata is updated when replica_open/close APIs access the data.
         self.read_object_updates_access_time_test_impl(
@@ -2137,3 +2220,214 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
         # This basic test shows that access_time metadata is updated when get API accesses the data.
         self.read_object_updates_access_time_test_impl(
             self.user1.assert_icommand, ["iget", self.object_path, "-"], "STDOUT")
+
+
+class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
+
+        self.other_resc = "other_resc"
+        self.tier0 = "ufs0"
+        self.tier1 = "ufs1"
+        self.tier0_time_in_seconds = 5
+
+        self.filename = "test_basic_tier_out_after_creating_single_data_object"
+        if not os.path.exists(self.filename):
+            lib.create_local_testfile(self.filename)
+
+        self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
+        self.object_path = "/".join([self.collection_path, self.filename])
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(['iqdel', '-a'])
+
+            # Make a place for public group to put stuff.
+            admin_session.assert_icommand(["imkdir", "-p", self.collection_path])
+            admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
+
+            # Create a separate resource so we can create replicas with replicating APIs.
+            lib.create_ufs_resource(admin_session, self.other_resc, test.settings.HOSTNAME_2)
+
+            # Using HOSTNAME_2 here so that topology testing takes effect should we ever employ it in plugin testing.
+            lib.create_ufs_resource(admin_session, self.tier0, test.settings.HOSTNAME_2)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier0, 'irods::storage_tiering::group', 'example_group', '0'])
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier0, 'irods::storage_tiering::time', str(self.tier0_time_in_seconds)])
+            admin_session.assert_icommand(
+                ['imeta', 'ls', '-R', self.tier0], 'STDOUT', [f'value: {self.tier0_time_in_seconds}', 'value: example_group'])
+
+            # Using HOSTNAME_3 here so that topology testing takes effect should we ever employ it in plugin testing.
+            lib.create_ufs_resource(admin_session, self.tier1, test.settings.HOSTNAME_3)
+            admin_session.assert_icommand(
+                ['imeta', 'add', '-R', self.tier1, 'irods::storage_tiering::group', 'example_group', '1'])
+            admin_session.assert_icommand(['imeta', 'ls', '-R', self.tier1], 'STDOUT', 'value: example_group')
+
+    @classmethod
+    def tearDownClass(self):
+        if os.path.exists(self.filename):
+            os.unlink(self.filename)
+
+        self.user1.__exit__()
+
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
+
+            admin_session.run_icommand(['iqdel', '-a'])
+
+            admin_session.run_icommand(['iadmin', 'rmresc', self.other_resc])
+            admin_session.run_icommand(['iadmin', 'rmresc', self.tier0])
+            admin_session.run_icommand(['iadmin', 'rmresc', self.tier1])
+            admin_session.run_icommand(['iadmin', 'rum'])
+
+    def tearDown(self):
+        # Make sure the test object is cleaned up after each test runs.
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
+            admin_session.run_icommand(["irm", "-f", self.object_path])
+
+    def object_created_on_tiering_resource_tiers_out_test_impl(
+        self, create_command, *create_command_args, **create_command_kwargs
+    ):
+        """A basic test implementation to show that replicas created by any means are tiered out from the lowest tier.
+
+        Arguments:
+        self - Instance of this class
+        create_command - A callable which will execute some sort of create operation for an object
+        create_command_args - *args to pass to the create_command callable
+        create_command_kwargs - **kwargs to pass to the create_command callable
+        """
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            with session.make_session_for_existing_admin() as admin_session:
+                # Create the data...
+                create_command(*create_command_args, **create_command_kwargs)
+                self.assertTrue(lib.replica_exists_on_resource(admin_session, self.object_path, self.tier0))
+
+                # Ensure that the delay queue is empty before attempting to schedule the tiering rule. This is to
+                # prevent false negatives in a later assertion of the emptiness of the delay queue.
+                admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+                time.sleep(self.tier0_time_in_seconds)
+                invoke_storage_tiering_rule(admin_session)
+
+                # Wait until the object migrates to the next tier.
+                lib.delayAssert(
+                    lambda: lib.replica_exists_on_resource(admin_session, self.object_path, self.tier0) == False)
+                lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, self.object_path, self.tier1))
+
+                # Ensure that nothing is scheduled in the delay queue. The tiering rule should have completed. If
+                # any failures occurred, it is likely that the delayed rule will be retried so we are making sure
+                # that is not happening here.
+                admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+    def test_DataObjPut_created_data_tiers_out(self):
+        # This basic test shows that objects created with DataObjPut API tier out.
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand, ["iput", "-R", self.tier0, self.filename, self.object_path], "STDOUT")
+
+    def test_replica_open_created_data_tiers_out__issue_316(self):
+        # This basic test shows that objects created with replica_open API tier out.
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand, ["istream", "-R", self.tier0, "write", self.object_path],
+            "STDOUT", input="tier this data")
+
+    def test_DataObjOpen_created_data_tiers_out__issue_303(self):
+        # This basic test shows that objects created with DataObjOpen API tier out.
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand, ["irods_test_create_object", "--resource", self.tier0, self.object_path], "STDOUT")
+
+    def test_DataObjCreate_created_data_tiers_out__issue_303(self):
+        # This basic test shows that objects created with DataObjCreate API tier out.
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand,
+            ["irods_test_create_object", "--use-create-api", "1", "--resource", self.tier0, self.object_path],
+            "STDOUT")
+
+    def test_DataObjRepl_created_data_tiers_out(self):
+        # This basic test shows that replicas created with DataObjRepl API tier out.
+        self.user1.assert_icommand(["iput", "-R", self.other_resc, self.filename, self.object_path], "STDOUT")
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand, ["irepl", "-R", self.tier0, self.object_path], "STDOUT")
+
+    @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Registers local file to a resource.")
+    def test_PhyPathReg_created_data_tiers_out(self):
+        # This basic test shows that objects created with PhyPathReg API tier out.
+        phypath = os.path.abspath(self.filename)
+        # Need to execute this as an administrator because rodsusers cannot register physical paths by default.
+        with session.make_session_for_existing_admin() as admin_session:
+            self.object_created_on_tiering_resource_tiers_out_test_impl(
+                admin_session.assert_icommand, ["ireg", "-R", self.tier0, phypath, self.object_path], "STDOUT")
+
+    @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Registers local file to a resource.")
+    def test_PhyPathReg_as_replica_created_data_tiers_out(self):
+        # This basic test shows that replicas created with PhyPathReg API tier out.
+        phypath = os.path.abspath(self.filename)
+        # Need to execute this as an administrator because rodsusers cannot register physical paths by default.
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.assert_icommand(["iput", "-R", self.other_resc, self.filename, self.object_path], "STDOUT")
+            self.object_created_on_tiering_resource_tiers_out_test_impl(
+                admin_session.assert_icommand, ["ireg", "--repl", "-R", self.tier0, phypath, self.object_path], "STDOUT")
+
+
+class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
+
+        self.filename = "test_accessing_object_for_write_updates_access_time"
+
+        self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
+        self.object_path = "/".join([self.collection_path, self.filename])
+
+        with session.make_session_for_existing_admin() as admin_session:
+            # Make a place for public group to put stuff.
+            admin_session.assert_icommand(["imkdir", "-p", self.collection_path])
+            admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
+
+            with storage_tiering_configured():
+                IrodsController().restart(test_mode=True)
+                # For this test, we don't actually care about tiering or restaging objects. We just want to test
+                # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
+                # This is why no tier groups are being configured in this test.
+                admin_session.assert_icommand(["istream", "write", self.object_path], input=self.filename)
+
+            # Give permissions exclusively to a rodsuser (removing permissions for original owner).
+            admin_session.assert_icommand(["ichmod", "own", self.user1.username, self.object_path])
+            admin_session.assert_icommand(["ichmod", "null", admin_session.username, self.object_path])
+
+        if os.path.exists(self.filename):
+            os.unlink(self.filename)
+
+    @classmethod
+    def tearDownClass(self):
+        with session.make_session_for_existing_admin() as admin_session:
+            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
+            admin_session.run_icommand(["irm", "-f", self.object_path])
+
+            self.user1.__exit__()
+
+            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
+            admin_session.run_icommand(['iadmin', 'rum'])
+
+    def test_multiple_replica_opens_and_replica_closes_updates_access_time__issue_316(self):
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            # Capture the original access time so we have something against which to compare.
+            access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
+
+            # Sleeping guarantees the access time will be different following the access.
+            time.sleep(2)
+
+            # Access the data...
+            self.user1.assert_icommand(
+                ["irods_test_multi_open_for_write_object", "--open-count", "10", self.object_path], "STDOUT")
+
+            # Ensure the access_time was updated as a result of the access.
+            new_access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
+            self.assertGreater(new_access_time, access_time)
