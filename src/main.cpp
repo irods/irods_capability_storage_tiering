@@ -290,30 +290,9 @@ namespace {
 
                 set_access_time_metadata(_rei->rsComm, object_path, coll_type, config->access_time_attribute);
             }
-            else if("pep_api_data_obj_open_post" == _rn) {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-                int l1_idx{};
-                std::string resource_name;
-                try {
-                    auto [l1_idx, resource_name] = get_index_and_resource(obj_inp);
-                    opened_objects[l1_idx] = std::make_tuple(obj_inp->objPath, resource_name);
-                }
-                catch(const irods::exception& _e) {
-                    rodsLog(
-                       LOG_ERROR,
-                       "get_index_and_resource failed for [%s]",
-                       obj_inp->objPath);
-                }
-            }
-            else if("pep_api_data_obj_create_post" == _rn) {
+            else if ("pep_api_data_obj_open_post" == _rn || "pep_api_data_obj_create_post" == _rn ||
+                     "pep_api_replica_open_post" == _rn)
+            {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -354,8 +333,41 @@ namespace {
                     set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
                 }
             }
+            else if ("pep_api_replica_close_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if (_args.end() == it) {
+                    THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
+                }
+
+                const auto* inp = boost::any_cast<BytesBuf*>(*it);
+                const auto json_input = nlohmann::json::parse(std::string_view(static_cast<char*>(inp->buf), inp->len));
+
+                // replica_close can be called multiple times on the same data object when a parallel transfer is being
+                // executed. Only one of these replica_close calls will finalize the status of the data object. The
+                // finalizing occurs by default, so the caller must provide the "update_status" member with a value of
+                // false in order to not finalize the data object. If no such member is found or it is not false, then
+                // we update the access_time. Else, we do not want to update the access_time for each replica_close
+                // call, so just return early if this is found.
+                if (const auto update_status_iter = json_input.find("update_status");
+                    json_input.end() != update_status_iter) {
+                    if (const auto update_status = update_status_iter->get<bool>(); !update_status) {
+                        return;
+                    }
+                }
+
+                const auto l1_idx = json_input.at("fd").get<int>();
+                const auto opened_objects_iter = opened_objects.find(l1_idx);
+                if (opened_objects_iter != opened_objects.end()) {
+                    auto [object_path, resource_name] = std::get<1>(*opened_objects_iter);
+                    set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
+                }
+            }
         } catch( const boost::bad_any_cast&) {
             // do nothing - no object to annotate
+        }
+        catch (const nlohmann::json::exception& e) {
+            THROW(SYS_LIBRARY_ERROR, fmt::format("{}: JSON exception caught: {}", __func__, e.what()));
         }
     } // apply_access_time_policy
 
@@ -438,7 +450,7 @@ namespace {
 
                 st.migrate_object_to_minimum_restage_tier(object_path, source_resource);
             }
-            else if ("pep_api_data_obj_open_post" == _rn) {
+            else if ("pep_api_data_obj_open_post" == _rn || "pep_api_replica_open_post" == _rn) {
                 auto it = _args.begin();
                 std::advance(it, 2);
                 if(_args.end() == it) {
@@ -474,6 +486,41 @@ namespace {
                 const auto l1_idx = opened_inp->l1descInx;
                 if(opened_objects.find(l1_idx) != opened_objects.end()) {
                     auto [object_path, resource_name] = opened_objects[l1_idx];
+
+                    irods::experimental::client_connection conn;
+                    RcComm& comm = static_cast<RcComm&>(conn);
+
+                    irods::storage_tiering st{&comm, _rei, plugin_instance_name};
+                    st.migrate_object_to_minimum_restage_tier(object_path, resource_name);
+                }
+            }
+            else if ("pep_api_replica_close_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if (_args.end() == it) {
+                    THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
+                }
+
+                const auto* inp = boost::any_cast<BytesBuf*>(*it);
+                const auto json_input = nlohmann::json::parse(std::string_view(static_cast<char*>(inp->buf), inp->len));
+
+                // replica_close can be called multiple times on the same data object when a parallel transfer is being
+                // executed. Only one of these replica_close calls will finalize the status of the data object. The
+                // finalizing occurs by default, so the caller must provide the "update_status" member with a value of
+                // false in order to not finalize the data object. If no such member is found or it is not false, then
+                // we schedule the restage. Else, we do not want to schedule a restage for each replica_close call, so
+                // just return early if this is found.
+                if (const auto update_status_iter = json_input.find("update_status");
+                    json_input.end() != update_status_iter) {
+                    if (const auto update_status = update_status_iter->get<bool>(); !update_status) {
+                        return;
+                    }
+                }
+
+                const auto l1_idx = json_input.at("fd").get<int>();
+                const auto opened_objects_iter = opened_objects.find(l1_idx);
+                if (opened_objects_iter != opened_objects.end()) {
+                    auto [object_path, resource_name] = std::get<1>(*opened_objects_iter);
 
                     irods::experimental::client_connection conn;
                     RcComm& comm = static_cast<RcComm&>(conn);
@@ -531,14 +578,15 @@ irods::error rule_exists(
     irods::default_re_ctx&,
     const std::string& _rn,
     bool&              _ret) {
-    const std::set<std::string> rules{
-                                    "pep_api_data_obj_create_post",
-                                    "pep_api_data_obj_open_post",
-                                    "pep_api_data_obj_close_post",
-                                    "pep_api_data_obj_put_post",
-                                    "pep_api_data_obj_repl_post",
-                                    "pep_api_data_obj_get_post",
-                                    "pep_api_phy_path_reg_post"};
+    const std::set<std::string> rules{"pep_api_data_obj_close_post",
+                                      "pep_api_data_obj_create_post",
+                                      "pep_api_data_obj_get_post",
+                                      "pep_api_data_obj_open_post",
+                                      "pep_api_data_obj_put_post",
+                                      "pep_api_data_obj_repl_post",
+                                      "pep_api_phy_path_reg_post",
+                                      "pep_api_replica_close_post",
+                                      "pep_api_replica_open_post"};
     _ret = rules.find(_rn) != rules.end();
 
     return SUCCESS();
