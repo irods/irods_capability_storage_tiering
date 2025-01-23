@@ -1954,7 +1954,7 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
                 admin_session.assert_icommand(["iput", self.filename, self.object_path])
 
             # Give permissions exclusively to a rodsuser (removing permissions for original owner).
-            admin_session.assert_icommand(["ichmod", "own", self.user1.username, self.object_path])
+            admin_session.assert_icommand(["ichmod", "read", self.user1.username, self.object_path])
             admin_session.assert_icommand(["ichmod", "null", admin_session.username, self.object_path])
 
         if os.path.exists(self.filename):
@@ -1962,17 +1962,14 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
 
     @classmethod
     def tearDownClass(self):
-        self.user1.__exit__()
-
         with session.make_session_for_existing_admin() as admin_session:
-            admin_session.assert_icommand(['iadmin', 'rmuser', self.user1.username])
-            admin_session.assert_icommand(['iadmin', 'rum'])
+            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
+            admin_session.run_icommand(["irm", "-f", self.object_path])
 
-    def tearDown(self):
-        # Make sure the test object is cleaned up after each test runs.
-        with session.make_session_for_existing_admin() as admin_session:
-            admin_session.assert_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
-            admin_session.assert_icommand(["irm", "-f", self.object_path])
+            self.user1.__exit__()
+
+            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
+            admin_session.run_icommand(['iadmin', 'rum'])
 
     def read_object_updates_access_time_test_impl(self, read_command, *read_command_args):
         """A basic test implementation to show that access_time metadata is updated for reads accessing data.
