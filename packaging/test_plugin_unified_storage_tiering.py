@@ -2133,7 +2133,6 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
         self.read_object_updates_access_time_test_impl(
             self.user1.assert_icommand, ["istream", "read", self.object_path], "STDOUT")
 
-    @unittest.skip("TODO(#200): Need to implement get PEP")
     def test_get_updates_access_time(self):
         # This basic test shows that access_time metadata is updated when get API accesses the data.
         self.read_object_updates_access_time_test_impl(
