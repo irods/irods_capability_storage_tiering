@@ -2,6 +2,7 @@ set(
 	OPERATIONS
 	read
 	create
+	multi_open_for_write
 )
 
 foreach(operation IN LISTS OPERATIONS)
