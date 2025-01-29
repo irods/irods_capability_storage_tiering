@@ -20,11 +20,13 @@
 #include "irods/private/storage_tiering/data_verification_utilities.hpp"
 #include <irods/irods_server_api_call.hpp>
 
-#include <irods/filesystem.hpp>
 #include <irods/irods_at_scope_exit.hpp>
 #include <irods/irods_query.hpp>
 #include <irods/irods_rs_comm_query.hpp>
 #include <irods/rcMisc.h>
+
+#define IRODS_FILESYSTEM_ENABLE_SERVER_SIDE_API
+#include <irods/filesystem.hpp>
 
 #undef LIST
 
@@ -265,6 +267,7 @@ namespace {
         const std::string&           _rn,
         ruleExecInfo_t*              _rei,
         const std::list<boost::any>& _args) {
+        namespace fs = irods::experimental::filesystem;
 
         try {
             if ("pep_api_data_obj_put_post" == _rn || "pep_api_data_obj_get_post" == _rn ||
@@ -289,6 +292,27 @@ namespace {
                 }
 
                 set_access_time_metadata(_rei->rsComm, object_path, coll_type, config->access_time_attribute);
+            }
+            else if ("pep_api_touch_post" == _rn) {
+                auto it = _args.begin();
+                std::advance(it, 2);
+                if (_args.end() == it) {
+                    log_re::error("{}:{}: Invalid number of arguments [PEP={}].", __func__, __LINE__, _rn.c_str());
+                    THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
+                }
+
+                const auto* inp = boost::any_cast<BytesBuf*>(*it);
+                const auto json_input = nlohmann::json::parse(std::string_view(static_cast<char*>(inp->buf), inp->len));
+
+                const auto& object_path = json_input.at("logical_path").get_ref<const std::string&>();
+
+                // The touch only affects the collection itself and does not access the objects or collections within.
+                // Therefore, no access_time update occurs if the touch was on a collection. Just return early.
+                if (fs::server::is_collection(*_rei->rsComm, fs::path{object_path})) {
+                    return;
+                }
+
+                set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
             }
             else if ("pep_api_data_obj_open_post" == _rn || "pep_api_data_obj_create_post" == _rn ||
                      "pep_api_replica_open_post" == _rn)
@@ -586,7 +610,8 @@ irods::error rule_exists(
                                       "pep_api_data_obj_repl_post",
                                       "pep_api_phy_path_reg_post",
                                       "pep_api_replica_close_post",
-                                      "pep_api_replica_open_post"};
+                                      "pep_api_replica_open_post",
+                                      "pep_api_touch_post"};
     _ret = rules.find(_rn) != rules.end();
 
     return SUCCESS();
