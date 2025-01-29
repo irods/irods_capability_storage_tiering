@@ -870,6 +870,14 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
             ["irods_test_multi_open_for_write_object", "--resource", self.tier2, "--open-count", "10", logical_path],
             "STDOUT")
 
+    @unittest.skip("TODO(#326): Cannot deterministically implement restage for touch.")
+    def test_touch_existing_object_triggers_restage__issue_326(self):
+        filename = "test_touch_existing_object_triggers_restage__issue_266"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        # Target tier2 because that is where the data object tiers out in the test implementation.
+        self.accessing_existing_data_object_triggers_restage(
+            logical_path, self.tier1, self.user1.assert_icommand, ["itouch", "-R", self.tier2, logical_path], "STDOUT")
+
     def creating_data_object_does_not_trigger_restage_test_impl(
         self, logical_path, expected_destination_resource, create_command, *create_command_args, **create_command_kwargs
     ):
@@ -962,6 +970,61 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
             ["istream", "-R", self.tier2, "write", logical_path],
             "STDOUT",
             input="do not restage this")
+
+    def test_touch_created_object_does_not_trigger_restage__issue_266(self):
+        # TODO(#280): This test will fail once tiering group metadata is annotated to objects on create. This test
+        # should continue to pass as-is.
+        filename = "test_touch_created_object_does_not_trigger_restage__issue_266"
+        logical_path = "/".join([self.user1.session_collection, filename])
+        self.creating_data_object_does_not_trigger_restage_test_impl(
+            logical_path, self.tier2, self.user1.assert_icommand, ["itouch", "-R", self.tier2, logical_path], "STDOUT")
+
+    def test_touch_collection_does_not_trigger_restage__issue_266(self):
+        filename = "test_touch_collection_does_not_trigger_restage__issue_266"
+        collection_path = self.user1.session_collection
+        logical_path = "/".join([collection_path, filename])
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+            try:
+                with session.make_session_for_existing_admin() as admin_session:
+                    self.user1.assert_icommand(["istream", "-R", self.tier0, "write", logical_path], input=filename)
+
+                    # Tier out the object...
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier0))
+                    time.sleep(5)
+                    invoke_storage_tiering_rule()
+                    # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier0) == False)
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier1))
+
+                    # And then again...
+                    time.sleep(15)
+                    invoke_storage_tiering_rule()
+                    # Wait for the object to be trimmed before checking destination to avoid timing issues.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(self.user1, logical_path, self.tier1) == False)
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier2))
+
+                    # Ensure that the delay queue is empty before touching the collection. This is to prevent false
+                    # negatives in a later assertion of the emptiness of the delay queue.
+                    admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
+
+                    # Touch the collection and ensure that no restage occurs...
+                    self.user1.assert_icommand(["itouch", collection_path])
+
+                    # Ensure that no restage is scheduled.
+                    scheduled_delay_rule_count = admin_session.run_icommand(
+                        ["iquest", "%s", "select COUNT(RULE_EXEC_ID)"])[0].strip()
+                    self.assertEqual("0", scheduled_delay_rule_count)
+
+                    # Ensure that the replica has not moved.
+                    self.assertTrue(lib.replica_exists_on_resource(self.user1, logical_path, self.tier2))
+
+            finally:
+                # Run ils to show the state of the world for debugging purposes.
+                self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT")
+                self.user1.assert_icommand(["irm", "-f", logical_path])
 
 
 class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
@@ -2205,12 +2268,6 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
         self.read_object_updates_access_time_test_impl(
             self.user1.assert_icommand, ["irods_test_read_object", self.object_path], "STDOUT")
 
-    @unittest.skip("TODO(#200): Need to implement touch API PEP")
-    def test_touch_updates_access_time(self):
-        # This is a basic test to show that access_time metadata is updated when touch API accesses the data.
-        self.read_object_updates_access_time_test_impl(
-            self.user1.assert_icommand, ["itouch", self.object_path], "STDOUT")
-
     def test_replica_open_close_updates_access_time(self):
         # This basic test shows that access_time metadata is updated when replica_open/close APIs access the data.
         self.read_object_updates_access_time_test_impl(
@@ -2371,6 +2428,11 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
             self.object_created_on_tiering_resource_tiers_out_test_impl(
                 admin_session.assert_icommand, ["ireg", "--repl", "-R", self.tier0, phypath, self.object_path], "STDOUT")
 
+    def test_touch_created_data_tiers_out__issue_266(self):
+        # This basic test shows that objects created with touch API tier out.
+        self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.user1.assert_icommand, ["itouch", "-R", self.tier0, self.object_path], "STDOUT")
+
 
 class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
     @classmethod
@@ -2404,15 +2466,22 @@ class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
     @classmethod
     def tearDownClass(self):
         with session.make_session_for_existing_admin() as admin_session:
-            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
-            admin_session.run_icommand(["irm", "-f", self.object_path])
+            admin_session.run_icommand(["ichmod", "-r", "-M", "own", admin_session.username, self.collection_path])
+            admin_session.run_icommand(["irm", "-rf", self.collection_path])
 
             self.user1.__exit__()
 
             admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
             admin_session.run_icommand(['iadmin', 'rum'])
 
-    def test_multiple_replica_opens_and_replica_closes_updates_access_time__issue_316(self):
+    def access_object_for_write_updates_access_time_test_impl(self, open_command, *open_command_args):
+        """A basic test implementation to show that access_time metadata is updated for writes accessing data.
+
+        Arguments:
+        self - Instance of this class
+        open_command - A callable which will execute some sort of open operation on the object
+        open_command_args - *args to pass to the open_command callable
+        """
         with storage_tiering_configured():
             IrodsController().restart(test_mode=True)
 
@@ -2424,10 +2493,40 @@ class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
             time.sleep(2)
 
             # Access the data...
-            self.user1.assert_icommand(
-                ["irods_test_multi_open_for_write_object", "--open-count", "10", self.object_path], "STDOUT")
+            open_command(*open_command_args)
 
             # Ensure the access_time was updated as a result of the access.
             new_access_time = get_access_time(self.user1, self.object_path)
             self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
             self.assertGreater(new_access_time, access_time)
+
+    def test_multiple_replica_opens_and_replica_closes_updates_access_time__issue_316(self):
+        # This test shows that access_time is updated if replica_open accesses a replica multiple times simultaneously.
+        self.access_object_for_write_updates_access_time_test_impl(
+            self.user1.assert_icommand,
+            ["irods_test_multi_open_for_write_object", "--open-count", "10", self.object_path],
+            "STDOUT")
+
+    def test_touch_updates_access_time__issue_266(self):
+        # This is a basic test to show that access_time metadata is updated when touch API accesses the data.
+        self.access_object_for_write_updates_access_time_test_impl(
+            self.user1.assert_icommand, ["itouch", self.object_path], "STDOUT")
+
+    def test_touch_collection_does_not_update_access_time__issue_266(self):
+        with storage_tiering_configured():
+            IrodsController().restart(test_mode=True)
+
+            # Capture the original access time so we have something against which to compare.
+            access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
+
+            # Sleeping guarantees the access time could be different following the access.
+            time.sleep(2)
+
+            # Touch the collection (note: this is NOT accessing any data).
+            self.user1.assert_icommand(["itouch", self.collection_path], "STDOUT")
+
+            # Ensure the access_time was NOT updated as a result of the access.
+            new_access_time = get_access_time(self.user1, self.object_path)
+            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
+            self.assertEqual(new_access_time, access_time)
