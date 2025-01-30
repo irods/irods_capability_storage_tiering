@@ -2345,12 +2345,13 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
             admin_session.run_icommand(["irm", "-f", self.object_path])
 
     def object_created_on_tiering_resource_tiers_out_test_impl(
-        self, create_command, *create_command_args, **create_command_kwargs
+        self, logical_path, create_command, *create_command_args, **create_command_kwargs
     ):
         """A basic test implementation to show that replicas created by any means are tiered out from the lowest tier.
 
         Arguments:
         self - Instance of this class
+        logical_path - Logical path to iRODS object being created
         create_command - A callable which will execute some sort of create operation for an object
         create_command_args - *args to pass to the create_command callable
         create_command_kwargs - **kwargs to pass to the create_command callable
@@ -2361,7 +2362,7 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
             with session.make_session_for_existing_admin() as admin_session:
                 # Create the data...
                 create_command(*create_command_args, **create_command_kwargs)
-                self.assertTrue(lib.replica_exists_on_resource(admin_session, self.object_path, self.tier0))
+                self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, self.tier0))
 
                 # Ensure that the delay queue is empty before attempting to schedule the tiering rule. This is to
                 # prevent false negatives in a later assertion of the emptiness of the delay queue.
@@ -2371,9 +2372,8 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
                 invoke_storage_tiering_rule(admin_session)
 
                 # Wait until the object migrates to the next tier.
-                lib.delayAssert(
-                    lambda: lib.replica_exists_on_resource(admin_session, self.object_path, self.tier0) == False)
-                lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, self.object_path, self.tier1))
+                lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, self.tier0) == False)
+                lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, self.tier1))
 
                 # Ensure that nothing is scheduled in the delay queue. The tiering rule should have completed. If
                 # any failures occurred, it is likely that the delayed rule will be retried so we are making sure
@@ -2383,22 +2383,32 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
     def test_DataObjPut_created_data_tiers_out(self):
         # This basic test shows that objects created with DataObjPut API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
-            self.user1.assert_icommand, ["iput", "-R", self.tier0, self.filename, self.object_path], "STDOUT")
+            self.object_path,
+            self.user1.assert_icommand,
+            ["iput", "-R", self.tier0, self.filename, self.object_path],
+            "STDOUT")
 
     def test_replica_open_created_data_tiers_out__issue_316(self):
         # This basic test shows that objects created with replica_open API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
-            self.user1.assert_icommand, ["istream", "-R", self.tier0, "write", self.object_path],
-            "STDOUT", input="tier this data")
+            self.object_path,
+            self.user1.assert_icommand,
+            ["istream", "-R", self.tier0, "write", self.object_path],
+            "STDOUT",
+            input="tier this data")
 
     def test_DataObjOpen_created_data_tiers_out__issue_303(self):
         # This basic test shows that objects created with DataObjOpen API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
-            self.user1.assert_icommand, ["irods_test_create_object", "--resource", self.tier0, self.object_path], "STDOUT")
+            self.object_path,
+            self.user1.assert_icommand,
+            ["irods_test_create_object", "--resource", self.tier0, self.object_path],
+            "STDOUT")
 
     def test_DataObjCreate_created_data_tiers_out__issue_303(self):
         # This basic test shows that objects created with DataObjCreate API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
+            self.object_path,
             self.user1.assert_icommand,
             ["irods_test_create_object", "--use-create-api", "1", "--resource", self.tier0, self.object_path],
             "STDOUT")
@@ -2407,7 +2417,7 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         # This basic test shows that replicas created with DataObjRepl API tier out.
         self.user1.assert_icommand(["iput", "-R", self.other_resc, self.filename, self.object_path], "STDOUT")
         self.object_created_on_tiering_resource_tiers_out_test_impl(
-            self.user1.assert_icommand, ["irepl", "-R", self.tier0, self.object_path], "STDOUT")
+            self.object_path, self.user1.assert_icommand, ["irepl", "-R", self.tier0, self.object_path], "STDOUT")
 
     @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Registers local file to a resource.")
     def test_PhyPathReg_created_data_tiers_out(self):
@@ -2416,7 +2426,10 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         # Need to execute this as an administrator because rodsusers cannot register physical paths by default.
         with session.make_session_for_existing_admin() as admin_session:
             self.object_created_on_tiering_resource_tiers_out_test_impl(
-                admin_session.assert_icommand, ["ireg", "-R", self.tier0, phypath, self.object_path], "STDOUT")
+                self.object_path,
+                admin_session.assert_icommand,
+                ["ireg", "-R", self.tier0, phypath, self.object_path],
+                "STDOUT")
 
     @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Registers local file to a resource.")
     def test_PhyPathReg_as_replica_created_data_tiers_out(self):
@@ -2426,12 +2439,15 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand(["iput", "-R", self.other_resc, self.filename, self.object_path], "STDOUT")
             self.object_created_on_tiering_resource_tiers_out_test_impl(
-                admin_session.assert_icommand, ["ireg", "--repl", "-R", self.tier0, phypath, self.object_path], "STDOUT")
+                self.object_path,
+                admin_session.assert_icommand,
+                ["ireg", "--repl", "-R", self.tier0, phypath, self.object_path],
+                "STDOUT")
 
     def test_touch_created_data_tiers_out__issue_266(self):
         # This basic test shows that objects created with touch API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
-            self.user1.assert_icommand, ["itouch", "-R", self.tier0, self.object_path], "STDOUT")
+            self.object_path, self.user1.assert_icommand, ["itouch", "-R", self.tier0, self.object_path], "STDOUT")
 
 
 class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
