@@ -171,7 +171,7 @@ Data objects which have been labeled via particular metadata, or within a specif
 **Checking for resources in violating queries is required to prevent erroneous data migrations for replicas on other resources which may represent other tiers in the storage tiering group.** This can be done in the manner shown below (`DATA_RESC_ID in ('10068', '10069')`) or via resource hierarchy (e.g. `DATA_RESC_HIER like 'root_resc;%`), but the query must filter on resources to correctly identify violating objects.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'irods::access_time' AND META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' AND DATA_RESC_ID IN ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' and DATA_RESC_ID in ('10068', '10069')"
 ```
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
@@ -179,7 +179,7 @@ The example above implements the default query.  Note that the string `TIME_CHEC
 Any number of queries may be attached in order provide a range of criteria by which data may be tiered, such as user applied metadata.  To allow a user to archive their own data via metadata they may tag an object such as `archive_object true`.  The tier may then have a query added to support this.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = 'archive_object' AND META_DATA_ATTR_VALUE = 'true' AND DATA_RESC_ID IN ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = 'archive_object' and META_DATA_ATTR_VALUE = 'true' and DATA_RESC_ID in ('10068', '10069')"
 ```
 
 Queries may also be provided by using the Specific Query interface within iRODS.  The archive object query may be stored by an iRODS administrator as follows.

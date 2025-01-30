@@ -12,6 +12,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <fmt/format.h>
+
 extern irods::resource_manager resc_mgr;
 
 namespace {
@@ -110,10 +112,10 @@ namespace {
             coll_name,
             obj_name);
 
-        const auto query_str = boost::str(
-                        boost::format("SELECT DATA_CHECKSUM WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND RESC_NAME = '%s'") %
-                        obj_name %
-                        coll_name %
+        const auto query_str =
+            fmt::format("select DATA_CHECKSUM where DATA_NAME = '{}' and COLL_NAME = '{}' and RESC_NAME = '{}'",
+                        obj_name,
+                        coll_name,
                         _resource_name);
         irods::query<rcComm_t> qobj(_comm, query_str, 1);
         if(qobj.size() > 0) {
@@ -157,11 +159,11 @@ namespace {
             obj_name);
         const auto leaf_str = get_leaf_resources_string(
                                    _resource_name);
-        const auto query_str = boost::str(
-                        boost::format("SELECT DATA_PATH, DATA_RESC_HIER, DATA_SIZE, DATA_CHECKSUM WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND DATA_RESC_ID IN (%s)") %
-                        obj_name %
-                        coll_name %
-                        leaf_str);
+        const auto query_str = fmt::format("select DATA_PATH, DATA_RESC_HIER, DATA_SIZE, DATA_CHECKSUM where DATA_NAME "
+                                           "= '{}' and COLL_NAME = '{}' and DATA_RESC_ID in ({})",
+                                           obj_name,
+                                           coll_name,
+                                           leaf_str);
         irods::query<rcComm_t> qobj{_comm, query_str, 1};
         if(qobj.size() > 0) {
             const auto result = qobj.front();
