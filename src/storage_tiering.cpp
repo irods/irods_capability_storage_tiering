@@ -30,6 +30,7 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include <charconv>
@@ -78,13 +79,11 @@ namespace irods {
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
 
-
-        std::string query_str {
-            boost::str(
-                boost::format("SELECT META_DATA_ATTR_VALUE WHERE META_DATA_ATTR_NAME = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'") %
-                    _meta_attr_name %
-                    data_name %
-                    coll_name) };
+        const auto query_str = fmt::format(
+            "select META_DATA_ATTR_VALUE where META_DATA_ATTR_NAME = '{}' and DATA_NAME = '{}' and COLL_NAME = '{}'",
+            _meta_attr_name,
+            data_name,
+            coll_name);
         query<rcComm_t> qobj{_comm, query_str, 1};
         if(qobj.size() > 0) {
             return qobj.front()[0];
@@ -101,11 +100,10 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _meta_attr_name,
         const std::string& _resource_name ) {
-        std::string query_str {
-            boost::str(
-                    boost::format("SELECT META_RESC_ATTR_VALUE WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
-                    _meta_attr_name %
-                    _resource_name) };
+        const auto query_str =
+            fmt::format("select META_RESC_ATTR_VALUE where META_RESC_ATTR_NAME = '{}' and RESC_NAME = '{}'",
+                        _meta_attr_name,
+                        _resource_name);
         query<rcComm_t> qobj{_comm, query_str, 1};
         if(qobj.size() > 0) {
             return qobj.front()[0];
@@ -123,11 +121,10 @@ namespace irods {
         const std::string&  _meta_attr_name,
         const std::string&  _resource_name,
         metadata_results&   _results ) {
-        std::string query_str {
-            boost::str(
-                    boost::format("SELECT META_RESC_ATTR_VALUE, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and RESC_NAME = '%s'") %
-                    _meta_attr_name %
-                    _resource_name) };
+        const auto query_str = fmt::format(
+            "select META_RESC_ATTR_VALUE, META_RESC_ATTR_UNITS where META_RESC_ATTR_NAME = '{}' and RESC_NAME = '{}'",
+            _meta_attr_name,
+            _resource_name);
         query<rcComm_t> qobj{_comm, query_str};
         if(qobj.size() > 0) {
             for( const auto& r : qobj) {
@@ -148,12 +145,10 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _group_name) {
         resource_index_map resc_map;
-        std::string query_str{
-            boost::str(
-                    boost::format(
-                        "SELECT RESC_ID, META_RESC_ATTR_UNITS WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = '%s'") %
-                    config_.group_attribute %
-                    _group_name) };
+        const auto query_str = fmt::format(
+            "select RESC_ID, META_RESC_ATTR_UNITS where META_RESC_ATTR_NAME = '{}' and META_RESC_ATTR_VALUE = '{}'",
+            config_.group_attribute,
+            _group_name);
         for(auto row : query<rcComm_t>{_comm, query_str}) {
             std::string& resc_name = row[0];
             std::string& tier_idx  = row[1];
@@ -258,12 +253,10 @@ namespace irods {
             resc_list += "'"+itr.second + "', ";
         }
 
-        std::string query_str{
-            boost::str(
-                    boost::format(
-                        "SELECT RESC_NAME WHERE META_RESC_ATTR_NAME = '%s' and META_RESC_ATTR_VALUE = 'true' and RESC_ID IN (%s)") %
-                    config_.minimum_restage_tier %
-                    resc_list) };
+        const auto query_str = fmt::format(
+            "select RESC_NAME where META_RESC_ATTR_NAME = '{}' and META_RESC_ATTR_VALUE = 'true' and RESC_ID IN ({})",
+            config_.minimum_restage_tier,
+            resc_list);
         query<rcComm_t> qobj{_comm, query_str, 1};
         if(qobj.size() > 0) {
             const auto& result = qobj.front();
@@ -418,11 +411,10 @@ namespace irods {
 
         resource_index_map groups;
         try {
-            std::string query_str{
-                boost::str(
-                        boost::format("SELECT META_RESC_ATTR_UNITS, RESC_NAME WHERE META_RESC_ATTR_VALUE = '%s' AND META_RESC_ATTR_NAME = '%s'") %
-                        _group %
-                        config_.group_attribute)};
+            const auto query_str = fmt::format("select META_RESC_ATTR_UNITS, RESC_NAME where META_RESC_ATTR_VALUE = "
+                                               "'{}' and META_RESC_ATTR_NAME = '{}'",
+                                               _group,
+                                               config_.group_attribute);
             query<rcComm_t> qobj{_comm, query_str};
             for(const auto& g : qobj) {
                 groups[g[0]] = g[1];
@@ -500,13 +492,15 @@ namespace irods {
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
             metadata_results results;
-            results.push_back(
-                std::make_pair(boost::str(
-                boost::format("SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM WHERE META_DATA_ATTR_NAME = '%s' AND META_DATA_ATTR_VALUE < '%s' AND META_DATA_ATTR_UNITS <> '%s' AND DATA_RESC_ID IN (%s)")
-                % config_.access_time_attribute
-                % tier_time
-                % config_.migration_scheduled_flag
-                % leaf_str), ""));
+            results.push_back(std::make_pair(
+                fmt::format(
+                    "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = '{}' "
+                    "and META_DATA_ATTR_VALUE < '{}' and META_DATA_ATTR_UNITS <> '{}' and DATA_RESC_ID in ({})",
+                    config_.access_time_attribute,
+                    tier_time,
+                    config_.migration_scheduled_flag,
+                    leaf_str),
+                ""));
             rodsLog(
                 config_.data_transfer_log_level_value,
                 "use default query for [%s]",
@@ -550,9 +544,11 @@ namespace irods {
         boost::filesystem::path p{_object_path};
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
-        std::string qstr{boost::str(boost::format(
-            "SELECT RESC_ID WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND DATA_RESC_ID IN (%s)")
-            % data_name % coll_name % _partial_list)};
+        const auto qstr =
+            fmt::format("select RESC_ID WHERE DATA_NAME = '{}' and COLL_NAME = '{}' and DATA_RESC_ID in ({})",
+                        data_name,
+                        coll_name,
+                        _partial_list);
 
         query<rcComm_t> qobj{_comm, qstr};
         bool skip = qobj.size() > 0;
@@ -810,11 +806,11 @@ namespace irods {
         std::string data_name = p.filename().string();
 
         std::string leaf_ids = get_leaf_resources_string(_resource_name);
-        std::string qstr{boost::str(
-            boost::format("SELECT DATA_REPL_NUM WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND DATA_RESC_ID IN (%s)")
-            % data_name
-            % coll_name
-            % leaf_ids)};
+        const auto qstr =
+            fmt::format("select DATA_REPL_NUM where DATA_NAME = '{}' and COLL_NAME = '{}' and DATA_RESC_ID in ({})",
+                        data_name,
+                        coll_name,
+                        leaf_ids);
 
         query<rcComm_t> qobj{_comm, qstr};
 
@@ -836,11 +832,11 @@ namespace irods {
         std::string data_name = p.filename().string();
         std::string coll_name = p.parent_path().string();
 
-        std::string qstr{boost::str(
-            boost::format("SELECT META_DATA_ATTR_VALUE WHERE DATA_NAME = '%s' AND COLL_NAME = '%s' AND META_DATA_ATTR_NAME = '%s'")
-            % data_name
-            % coll_name
-            % _attribute_name)};
+        const auto qstr = fmt::format(
+            "select META_DATA_ATTR_VALUE where DATA_NAME = '{}' and COLL_NAME = '{}' and META_DATA_ATTR_NAME = '{}'",
+            data_name,
+            coll_name,
+            _attribute_name);
 
         query<rcComm_t> qobj{_comm, qstr};
 
@@ -1014,13 +1010,12 @@ namespace irods {
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
 
-        std::string query_str {
-            boost::str(
-                boost::format("SELECT META_DATA_ATTR_VALUE WHERE META_DATA_ATTR_NAME = '%s' and META_DATA_ATTR_UNITS = '%s' and DATA_NAME = '%s' AND COLL_NAME = '%s'")
-                % config_.access_time_attribute
-                % config_.migration_scheduled_flag
-                % data_name
-                % coll_name) };
+        const auto query_str = fmt::format("select META_DATA_ATTR_VALUE where META_DATA_ATTR_NAME = '{}' and "
+                                           "META_DATA_ATTR_UNITS = '{}' and DATA_NAME = '{}' and COLL_NAME = '{}'",
+                                           config_.access_time_attribute,
+                                           config_.migration_scheduled_flag,
+                                           data_name,
+                                           coll_name);
 
         query<rcComm_t> qobj{_comm, query_str, 1};
         return qobj.size() > 0;
