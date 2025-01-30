@@ -2372,7 +2372,8 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
                 invoke_storage_tiering_rule(admin_session)
 
                 # Wait until the object migrates to the next tier.
-                lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, self.tier0) == False)
+                lib.delayAssert(
+                    lambda: lib.replica_exists_on_resource(admin_session, logical_path, self.tier0) == False)
                 lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, self.tier1))
 
                 # Ensure that nothing is scheduled in the delay queue. The tiering rule should have completed. If
@@ -2448,6 +2449,21 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         # This basic test shows that objects created with touch API tier out.
         self.object_created_on_tiering_resource_tiers_out_test_impl(
             self.object_path, self.user1.assert_icommand, ["itouch", "-R", self.tier0, self.object_path], "STDOUT")
+
+    def test_data_object_with_select_in_name_tiers_out__issue_281(self):
+        data_name = "select"
+        logical_path = "/".join([self.user1.session_collection, data_name])
+        try:
+            self.object_created_on_tiering_resource_tiers_out_test_impl(
+                logical_path,
+                self.user1.assert_icommand,
+                ["istream", "-R", self.tier0, "write", data_name],
+                "STDOUT",
+                input="tier this data")
+
+        finally:
+            self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT")
+            self.user1.run_icommand(["irm", "-f", logical_path])
 
 
 class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
