@@ -682,6 +682,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
             IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
+                logical_path = "/".join([admin_session.home_collection, filename])
 
                 try:
                     lib.create_local_testfile(filename)
@@ -692,16 +693,25 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
                     # test stage to tier 1
                     time.sleep(5)
                     invoke_storage_tiering_rule()
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd1')
+                    # Wait until the object migrates to the next tier.
+                    lib.delayAssert(lambda: lib.replica_exists(admin_session, logical_path, 0) == False)
+                    lib.replica_exists(admin_session, logical_path, 1)
+                    admin_session.assert_icommand(["ils", "-L", filename], "STDOUT", "rnd1")
 
                     # test stage to tier 2
                     time.sleep(15)
                     invoke_storage_tiering_rule()
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd2')
+                    # Wait until the object migrates to the next tier.
+                    lib.delayAssert(lambda: lib.replica_exists(admin_session, logical_path, 1) == False)
+                    lib.replica_exists(admin_session, logical_path, 2)
+                    admin_session.assert_icommand(["ils", "-L", filename], "STDOUT", "rnd2")
 
                     # test restage to tier 0
                     admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'rnd0')
+                    # Wait until the object migrates to the next tier.
+                    lib.delayAssert(lambda: lib.replica_exists(admin_session, logical_path, 2) == False)
+                    lib.replica_exists(admin_session, logical_path, 3)
+                    admin_session.assert_icommand(["ils", "-L", filename], "STDOUT", "rnd0")
 
                 finally:
                     admin_session.assert_icommand('irm -f ' + filename)
@@ -1294,8 +1304,8 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     admin_session.assert_icommand('iqstat', 'STDOUT', 'irods_policy_storage_tiering')
 
                     # Ensure that the replica was tiered out to ufs1 and not preserved on ufs0.
-                    delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', 'ufs1')
-                    self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0'))
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, logical_path, 'ufs0') == False)
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs1'))
                     self.assertFalse(lib.replica_exists_on_resource(admin_session, logical_path, 'ufs2'))
 
                     # Ensure that the "tracked" replica updates to replica 1, which is the tiered-out replica on ufs1.
@@ -1632,7 +1642,9 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
                     # test stage to tier 1
                     time.sleep(5)
                     invoke_storage_tiering_rule()
-                    delay_assert_icommand(admin_session, 'ils -L ' + dest_path, 'STDOUT_SINGLELINE', 'ufs1')
+                    # Wait until the object migrates to the next tier.
+                    lib.delayAssert(lambda: lib.replica_exists_on_resource(admin_session, dest_path, "ufs0") == False)
+                    lib.replica_exists_on_resource(admin_session, dest_path, "ufs1")
 
                 finally:
                     delay_assert_icommand(admin_session, 'iqdel -a')
@@ -1830,12 +1842,16 @@ class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase)
 
                 try:
                     filename = 'test_put_file'
+                    logical_path = "/".join([admin_session.home_collection, filename])
                     filepath  = lib.create_local_testfile(filename)
                     admin_session.assert_icommand('iput -R ufs0 ' + filename)
                     admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
                     time.sleep(5)
                     invoke_storage_tiering_rule()
-                    delay_assert_icommand(admin_session, ['ils', '-l', filename], 'STDOUT_SINGLELINE', 'ufs2')
+                    # Wait until the object migrates to the next tier.
+                    lib.delayAssert(
+                        lambda: lib.replica_exists_on_resource(admin_session, logical_path, "ufs0") == False)
+                    lib.replica_exists_on_resource(admin_session, logical_path, "ufs2")
                     admin_session.assert_icommand('imeta ls -d '+filename, 'STDOUT_SINGLELINE', '--')
 
                     # test restage to tier 0
