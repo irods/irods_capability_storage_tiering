@@ -11,7 +11,7 @@ and this project **only** adheres to the following _(as defined at [Semantic Ver
 > - MINOR version when you add functionality in a backward compatible manner
 > - PATCH version when you make backward compatible bug fixes
 
-## [4.3.3.1] - 2025-02-05
+## [4.3.3.1] - 2025-02-07
 
 This release includes coverage of more PEPs and resolves all issues stemming from a lack of user permissions.
 
