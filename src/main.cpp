@@ -582,19 +582,26 @@ namespace {
 
 } // namespace
 
-
-irods::error start(
-    irods::default_re_ctx&,
-    const std::string& _instance_name ) {
+auto setup(irods::default_re_ctx&, const std::string& _instance_name) -> irods::error
+{
     plugin_instance_name = _instance_name;
     RuleExistsHelper::Instance()->registerRuleRegex("pep_api_.*");
     config = std::make_unique<irods::storage_tiering_configuration>(plugin_instance_name);
     return SUCCESS();
+} // setup
+
+auto teardown(irods::default_re_ctx&, const std::string&) -> irods::error
+{
+    return SUCCESS();
+} // teardown
+
+auto start(irods::default_re_ctx&, const std::string&) -> irods::error
+{
+    return SUCCESS();
 } // start
 
-irods::error stop(
-    irods::default_re_ctx&,
-    const std::string& ) {
+auto stop(irods::default_re_ctx&, const std::string&) -> irods::error
+{
     return SUCCESS();
 } // stop
 
@@ -871,6 +878,10 @@ irods::pluggable_rule_engine<irods::default_re_ctx>* plugin_factory(
         new irods::pluggable_rule_engine<irods::default_re_ctx>(
                 _inst_name,
                 _context);
+
+    re->add_operation<irods::default_re_ctx&, const std::string&>("setup", std::function(setup));
+
+    re->add_operation<irods::default_re_ctx&, const std::string&>("teardown", std::function(teardown));
 
     re->add_operation<
         irods::default_re_ctx&,
