@@ -202,9 +202,11 @@ namespace irods {
         if(leaf_id_str.empty()) {
             rodsLong_t resc_id;
             resc_mgr.hier_to_leaf_id(_resource_name, resc_id);
-            leaf_id_str =
-                "'" + boost::str(boost::format("%s") % resc_id) + "',";
+            return fmt::format("'{}'", resc_id);
         }
+
+        // Pop off the trailing comma to ensure a valid query.
+        leaf_id_str.pop_back();
 
         return leaf_id_str;
 
@@ -250,7 +252,12 @@ namespace irods {
                                       _group_name);
         std::string resc_list;
         for(const auto& itr : idx_resc_map) {
-            resc_list += "'"+itr.second + "', ";
+            resc_list += "'" + itr.second + "',";
+        }
+
+        // Pop off the trailing comma to ensure a valid query.
+        if (!resc_list.empty()) {
+            resc_list.pop_back();
         }
 
         const auto query_str = fmt::format(
@@ -912,8 +919,13 @@ namespace irods {
 
         std::string partial_list{};
         for(; _itr != _end; ++_itr) {
-            partial_list += get_leaf_resources_string(_itr->second);
+            // get_leaf_resources_string pops off the trailing comma, so we must append it here for each partial list
+            // being concatenated.
+            partial_list += get_leaf_resources_string(_itr->second) + ",";
         }
+
+        // Pop off the trailing comma to ensure a valid query.
+        partial_list.pop_back();
 
         return partial_list;
 

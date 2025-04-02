@@ -81,6 +81,9 @@ namespace {
                 "'" + boost::str(boost::format("%s") % resc_id) + "',";
         }
 
+        // Pop off the trailing comma to ensure a valid query.
+        leaf_id_str.pop_back();
+
         return leaf_id_str;
 
     } // get_leaf_resources_string
