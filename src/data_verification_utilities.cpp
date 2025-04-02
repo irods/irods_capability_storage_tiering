@@ -1,15 +1,16 @@
-
+// TODO(#302): Remove this - we are in the server.
 #undef RODS_SERVER
 
-#include <irods/irods_query.hpp>
-#include <irods/irods_resource_manager.hpp>
-#include <irods/physPath.hpp>
 #include "irods/private/storage_tiering/data_verification_utilities.hpp"
+
 #include "irods/private/storage_tiering/configuration.hpp"
 
 #include <irods/dataObjChksum.h>
 #include <irods/escape_utilities.hpp>
 #include <irods/fileStat.h>
+#include <irods/irods_query.hpp>
+#include <irods/irods_resource_manager.hpp>
+#include <irods/physPath.hpp>
 
 #include <boost/lexical_cast.hpp>
 

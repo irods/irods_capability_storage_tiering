@@ -1,30 +1,27 @@
-// =-=-=-=-=-=-=-
-// irods includes
-#include <irods/irods_re_plugin.hpp>
+#include "irods/private/storage_tiering/data_verification_utilities.hpp"
 #include "irods/private/storage_tiering/storage_tiering.hpp"
-#include <irods/irods_re_ruleexistshelper.hpp>
 #include "irods/private/storage_tiering/utilities.hpp"
-#include <irods/irods_resource_backport.hpp>
 
+#include <irods/apiNumber.h>
 #include <irods/client_connection.hpp>
-#include <irods/modAVUMetadata.h>
-#include <irods/openCollection.h>
-#include <irods/readCollection.h>
 #include <irods/closeCollection.h>
-#include <irods/irods_logger.hpp>
-#include <irods/irods_virtual_path.hpp>
 #include <irods/dataObjRepl.h>
 #include <irods/dataObjTrim.h>
-#include <irods/physPath.hpp>
-#include <irods/apiNumber.h>
-#include "irods/private/storage_tiering/data_verification_utilities.hpp"
-#include <irods/irods_server_api_call.hpp>
-
 #include <irods/escape_utilities.hpp>
 #include <irods/irods_at_scope_exit.hpp>
+#include <irods/irods_logger.hpp>
 #include <irods/irods_query.hpp>
+#include <irods/irods_re_plugin.hpp>
+#include <irods/irods_re_ruleexistshelper.hpp>
+#include <irods/irods_resource_backport.hpp>
 #include <irods/irods_rs_comm_query.hpp>
+#include <irods/irods_server_api_call.hpp>
+#include <irods/irods_virtual_path.hpp>
+#include <irods/modAVUMetadata.h>
+#include <irods/openCollection.h>
+#include <irods/physPath.hpp>
 #include <irods/rcMisc.h>
+#include <irods/readCollection.h>
 
 #define IRODS_FILESYSTEM_ENABLE_SERVER_SIDE_API
 #include <irods/filesystem.hpp>

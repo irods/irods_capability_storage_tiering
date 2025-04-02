@@ -1,28 +1,28 @@
-
+// TODO(#302): Remove this - we are in the server.
 #undef RODS_SERVER
 
-#include <irods/irods_server_properties.hpp>
-#include <irods/irods_re_plugin.hpp>
 #include "irods/private/storage_tiering/storage_tiering.hpp"
+
 #include "irods/private/storage_tiering/utilities.hpp"
-#include <irods/irods_query.hpp>
-#include <irods/irods_virtual_path.hpp>
-#include <irods/irods_hierarchy_parser.hpp>
-#include <irods/irods_resource_manager.hpp>
-#include <irods/irods_resource_backport.hpp>
-#include <irods/query_processor.hpp>
 
 #include <irods/client_connection.hpp>
 #include <irods/escape_utilities.hpp>
-#include <irods/modAVUMetadata.h>
-#include <irods/rsExecMyRule.hpp>
 #include <irods/execMyRule.h>
+#include <irods/irods_hierarchy_parser.hpp>
+#include <irods/irods_logger.hpp>
+#include <irods/irods_query.hpp>
+#include <irods/irods_re_plugin.hpp>
+#include <irods/irods_resource_backport.hpp>
+#include <irods/irods_resource_manager.hpp>
+#include <irods/irods_server_properties.hpp>
+#include <irods/irods_virtual_path.hpp>
+#include <irods/modAVUMetadata.h>
+#include <irods/objInfo.h>
+#include <irods/query_processor.hpp>
+#include <irods/rsCloseCollection.hpp>
+#include <irods/rsExecMyRule.hpp>
 #include <irods/rsOpenCollection.hpp>
 #include <irods/rsReadCollection.hpp>
-#include <irods/rsCloseCollection.hpp>
-#include <irods/irods_logger.hpp>
-
-#include "irods/private/storage_tiering/data_verification_utilities.hpp"
 
 #include <boost/any.hpp>
 #include <boost/regex.hpp>
