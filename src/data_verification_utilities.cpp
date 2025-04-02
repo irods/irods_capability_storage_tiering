@@ -8,6 +8,7 @@
 #include "irods/private/storage_tiering/configuration.hpp"
 
 #include <irods/dataObjChksum.h>
+#include <irods/escape_utilities.hpp>
 #include <irods/fileStat.h>
 
 #include <boost/lexical_cast.hpp>
@@ -95,9 +96,9 @@ namespace {
         namespace bfs = boost::filesystem;
 
         try {
-            bfs::path p(_object_path);
+            bfs::path p{irods::single_quotes_to_hex(_object_path)};
             _collection_name = p.parent_path().string();
-            _object_name     = p.filename().string();
+            _object_name = p.filename().string();
         }
         catch(const bfs::filesystem_error& _e) {
             THROW(SYS_INVALID_FILE_PATH, _e.what());

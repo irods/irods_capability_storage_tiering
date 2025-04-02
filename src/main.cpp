@@ -20,6 +20,7 @@
 #include "irods/private/storage_tiering/data_verification_utilities.hpp"
 #include <irods/irods_server_api_call.hpp>
 
+#include <irods/escape_utilities.hpp>
 #include <irods/irods_at_scope_exit.hpp>
 #include <irods/irods_query.hpp>
 #include <irods/irods_rs_comm_query.hpp>
@@ -100,7 +101,7 @@ namespace {
     {
         namespace fs = irods::experimental::filesystem;
 
-        const auto object_path = fs::path{_object_path};
+        const auto object_path = fs::path{irods::single_quotes_to_hex(_object_path)};
 
         const auto query_string = fmt::format("select DATA_ID where DATA_NAME = '{0}' and COLL_NAME = '{1}' and "
                                               "DATA_RESC_HIER like '{2};%' || = '{2}' and DATA_REPL_STATUS = '1'",
