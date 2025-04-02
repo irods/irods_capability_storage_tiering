@@ -42,9 +42,16 @@ def storage_tiering_configured_custom(arg=None, sleep_time=1):
 
         irods_config.commit(irods_config.server_config, irods_config.server_config_path)
         try:
+            # Reload configuration after edits are made so that they take effect in the server.
+            IrodsController().reload_configuration()
             yield
+
         finally:
             pass
+
+    # Reload configuration after exiting the context so that the original settings take effect.
+    IrodsController().reload_configuration()
+
 
 @contextlib.contextmanager
 def storage_tiering_configured(arg=None, sleep_time=1):
@@ -64,9 +71,16 @@ def storage_tiering_configured(arg=None, sleep_time=1):
 
         irods_config.commit(irods_config.server_config, irods_config.server_config_path)
         try:
+            # Reload configuration after edits are made so that they take effect in the server.
+            IrodsController().reload_configuration()
             yield
+
         finally:
             pass
+
+    # Reload configuration after exiting the context so that the original settings take effect.
+    IrodsController().reload_configuration()
+
 
 @contextlib.contextmanager
 def storage_tiering_configured_with_log(arg=None, sleep_time=1):
@@ -88,75 +102,16 @@ def storage_tiering_configured_with_log(arg=None, sleep_time=1):
         irods_config.commit(irods_config.server_config, irods_config.server_config_path)
 
         try:
+            # Reload configuration after edits are made so that they take effect in the server.
+            IrodsController().reload_configuration()
             yield
+
         finally:
             pass
 
-@contextlib.contextmanager
-def storage_tiering_configured_without_replication(arg=None, sleep_time=1):
-    filename = paths.server_config_path()
-    with lib.file_backed_up(filename):
-        irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
+    # Reload configuration after exiting the context so that the original settings take effect.
+    IrodsController().reload_configuration()
 
-        irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
-            {
-                "instance_name": "irods_rule_engine_plugin-unified_storage_tiering-instance",
-                "plugin_name": "irods_rule_engine_plugin-unified_storage_tiering",
-                "plugin_specific_configuration": {
-                }
-            }
-        )
-
-        irods_config.commit(irods_config.server_config, irods_config.server_config_path)
-        try:
-            yield
-        finally:
-            pass
-
-@contextlib.contextmanager
-def storage_tiering_configured_without_verification(arg=None, sleep_time=1):
-    filename = paths.server_config_path()
-    with lib.file_backed_up(filename):
-        irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
-
-        irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
-            {
-                "instance_name": "irods_rule_engine_plugin-unified_storage_tiering-instance",
-                "plugin_name": "irods_rule_engine_plugin-unified_storage_tiering",
-                "plugin_specific_configuration": {
-                }
-            }
-        )
-
-        irods_config.commit(irods_config.server_config, irods_config.server_config_path)
-        try:
-            yield
-        finally:
-            pass
-
-@contextlib.contextmanager
-def storage_tiering_configured_without_access_time(arg=None, sleep_time=1):
-    filename = paths.server_config_path()
-    with lib.file_backed_up(filename):
-        irods_config = IrodsConfig()
-        irods_config.server_config['advanced_settings']['delay_server_sleep_time_in_seconds'] = sleep_time
-
-        irods_config.server_config['plugin_configuration']['rule_engines'].insert(0,
-            {
-                "instance_name": "irods_rule_engine_plugin-unified_storage_tiering-instance",
-                "plugin_name": "irods_rule_engine_plugin-unified_storage_tiering",
-                "plugin_specific_configuration": {
-                }
-            }
-        )
-
-        irods_config.commit(irods_config.server_config, irods_config.server_config_path)
-        try:
-            yield
-        finally:
-            pass
 
 def wait_for_empty_queue(function, timeout_function=None, timeout_in_seconds=600):
     """Wait for empty delay queue and then run the provided function.
@@ -317,7 +272,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
                 with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
@@ -348,7 +302,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_put_and_get_with_preserve_replica__92(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
                 with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
@@ -389,7 +342,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_put_and_get_with_preserve_replica_restage__125(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
                 admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::preserve_replicas true')
@@ -422,7 +374,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_single_quote_data_name__127(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             zone_name = IrodsConfig().client_environment['irods_zone_name']
             with session.make_session_for_existing_admin() as admin_session:
                 with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
@@ -454,8 +405,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
     def test_storage_tiering_sets_admin_keyword_when_updating_access_time_as_rodsadmin__222(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             with session.make_session_for_existing_admin() as admin_session:
                 zone_name = IrodsConfig().client_environment['irods_zone_name']
 
@@ -579,7 +528,6 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 print("yep")
                 admin_session.assert_icommand('ils -L ', 'STDOUT_SINGLELINE', 'rods')
@@ -679,7 +627,6 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured_custom():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 logical_path = "/".join([admin_session.home_collection, filename])
@@ -754,7 +701,6 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
 
@@ -791,7 +737,6 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
         access_command_kwargs - **kwargs to pass to the access_command callable
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             filename = "test_open_read_close_triggers_restage__issue_303"
             try:
                 with session.make_session_for_existing_admin() as admin_session:
@@ -902,7 +847,6 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
         create_command_kwargs - **kwargs to pass to the create_command callable
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             try:
                 with session.make_session_for_existing_admin() as admin_session:
                     # Ensure that the delay queue is empty before creating the data object. This is to prevent false
@@ -994,7 +938,6 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
         collection_path = self.user1.session_collection
         logical_path = "/".join([collection_path, filename])
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             try:
                 with session.make_session_for_existing_admin() as admin_session:
                     self.user1.assert_icommand(["istream", "-R", self.tier0, "write", logical_path], input=filename)
@@ -1071,7 +1014,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_put(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
 
@@ -1101,7 +1043,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_preserve_replicas_works_with_restage_when_replicas_exist_in_multiple_tiers__issue_232(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 logical_path = '/'.join([admin_session.home_collection, filename])
@@ -1156,7 +1097,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_preserve_replicas_works_with_restage_when_replica_only_exists_in_last_tier__issue_233(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
 
@@ -1182,7 +1122,8 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
                     delay_assert_icommand(admin_session, 'ils -L ' + filename, 'STDOUT_SINGLELINE', '1 ufs1')
 
                     # remove the object in tier 0
-                    admin_session.assert_icommand('itrim -N1 -n0 ' + filename, 'STDOUT_SINGLELINE', 'Number of files trimmed = 1' )
+                    admin_session.assert_icommand(
+                        ["itrim", "-N1", "-n0", filename], "STDOUT", "Number of data objects trimmed = 1")
 
                     # test restage to tier 0, look for replica in tier 0 and tier 1
                     admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
@@ -1197,7 +1138,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_tiering_out_with_existing_replica_in_higher_tier__issue_235(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 logical_path = '/'.join([admin_session.home_collection, filename])
@@ -1284,7 +1224,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_restaging_with_existing_replica_in_lower_tier__issue_235(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 logical_path = '/'.join([admin_session.home_collection, filename])
@@ -1353,7 +1292,6 @@ class TestStorageTieringPluginPreserveReplica(ResourceBase, unittest.TestCase):
 
     def test_replicas_cannot_be_restaged_to_a_higher_tier__issue_239(self):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename = 'test_put_file'
                 logical_path = '/'.join([admin_session.home_collection, filename])
@@ -1450,7 +1388,6 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
     def test_put_and_get_limit_1(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 try:
                     admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 1')
@@ -1474,7 +1411,6 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
     def test_put_and_get_no_limit_zero(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 try:
                     admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::object_limit 0')
@@ -1498,7 +1434,6 @@ class TestStorageTieringPluginObjectLimit(ResourceBase, unittest.TestCase):
 
     def test_put_and_get_no_limit_default(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 try:
                     lib.create_local_testfile(self.filename)
@@ -1550,7 +1485,6 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
     def test_put_and_get(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
 
                 filename  = 'test_put_file'
@@ -1603,7 +1537,6 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
 
     def test_file_registration(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 filename  = 'test_put_file'
                 filepath  = lib.create_local_testfile(filename)
@@ -1627,7 +1560,6 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
 
     def test_directory_registration(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 local_dir_name = '/tmp/test_directory_registration_dir'
                 shutil.rmtree(local_dir_name, ignore_errors=True)
@@ -1679,7 +1611,6 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
     def test_put_gt_max_sql_rows(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 # Put enough objects to force continueInx when iterating over violating objects (above MAX_SQL_ROWS)
                 file_count = self.max_sql_rows + 1
@@ -1710,7 +1641,6 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
     def test_put_max_sql_rows(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 # Put exactly MAX_SQL_ROWS objects (boundary test)
                 file_count = self.max_sql_rows
@@ -1741,7 +1671,6 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
     def test_put_object_limit_lt(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 # Put enough objects to force continueInx and set object_limit to one less than that (above MAX_SQL_ROWS)
                 file_count = self.max_sql_rows + 2
@@ -1779,7 +1708,6 @@ class TestStorageTieringContinueInxMigration(ResourceBase, unittest.TestCase):
 
     def test_put_multi_fetch_page(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
                 # Put enough objects to force results paging more than once
                 file_count = (self.max_sql_rows * 2) + 1
@@ -1837,7 +1765,6 @@ class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase)
 
     def test_put_and_get(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
             with session.make_session_for_existing_admin() as admin_session:
 
                 try:
@@ -1894,8 +1821,6 @@ class test_incorrect_custom_violating_queries(unittest.TestCase):
 
     def do_incorrect_violating_query_test(self, columns_to_select):
         with storage_tiering_configured_with_log():
-            IrodsController().restart(test_mode=True)
-
             with session.make_session_for_existing_admin() as admin_session:
                 zone_name = IrodsConfig().client_environment['irods_zone_name']
 
@@ -2014,8 +1939,6 @@ class test_executing_rules_as_rodsuser__issue_293(unittest.TestCase):
 
     def test_rule_invoked_by_rodsuser_directly_via_irule_fails(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             # TODO(#200): Replace with itouch or istream. Have to use put API due to missing PEP support.
             self.user1.assert_icommand(["iput", "-R", self.tier0, self.filename, self.object_path])
 
@@ -2133,8 +2056,6 @@ class test_tiering_out_one_object_with_various_owners(unittest.TestCase):
         original_owner_session - iRODSSession creating the data object (Default: None)
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             with session.make_session_for_existing_admin() as admin_session:
                 if original_owner_session is None:
                     original_owner_session = admin_session
@@ -2228,7 +2149,6 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
             admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
 
             with storage_tiering_configured():
-                IrodsController().restart(test_mode=True)
                 # TODO(#200): Replace with itouch or istream. Have to use put API due to missing PEP support.
                 # For this test, we don't actually care about tiering or restaging objects. We just want to test
                 # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
@@ -2262,8 +2182,6 @@ class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
         read_command_args - *args to pass to the read_command callable
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             # Capture the original access time so we have something against which to compare.
             access_time = get_access_time(self.user1, self.object_path)
             self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
@@ -2373,8 +2291,6 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         create_command_kwargs - **kwargs to pass to the create_command callable
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             with session.make_session_for_existing_admin() as admin_session:
                 # Create the data...
                 create_command(*create_command_args, **create_command_kwargs)
@@ -2498,7 +2414,6 @@ class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
             admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
 
             with storage_tiering_configured():
-                IrodsController().restart(test_mode=True)
                 # For this test, we don't actually care about tiering or restaging objects. We just want to test
                 # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
                 # This is why no tier groups are being configured in this test.
@@ -2531,8 +2446,6 @@ class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
         open_command_args - *args to pass to the open_command callable
         """
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             # Capture the original access time so we have something against which to compare.
             access_time = get_access_time(self.user1, self.object_path)
             self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
@@ -2562,8 +2475,6 @@ class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
 
     def test_touch_collection_does_not_update_access_time__issue_266(self):
         with storage_tiering_configured():
-            IrodsController().restart(test_mode=True)
-
             # Capture the original access time so we have something against which to compare.
             access_time = get_access_time(self.user1, self.object_path)
             self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
