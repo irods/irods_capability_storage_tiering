@@ -13,6 +13,7 @@
 #include <irods/query_processor.hpp>
 
 #include <irods/client_connection.hpp>
+#include <irods/escape_utilities.hpp>
 #include <irods/modAVUMetadata.h>
 #include <irods/rsExecMyRule.hpp>
 #include <irods/execMyRule.h>
@@ -75,7 +76,7 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _meta_attr_name,
         const std::string& _object_path ) {
-        boost::filesystem::path p{_object_path};
+        boost::filesystem::path p{irods::single_quotes_to_hex(_object_path)};
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
 
@@ -548,7 +549,7 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _object_path,
         const std::string& _partial_list) {
-        boost::filesystem::path p{_object_path};
+        boost::filesystem::path p{irods::single_quotes_to_hex(_object_path)};
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
         const auto qstr =
@@ -808,7 +809,7 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _object_path,
         const std::string& _resource_name) {
-        boost::filesystem::path p{_object_path};
+        boost::filesystem::path p{irods::single_quotes_to_hex(_object_path)};
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
 
@@ -835,7 +836,7 @@ namespace irods {
         rcComm_t*          _comm,
         const std::string& _attribute_name,
         const std::string& _object_path) {
-        boost::filesystem::path p{_object_path};
+        boost::filesystem::path p{irods::single_quotes_to_hex(_object_path)};
         std::string data_name = p.filename().string();
         std::string coll_name = p.parent_path().string();
 
@@ -1018,7 +1019,7 @@ namespace irods {
     bool storage_tiering::object_has_migration_metadata_flag(
         rcComm_t*          _comm,
         const std::string& _object_path) {
-        boost::filesystem::path p{_object_path};
+        boost::filesystem::path p{irods::single_quotes_to_hex(_object_path)};
         std::string coll_name = p.parent_path().string();
         std::string data_name = p.filename().string();
 
