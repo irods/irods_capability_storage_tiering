@@ -6,15 +6,10 @@ import tempfile
 
 import irods_python_ci_utilities
 
-def add_cmake_to_front_of_path():
-    cmake_path = '/opt/irods-externals/cmake3.21.4-0/bin'
-    os.environ['PATH'] = os.pathsep.join([cmake_path, os.environ['PATH']])
-
 def install_building_dependencies(externals_directory):
     externals_list = [
         'irods-externals-boost1.81.0-2',
         'irods-externals-clang16.0.6-0',
-        'irods-externals-cmake3.21.4-0',
         'irods-externals-fmt8.1.1-2',
         'irods-externals-json3.10.4-0'
     ]
@@ -28,14 +23,13 @@ def install_building_dependencies(externals_directory):
         for irods_externals in externals_list:
             externals.append(glob.glob(os.path.join(os_specific_directory, irods_externals + '*.{0}'.format(package_suffix)))[0])
         irods_python_ci_utilities.install_os_packages_from_files(externals)
-    add_cmake_to_front_of_path()
     install_os_specific_dependencies()
 
 def install_os_specific_dependencies_apt():
-    irods_python_ci_utilities.install_os_packages(['libcurl4-gnutls-dev', 'make', 'libssl-dev', 'gcc'])
+    irods_python_ci_utilities.install_os_packages(['libcurl4-gnutls-dev', 'cmake', 'make', 'libssl-dev', 'gcc'])
 
 def install_os_specific_dependencies_yum():
-    irods_python_ci_utilities.install_os_packages(['make', 'curl-devel', 'openssl-devel'])
+    irods_python_ci_utilities.install_os_packages(['cmake', 'make', 'curl-devel', 'openssl-devel'])
 
 def install_os_specific_dependencies():
     dispatch_map = {
