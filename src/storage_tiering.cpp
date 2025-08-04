@@ -16,6 +16,7 @@
 #include <irods/irods_resource_manager.hpp>
 #include <irods/irods_server_properties.hpp>
 #include <irods/irods_virtual_path.hpp>
+#include <irods/irods_version.h>
 #include <irods/modAVUMetadata.h>
 #include <irods/objInfo.h>
 #include <irods/query_processor.hpp>
@@ -591,7 +592,12 @@ namespace irods {
             const auto query_list        = get_violating_queries_for_resource(_comm, _source_resource);
 
             for(const auto& q_itr : query_list) {
-                const auto  violating_query_type   = query<rcComm_t>::convert_string_to_query_type(q_itr.second);
+                const auto  violating_query_type   =
+#if IRODS_VERSION_INTEGER < 5000090
+                    query<rcComm_t>::convert_string_to_query_type(q_itr.second);
+#else
+                    query<rcComm_t>::string_to_query_type(q_itr.second);
+#endif
                 const auto& violating_query_string = q_itr.first;
                 auto job = [&](const result_row& _results) {
                     rodsLog(
