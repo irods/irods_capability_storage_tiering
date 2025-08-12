@@ -592,7 +592,7 @@ namespace irods {
             const auto query_list        = get_violating_queries_for_resource(_comm, _source_resource);
 
             for(const auto& q_itr : query_list) {
-                const auto  violating_query_type   =
+                const auto violating_query_type =
 #if IRODS_VERSION_INTEGER < 5000090
                     query<rcComm_t>::convert_string_to_query_type(q_itr.second);
 #else
