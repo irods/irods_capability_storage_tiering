@@ -135,6 +135,7 @@ namespace {
         dataObjInp_t data_obj_inp{};
         rstrcpy(data_obj_inp.objPath, _object_path.c_str(), MAX_NAME_LEN);
         addKeyVal(&data_obj_inp.condInput, RESC_NAME_KW, _resource_name.c_str());
+        addKeyVal(&data_obj_inp.condInput, ADMIN_KW, "");
 
         char* chksum{};
         const auto chksum_err = rcDataObjChksum(_comm, &data_obj_inp, &chksum);
