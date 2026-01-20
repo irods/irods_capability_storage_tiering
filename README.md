@@ -8,6 +8,10 @@ The example diagram below shows a configuration with three tiers.
 
 ![Storage Tiering Diagram](storage_tiering_diagram.jpg)
 
+> [!NOTE]
+> The `access_time_attribute` configuration option in `plugin_specific_configuration` has been removed as the iRODS Server tracks access time directly since 5.0.0.
+> If you are upgrading, update any custom violating objects queries that used the Access Time AVU and see [Removing Leftover Access Time AVUs](#removing-leftover-access-time-avus).
+
 ## How to build
 
 This project uses a "build hook" which allows the [iRODS Development Environment](https://github.com/irods/irods_development_environment) to build packages in the usual manner. Please see the instructions for building plugins with the development environment: [https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin](https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin)
@@ -103,13 +107,13 @@ id     name
 ### Customizing Metadata Attributes
 
 A number of metadata attributes are used within the storage tiering capability which identify the tier group, the amount of time data may be at rest within the tier, the optional query, etc.
+
 These attributes may map to concepts already in use by other names within a given iRODS installation.  For that reason we have exposed them as configuration options within the storage tiering **plugin_specific_configuration** block.
 
 For a default installation the following values are used:
 
 ```
 "plugin_specific_configuration": {
-    "access_time_attribute" : "irods::access_time",
     "group_attribute" : "irods::storage_tiering::group",
     "time_attribute" : "irods::storage_tiering::time",
     "query_attribute" : "irods::storage_tiering::query",
@@ -171,7 +175,7 @@ Data objects which have been labeled via particular metadata, or within a specif
 **Checking for resources in violating queries is required to prevent erroneous data migrations for replicas on other resources which may represent other tiers in the storage tiering group.** This can be done in the manner shown below (`DATA_RESC_ID in ('10068', '10069')`) or via resource hierarchy (e.g. `DATA_RESC_HIER like 'root_resc;%`), but the query must filter on resources to correctly identify violating objects.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' and DATA_RESC_ID in ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where DATA_ACCESS_TIME < 'TIME_CHECK_STRING' and DATA_MODIFY_TIME < 'TIME_CHECK_STRING' and DATA_RESC_ID in ('10068', '10069')"
 ```
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
@@ -270,3 +274,39 @@ units: 1
 ```
 
 The above AVUs indicate that the resource represents tier 0 AND tier 1 in example_group_1. This should not be done.
+
+## Removing Leftover Access Time AVUs
+
+Prior to v6.0.0 of this plugin, the default behavior was to track access time per data object with an `irods::access_time` AVU.  This plugin now uses the access time provided by the iRODS Server itself.
+
+To remove the now-redundant AVUs, either walk each data object with `imeta rm` or run some direct SQL.
+
+### Via `imeta`
+
+This will generate many single `imeta -M rm` commands, one per data object (`O(n)`).
+
+Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
+
+```
+iquest "imeta -M rm -d '%s/%s' '%s' '%s'" "select COLL_NAME, DATA_NAME, META_DATA_ATTR_NAME, META_DATA_ATTR_VALUE where META_DATA_ATTR_NAME = 'irods::access_time'" > remove_storage_tiering_access_time_avus.sh
+bash -x remove_storage_tiering_access_time_avus.sh
+```
+
+### Via direct SQL
+
+This will remove all rows in the join or junction table (`r_objt_metamap`) directly (`O(1)`).
+
+Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
+
+```
+# postgresql
+delete FROM r_objt_metamap om USING r_meta_main m WHERE m.meta_id = om.meta_id AND m.meta_attr_name = 'irods::access_time';
+```
+
+### Remove Unused Metadata
+
+Both approaches above will leave the entries in the `r_meta_main` table and can be removed.
+
+```
+iadmin rum
+```
