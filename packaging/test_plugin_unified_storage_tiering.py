@@ -1743,8 +1743,7 @@ class TestStorageTieringPluginMultiGroupRestage(ResourceBase, unittest.TestCase)
                     # Wait until the object migrates to the next tier.
                     lib.delayAssert(
                         lambda: lib.replica_exists_on_resource(admin_session, logical_path, "ufs0") == False)
-                    lib.replica_exists_on_resource(admin_session, logical_path, "ufs2")
-                    admin_session.assert_icommand('imeta ls -d '+filename, 'STDOUT_SINGLELINE', '--')
+                    self.assertTrue(lib.replica_exists_on_resource(admin_session, logical_path, "ufs2"))
 
                     # test restage to tier 0
                     admin_session.assert_icommand('iget ' + filename + ' - ', 'STDOUT_SINGLELINE', 'TESTFILE')
