@@ -27,7 +27,6 @@ def storage_tiering_configured_custom(arg=None, sleep_time=1):
                 "instance_name" : "irods_rule_engine_plugin-unified_storage_tiering-instance",
                 "plugin_name" : "irods_rule_engine_plugin-unified_storage_tiering",
                 "plugin_specific_configuration" : {
-                    "access_time_attribute" : "irods::custom_access_time",
                     "group_attribute" : "irods::custom_storage_tiering::group",
                     "time_attribute" : "irods::custom_storage_tiering::time",
                     "query_attribute" : "irods::custom_storage_tiering::query",
@@ -194,25 +193,6 @@ def get_tracked_replica(session, logical_path, group_attribute_name=None):
 
     return session.run_icommand(['iquest', '%s', tracked_replica_query])[0].strip()
 
-def get_access_time(session, data_object_path):
-    """Return value of AVU with attribute irods::access_time annotated on provided data_object_path.
-
-    If the provided data object path does not exist or does not have an irods::access_time AVU, the output will contain
-    CAT_NO_ROWS_FOUND.
-
-    Arguments:
-    session - iRODSSession which will run the query
-    data_object_path - Full iRODS logical path to a data object
-    """
-    coll_name = os.path.dirname(data_object_path)
-    data_name = os.path.basename(data_object_path)
-
-    query = "select META_DATA_ATTR_VALUE where " \
-            f"COLL_NAME = '{coll_name}' and DATA_NAME = '{data_name}' and " \
-            "META_DATA_ATTR_NAME = 'irods::access_time'"
-
-    return session.assert_icommand(['iquest', '%s', query], 'STDOUT')[1].strip()
-
 
 class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
     def setUp(self):
@@ -240,7 +220,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tiering::group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::time 15')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs2' || = 'ufs3' and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"''')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::maximum_delay_time_in_seconds 2')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::minimum_delay_time_in_seconds 1')
@@ -403,56 +383,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                     finally:
                         alice_session.assert_icommand('irm -f ' + cmd_filename)
 
-    def test_storage_tiering_sets_admin_keyword_when_updating_access_time_as_rodsadmin__222(self):
-        with storage_tiering_configured():
-            with session.make_session_for_existing_admin() as admin_session:
-                zone_name = IrodsConfig().client_environment['irods_zone_name']
-
-                with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
-                    resc_name = 'storage_tiering_ufs_222'
-                    filename = 'test_file_issue_222'
-
-                    try:
-                        lib.create_local_testfile(filename)
-                        alice_session.assert_icommand(f'iput -R rnd0 {filename}')
-                        alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
-                        alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
-                        time.sleep(5)
-
-                        # test stage to tier 1.
-                        invoke_storage_tiering_rule()
-                        delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd1')
-
-                        # test stage to tier 2.
-                        time.sleep(15)
-                        invoke_storage_tiering_rule()
-                        delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd2')
-
-                        # capture the access time.
-                        _, out, _ = admin_session.assert_icommand(
-                            ['iquest', '%s', f"select META_DATA_ATTR_VALUE where DATA_NAME = '{filename}' and META_DATA_ATTR_NAME = 'irods::access_time'"], 'STDOUT')
-                        access_time = out.strip()
-                        self.assertGreater(len(access_time), 0)
-
-                        # sleeping guarantees the access time will be different following the call to irepl.
-                        time.sleep(2)
-
-                        # show the access time is updated correctly.
-                        lib.create_ufs_resource(admin_session, resc_name)
-                        admin_session.assert_icommand(f'irepl -M -R {resc_name} {alice_session.home_collection}/{filename}')
-
-                        _, out, _ = admin_session.assert_icommand(
-                            ['iquest', '%s', f"select META_DATA_ATTR_VALUE where DATA_NAME = '{filename}' and META_DATA_ATTR_NAME = 'irods::access_time'"], 'STDOUT')
-                        new_access_time = out.strip()
-                        self.assertGreater(len(new_access_time), 0)
-
-                        # this assertion is the primary focus of the test.
-                        self.assertGreater(int(new_access_time), int(access_time))
-
-                    finally:
-                        alice_session.assert_icommand(f'irm -f {filename}')
-                        admin_session.assert_icommand(f'iadmin rmresc {resc_name}')
-
     def test_checksum_verification_with_regular_user_data_object__issue_354(self):
         """This tests the fix for the issue where admin-initiated tiering with checksum
         verification would fail with permission denied when trying to compute/update
@@ -519,7 +449,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::storage_tiering::group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::time 15')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM  where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM  where RESC_NAME = 'ufs2' || = 'ufs3' and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"''')
 
             admin_session.assert_icommand('iadmin mkresc ufs0g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs0g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
             admin_session.assert_icommand('iadmin mkresc ufs1g2 unixfilesystem '+test.settings.HOSTNAME_1 +':/tmp/irods/ufs1g2', 'STDOUT_SINGLELINE', 'unixfilesystem')
@@ -532,7 +462,7 @@ class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R ufs0g2 irods::storage_tiering::time 5')
             admin_session.assert_icommand('imeta add -R ufs1g2 irods::storage_tiering::time 15')
 
-            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs1g2' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R ufs1g2 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs1g2' and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"''')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::maximum_delay_time_in_seconds 2')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::minimum_delay_time_in_seconds 1')
@@ -635,7 +565,7 @@ class TestStorageTieringPluginCustomMetadata(ResourceBase, unittest.TestCase):
             admin_session.assert_icommand('imeta add -R rnd2 irods::custom_storage_tiering::group example_group 2')
             admin_session.assert_icommand('imeta add -R rnd0 irods::custom_storage_tiering::time 5')
             admin_session.assert_icommand('imeta add -R rnd1 irods::custom_storage_tiering::time 15')
-            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs2' || = 'ufs3' and META_DATA_ATTR_NAME = 'irods::custom_access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta set -R rnd1 irods::custom_storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs2' || = 'ufs3' and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"''')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R rnd0 irods::storage_tiering::maximum_delay_time_in_seconds 2')
             admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::minimum_delay_time_in_seconds 1')
@@ -898,12 +828,10 @@ class TestStorageTieringPluginMinimumRestage(unittest.TestCase):
                     # first to ensure that the delay rule was not scheduled and processed by the time we check.
                     admin_session.assert_icommand(["iqstat", "-a"], "STDOUT", "No delayed rules pending")
 
-                    # Then, make sure that the object is in the correct tier and has an access_time.
+                    # Then, make sure that the object is in the correct tier.
                     self.assertTrue(
                         lib.replica_exists_on_resource(admin_session, logical_path, expected_destination_resource)
                     )
-                    access_time = get_access_time(admin_session, logical_path)
-                    self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
 
             finally:
                 self.user1.assert_icommand(["irm", "-f", logical_path])
@@ -1507,7 +1435,7 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
 
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::time 15')
 
-            admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs0' and META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"''')
+            admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query "SELECT DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where RESC_NAME = 'ufs0' and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"''')
             admin_session.assert_icommand('''imeta add -R ufs0 irods::storage_tiering::query archive_query specific''')
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::minimum_delay_time_in_seconds 1')
             admin_session.assert_icommand('imeta add -R ufs0 irods::storage_tiering::maximum_delay_time_in_seconds 2')
@@ -1533,10 +1461,8 @@ class TestStorageTieringMultipleQueries(ResourceBase, unittest.TestCase):
                 try:
                     admin_session.assert_icommand('iput -R ufs0 ' + filename)
                     admin_session.assert_icommand('imeta add -d ' + filename + ' archive_object yes')
-                    admin_session.assert_icommand('imeta ls -d ' + filename, 'STDOUT_SINGLELINE', 'irods::access_time')
 
                     admin_session.assert_icommand('iput -R ufs0 ' + filename + ' ' + filename2)
-                    admin_session.assert_icommand('imeta ls -d ' + filename2, 'STDOUT_SINGLELINE', 'irods::access_time')
 
                     # test stage to tier 1
                     invoke_storage_tiering_rule()
@@ -1869,8 +1795,7 @@ class test_incorrect_custom_violating_queries(unittest.TestCase):
                 other_resource = 'ufs1'
                 query_attribute_name = 'irods::storage_tiering::query'
                 custom_violating_query = '''"SELECT {} where RESC_NAME = '{}' ''' \
-                                         '''and META_DATA_ATTR_NAME = 'irods::access_time' ''' \
-                                         '''and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING'"'''.format(
+                                         '''and DATA_ACCESS_TIME < 'TIME_CHECK_STRING'"'''.format(
                                          columns_to_select, resource)
 
                 try:
@@ -2170,88 +2095,6 @@ class test_tiering_out_one_object_with_various_owners(unittest.TestCase):
         )
 
 
-class test_accessing_read_only_object_updates_access_time(unittest.TestCase):
-    @classmethod
-    def setUpClass(self):
-        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
-
-        self.filename = "test_accessing_read_only_object_updates_access_time"
-        if not os.path.exists(self.filename):
-            lib.create_local_testfile(self.filename)
-
-        self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
-        self.object_path = "/".join([self.collection_path, self.filename])
-
-        with session.make_session_for_existing_admin() as admin_session:
-            # Make a place for public group to put stuff.
-            admin_session.assert_icommand(["imkdir", "-p", self.collection_path])
-            admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
-
-            with storage_tiering_configured():
-                # TODO(#200): Replace with itouch or istream. Have to use put API due to missing PEP support.
-                # For this test, we don't actually care about tiering or restaging objects. We just want to test
-                # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
-                # This is why no tier groups are being configured in this test.
-                admin_session.assert_icommand(["iput", self.filename, self.object_path])
-
-            # Give permissions exclusively to a rodsuser (removing permissions for original owner).
-            admin_session.assert_icommand(["ichmod", "read", self.user1.username, self.object_path])
-            admin_session.assert_icommand(["ichmod", "null", admin_session.username, self.object_path])
-
-        if os.path.exists(self.filename):
-            os.unlink(self.filename)
-
-    @classmethod
-    def tearDownClass(self):
-        with session.make_session_for_existing_admin() as admin_session:
-            admin_session.run_icommand(["ichmod", "-M", "own", admin_session.username, self.object_path])
-            admin_session.run_icommand(["irm", "-f", self.object_path])
-
-            self.user1.__exit__()
-
-            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
-            admin_session.run_icommand(['iadmin', 'rum'])
-
-    def read_object_updates_access_time_test_impl(self, read_command, *read_command_args):
-        """A basic test implementation to show that access_time metadata is updated for reads accessing data.
-
-        Arguments:
-        self - Instance of this class
-        read_command - A callable which will execute some sort of read operation on the object
-        read_command_args - *args to pass to the read_command callable
-        """
-        with storage_tiering_configured():
-            # Capture the original access time so we have something against which to compare.
-            access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
-
-            # Sleeping guarantees the access time will be different following the access.
-            time.sleep(2)
-
-            # Access the data...
-            read_command(*read_command_args)
-
-            # Ensure the access_time was updated as a result of the access.
-            new_access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
-            self.assertGreater(new_access_time, access_time)
-
-    def test_dataobj_open_read_close_updates_access_time__issue_175_203(self):
-        # This basic test shows that access_time metadata is updated when dataObjOpen/Read/Close APIs access the data.
-        self.read_object_updates_access_time_test_impl(
-            self.user1.assert_icommand, ["irods_test_read_object", self.object_path], "STDOUT")
-
-    def test_replica_open_close_updates_access_time(self):
-        # This basic test shows that access_time metadata is updated when replica_open/close APIs access the data.
-        self.read_object_updates_access_time_test_impl(
-            self.user1.assert_icommand, ["istream", "read", self.object_path], "STDOUT")
-
-    def test_get_updates_access_time(self):
-        # This basic test shows that access_time metadata is updated when get API accesses the data.
-        self.read_object_updates_access_time_test_impl(
-            self.user1.assert_icommand, ["iget", self.object_path, "-"], "STDOUT")
-
-
 class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
     @classmethod
     def setUpClass(self):
@@ -2436,95 +2279,3 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
             self.user1.assert_icommand(["ils", "-L", logical_path], "STDOUT")
             self.user1.run_icommand(["irm", "-f", logical_path])
 
-
-class test_accessing_object_for_write_updates_access_time(unittest.TestCase):
-    @classmethod
-    def setUpClass(self):
-        self.user1 = session.mkuser_and_return_session("rodsuser", "tolstoy", "tpass", lib.get_hostname())
-
-        self.filename = "test_accessing_object_for_write_updates_access_time"
-
-        self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
-        self.object_path = "/".join([self.collection_path, self.filename])
-
-        with session.make_session_for_existing_admin() as admin_session:
-            # Make a place for public group to put stuff.
-            admin_session.assert_icommand(["imkdir", "-p", self.collection_path])
-            admin_session.assert_icommand(["ichmod", "-r", "own", "public", self.collection_path])
-
-            with storage_tiering_configured():
-                # For this test, we don't actually care about tiering or restaging objects. We just want to test
-                # updating the access_time metadata. So, it doesn't matter into what resource the object's replica goes
-                # This is why no tier groups are being configured in this test.
-                admin_session.assert_icommand(["istream", "write", self.object_path], input=self.filename)
-
-            # Give permissions exclusively to a rodsuser (removing permissions for original owner).
-            admin_session.assert_icommand(["ichmod", "own", self.user1.username, self.object_path])
-            admin_session.assert_icommand(["ichmod", "null", admin_session.username, self.object_path])
-
-        if os.path.exists(self.filename):
-            os.unlink(self.filename)
-
-    @classmethod
-    def tearDownClass(self):
-        with session.make_session_for_existing_admin() as admin_session:
-            admin_session.run_icommand(["ichmod", "-r", "-M", "own", admin_session.username, self.collection_path])
-            admin_session.run_icommand(["irm", "-rf", self.collection_path])
-
-            self.user1.__exit__()
-
-            admin_session.run_icommand(['iadmin', 'rmuser', self.user1.username])
-            admin_session.run_icommand(['iadmin', 'rum'])
-
-    def access_object_for_write_updates_access_time_test_impl(self, open_command, *open_command_args):
-        """A basic test implementation to show that access_time metadata is updated for writes accessing data.
-
-        Arguments:
-        self - Instance of this class
-        open_command - A callable which will execute some sort of open operation on the object
-        open_command_args - *args to pass to the open_command callable
-        """
-        with storage_tiering_configured():
-            # Capture the original access time so we have something against which to compare.
-            access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
-
-            # Sleeping guarantees the access time will be different following the access.
-            time.sleep(2)
-
-            # Access the data...
-            open_command(*open_command_args)
-
-            # Ensure the access_time was updated as a result of the access.
-            new_access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
-            self.assertGreater(new_access_time, access_time)
-
-    def test_multiple_replica_opens_and_replica_closes_updates_access_time__issue_316(self):
-        # This test shows that access_time is updated if replica_open accesses a replica multiple times simultaneously.
-        self.access_object_for_write_updates_access_time_test_impl(
-            self.user1.assert_icommand,
-            ["irods_test_multi_open_for_write_object", "--open-count", "10", self.object_path],
-            "STDOUT")
-
-    def test_touch_updates_access_time__issue_266(self):
-        # This is a basic test to show that access_time metadata is updated when touch API accesses the data.
-        self.access_object_for_write_updates_access_time_test_impl(
-            self.user1.assert_icommand, ["itouch", self.object_path], "STDOUT")
-
-    def test_touch_collection_does_not_update_access_time__issue_266(self):
-        with storage_tiering_configured():
-            # Capture the original access time so we have something against which to compare.
-            access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", access_time)
-
-            # Sleeping guarantees the access time could be different following the access.
-            time.sleep(2)
-
-            # Touch the collection (note: this is NOT accessing any data).
-            self.user1.assert_icommand(["itouch", self.collection_path], "STDOUT")
-
-            # Ensure the access_time was NOT updated as a result of the access.
-            new_access_time = get_access_time(self.user1, self.object_path)
-            self.assertNotIn("CAT_NO_ROWS_FOUND", new_access_time)
-            self.assertEqual(new_access_time, access_time)

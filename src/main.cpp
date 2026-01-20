@@ -5,8 +5,10 @@
 #include <irods/apiNumber.h>
 #include <irods/client_connection.hpp>
 #include <irods/closeCollection.h>
+#include <irods/dataObjInpOut.h>
 #include <irods/dataObjRepl.h>
 #include <irods/dataObjTrim.h>
+#include <irods/rodsDef.h>
 #include <irods/escape_utilities.hpp>
 #include <irods/irods_at_scope_exit.hpp>
 #include <irods/irods_logger.hpp>
@@ -31,6 +33,7 @@
 // =-=-=-=-=-=-=-
 // stl includes
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -179,219 +182,7 @@ namespace {
 
     } // apply_data_retention_policy
 
-    void update_access_time_for_data_object(rcComm_t* _comm,
-                                            const std::string& _logical_path,
-                                            const std::string& _attribute)
-    {
-        auto ts = std::to_string(std::time(nullptr));
-        modAVUMetadataInp_t avuOp{
-            "set",
-            "-d",
-            const_cast<char*>(_logical_path.c_str()),
-            const_cast<char*>(_attribute.c_str()),
-            const_cast<char*>(ts.c_str()),
-            ""};
-        const auto free_cond_input = irods::at_scope_exit{[&avuOp] { clearKeyVal(&avuOp.condInput); }};
 
-        addKeyVal(&avuOp.condInput, ADMIN_KW, "");
-
-        auto status = rcModAVUMetadata(_comm, &avuOp);
-        if (status < 0) {
-            const auto msg = fmt::format("{}: failed to set access time for [{}]", __func__, _logical_path);
-            log_re::error(msg);
-            THROW(status, msg);
-        }
-    } // update_access_time_for_data_object
-
-    void apply_access_time_to_collection(rcComm_t* _comm, int _handle, const std::string& _attribute)
-    {
-        collEnt_t* coll_ent{nullptr};
-        int err = rcReadCollection(_comm, _handle, &coll_ent);
-        while(err >= 0) {
-            if(DATA_OBJ_T == coll_ent->objType) {
-                const auto& vps = irods::get_virtual_path_separator();
-                std::string lp{coll_ent->collName};
-                lp += vps;
-                lp += coll_ent->dataName;
-                update_access_time_for_data_object(_comm, lp, _attribute);
-            }
-            else if(COLL_OBJ_T == coll_ent->objType) {
-                collInp_t coll_inp;
-                memset(&coll_inp, 0, sizeof(coll_inp));
-                rstrcpy(
-                    coll_inp.collName,
-                    coll_ent->collName,
-                    MAX_NAME_LEN);
-                int handle = rcOpenCollection(_comm, &coll_inp);
-                apply_access_time_to_collection(_comm, handle, _attribute);
-                rcCloseCollection(_comm, handle);
-            }
-
-            err = rcReadCollection(_comm, _handle, &coll_ent);
-        } // while
-    } // apply_access_time_to_collection
-
-    void set_access_time_metadata(
-        rsComm_t*              _comm,
-        const std::string& _object_path,
-        const std::string& _collection_type,
-        const std::string& _attribute) {
-        irods::experimental::client_connection conn;
-        RcComm& comm = static_cast<RcComm&>(conn);
-        if(_collection_type.size() == 0) {
-            update_access_time_for_data_object(&comm, _object_path, _attribute);
-        }
-        else {
-            // register a collection
-            collInp_t coll_inp;
-            memset(&coll_inp, 0, sizeof(coll_inp));
-            rstrcpy(
-                coll_inp.collName,
-                _object_path.c_str(),
-                MAX_NAME_LEN);
-            int handle = rcOpenCollection(&comm, &coll_inp);
-            if(handle < 0) {
-                THROW(
-                    handle,
-                    boost::format("failed to open collection [%s]") %
-                    _object_path);
-            }
-
-            apply_access_time_to_collection(&comm, handle, _attribute);
-        }
-    } // set_access_time_metadata
-
-    void apply_access_time_policy(
-        const std::string&           _rn,
-        ruleExecInfo_t*              _rei,
-        const std::list<boost::any>& _args) {
-        namespace fs = irods::experimental::filesystem;
-
-        try {
-            if ("pep_api_data_obj_put_post" == _rn || "pep_api_data_obj_get_post" == _rn ||
-                "pep_api_data_obj_repl_post" == _rn || "pep_api_phy_path_reg_post" == _rn)
-            {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    rodsLog(LOG_ERROR, "%s:%d: Invalid number of arguments [PEP=%s].", __func__, __LINE__, _rn.c_str());
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-                const char* coll_type_ptr = getValByKey(&obj_inp->condInput, COLLECTION_KW);
-
-                std::string object_path{obj_inp->objPath};
-                std::string coll_type{};
-                if(coll_type_ptr) {
-                    coll_type = "true";
-                }
-
-                set_access_time_metadata(_rei->rsComm, object_path, coll_type, config->access_time_attribute);
-            }
-            else if ("pep_api_touch_post" == _rn) {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if (_args.end() == it) {
-                    log_re::error("{}:{}: Invalid number of arguments [PEP={}].", __func__, __LINE__, _rn.c_str());
-                    THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
-                }
-
-                const auto* inp = boost::any_cast<BytesBuf*>(*it);
-                const auto json_input = nlohmann::json::parse(std::string_view(static_cast<char*>(inp->buf), inp->len));
-
-                const auto& object_path = json_input.at("logical_path").get_ref<const std::string&>();
-
-                // The touch only affects the collection itself and does not access the objects or collections within.
-                // Therefore, no access_time update occurs if the touch was on a collection. Just return early.
-                if (fs::server::is_collection(*_rei->rsComm, fs::path{object_path})) {
-                    return;
-                }
-
-                set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
-            }
-            else if ("pep_api_data_obj_open_post" == _rn || "pep_api_data_obj_create_post" == _rn ||
-                     "pep_api_replica_open_post" == _rn)
-            {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                auto obj_inp = boost::any_cast<dataObjInp_t*>(*it);
-                int l1_idx{};
-                std::string resource_name;
-                try {
-                    auto [l1_idx, resource_name] = get_index_and_resource(obj_inp);
-                    opened_objects[l1_idx] = std::make_tuple(obj_inp->objPath, resource_name);
-                }
-                catch(const irods::exception& _e) {
-                    rodsLog(
-                       LOG_ERROR,
-                       "get_index_and_resource failed for [%s]",
-                       obj_inp->objPath);
-                }
-            }
-            else if("pep_api_data_obj_close_post" == _rn) {
-                //TODO :: only for create/write events
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if(_args.end() == it) {
-                    THROW(
-                        SYS_INVALID_INPUT_PARAM,
-                        "invalid number of arguments");
-                }
-
-                const auto opened_inp = boost::any_cast<openedDataObjInp_t*>(*it);
-                const auto l1_idx = opened_inp->l1descInx;
-                if(opened_objects.find(l1_idx) != opened_objects.end()) {
-                    auto [object_path, resource_name] = opened_objects[l1_idx];
-
-                    set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
-                }
-            }
-            else if ("pep_api_replica_close_post" == _rn) {
-                auto it = _args.begin();
-                std::advance(it, 2);
-                if (_args.end() == it) {
-                    THROW(SYS_INVALID_INPUT_PARAM, "invalid number of arguments");
-                }
-
-                const auto* inp = boost::any_cast<BytesBuf*>(*it);
-                const auto json_input = nlohmann::json::parse(std::string_view(static_cast<char*>(inp->buf), inp->len));
-
-                // replica_close can be called multiple times on the same data object when a parallel transfer is being
-                // executed. Only one of these replica_close calls will finalize the status of the data object. The
-                // finalizing occurs by default, so the caller must provide the "update_status" member with a value of
-                // false in order to not finalize the data object. If no such member is found or it is not false, then
-                // we update the access_time. Else, we do not want to update the access_time for each replica_close
-                // call, so just return early if this is found.
-                if (const auto update_status_iter = json_input.find("update_status");
-                    json_input.end() != update_status_iter) {
-                    if (const auto update_status = update_status_iter->get<bool>(); !update_status) {
-                        return;
-                    }
-                }
-
-                const auto l1_idx = json_input.at("fd").get<int>();
-                const auto opened_objects_iter = opened_objects.find(l1_idx);
-                if (opened_objects_iter != opened_objects.end()) {
-                    auto [object_path, resource_name] = std::get<1>(*opened_objects_iter);
-                    set_access_time_metadata(_rei->rsComm, object_path, "", config->access_time_attribute);
-                }
-            }
-        } catch( const boost::bad_any_cast&) {
-            // do nothing - no object to annotate
-        }
-        catch (const nlohmann::json::exception& e) {
-            THROW(SYS_LIBRARY_ERROR, fmt::format("{}: JSON exception caught: {}", __func__, e.what()));
-        }
-    } // apply_access_time_policy
 
     int apply_data_movement_policy(
         rcComm_t*          _comm,
@@ -640,7 +431,6 @@ irods::error exec_rule(
     }
 
     try {
-        apply_access_time_policy(_rn, rei, _args);
         apply_restage_movement_policy(_rn, rei, _args);
     }
     catch(const  std::invalid_argument& _e) {
