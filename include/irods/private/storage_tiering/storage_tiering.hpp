@@ -61,8 +61,6 @@ namespace irods {
 
           std::string make_partial_list(resource_index_map::iterator _itr, resource_index_map::iterator _end);
 
-          void update_access_time_for_data_object(const std::string& _object_path);
-
           std::string get_metadata_for_data_object(RcComm* _comm,
                                                    const std::string& _meta_attr_name,
                                                    const std::string& _object_path);
