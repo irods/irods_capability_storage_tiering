@@ -447,7 +447,9 @@ namespace irods {
                                          config_.time_attribute,
                                          _resource_name);
             std::time_t offset = boost::lexical_cast<std::time_t>(offset_str);
-            return std::to_string(now - offset);
+            // Zero-pad to 11 characters to match iRODS DATA_ACCESS_TIME format (getNowStr()).
+            // This ensures string-based GenQuery comparisons work correctly.
+            return fmt::format("{:011d}", now - offset);
         }
         catch(const boost::bad_lexical_cast& _e) {
             THROW(
