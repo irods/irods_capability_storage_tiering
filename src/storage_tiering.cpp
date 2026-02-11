@@ -447,7 +447,9 @@ namespace irods {
                                          config_.time_attribute,
                                          _resource_name);
             std::time_t offset = boost::lexical_cast<std::time_t>(offset_str);
-            return std::to_string(now - offset);
+            // Zero-pad to 11 characters to match iRODS DATA_ACCESS_TIME format (getNowStr()).
+            // This ensures string-based GenQuery comparisons work correctly.
+            return fmt::format("{:011d}", now - offset);
         }
         catch(const boost::bad_lexical_cast& _e) {
             THROW(
@@ -501,15 +503,12 @@ namespace irods {
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
             metadata_results results;
-            results.push_back(std::make_pair(
-                fmt::format(
-                    "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = '{}' "
-                    "and META_DATA_ATTR_VALUE < '{}' and META_DATA_ATTR_UNITS <> '{}' and DATA_RESC_ID in ({})",
-                    config_.access_time_attribute,
-                    tier_time,
-                    config_.migration_scheduled_flag,
-                    leaf_str),
-                ""));
+            results.push_back(
+                std::make_pair(fmt::format("select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where "
+                                           "DATA_ACCESS_TIME < '{}' and DATA_RESC_ID in ({})",
+                                           tier_time,
+                                           leaf_str),
+                               ""));
             rodsLog(
                 config_.data_transfer_log_level_value,
                 "use default query for [%s]",
@@ -975,18 +974,12 @@ namespace irods {
     void storage_tiering::set_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _object_path) {
-        auto access_time = get_metadata_for_data_object(
-                               _comm,
-                               config_.access_time_attribute,
-                               _object_path);
-
-        modAVUMetadataInp_t set_op{
-           "set",
-           "-d",
-           const_cast<char*>(_object_path.c_str()),
-           const_cast<char*>(config_.access_time_attribute.c_str()),
-           const_cast<char*>(access_time.c_str()),
-           const_cast<char*>(config_.migration_scheduled_flag.c_str())};
+        modAVUMetadataInp_t set_op{"set",
+                                   "-d",
+                                   const_cast<char*>(_object_path.c_str()),
+                                   const_cast<char*>(config_.migration_scheduled_flag.c_str()),
+                                   "1",
+                                   ""};
 
         addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
@@ -1000,17 +993,12 @@ namespace irods {
     void storage_tiering::unset_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _object_path) {
-        auto access_time = get_metadata_for_data_object(
-                               _comm,
-                               config_.access_time_attribute,
-                               _object_path);
-        modAVUMetadataInp_t set_op{
-           "set",
-           "-d",
-           const_cast<char*>(_object_path.c_str()),
-           const_cast<char*>(config_.access_time_attribute.c_str()),
-           const_cast<char*>(access_time.c_str()),
-           nullptr};
+        modAVUMetadataInp_t set_op{"rm",
+                                   "-d",
+                                   const_cast<char*>(_object_path.c_str()),
+                                   const_cast<char*>(config_.migration_scheduled_flag.c_str()),
+                                   "1",
+                                   ""};
 
         addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
@@ -1030,11 +1018,10 @@ namespace irods {
         std::string data_name = p.filename().string();
 
         const auto query_str = fmt::format("select META_DATA_ATTR_VALUE where META_DATA_ATTR_NAME = '{}' and "
-                                           "META_DATA_ATTR_UNITS = '{}' and DATA_NAME = '{}' and COLL_NAME = '{}'",
-                                           config_.access_time_attribute,
+                                           "COLL_NAME = '{}' and DATA_NAME = '{}'",
                                            config_.migration_scheduled_flag,
-                                           data_name,
-                                           coll_name);
+                                           coll_name,
+                                           data_name);
 
         query<rcComm_t> qobj{_comm, query_str, 1};
         return qobj.size() > 0;

@@ -31,10 +31,6 @@ namespace irods
 
 				// Override defaults with configured values.
 
-				if (const auto attr = config->find("access_time_attribute"); attr != config->end()) {
-					access_time_attribute = attr->get<std::string>();
-				}
-
 				if (const auto attr = config->find("group_attribute"); attr != config->end()) {
 					group_attribute = attr->get<std::string>();
 				}

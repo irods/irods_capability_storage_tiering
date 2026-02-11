@@ -8,6 +8,9 @@ The example diagram below shows a configuration with three tiers.
 
 ![Storage Tiering Diagram](storage_tiering_diagram.jpg)
 
+> [!NOTE]
+> The `access_time_attribute` configuration option in `plugin_specific_configuration` has been removed as the iRODS Server tracks access time directly since 5.0.0.
+
 ## How to build
 
 This project uses a "build hook" which allows the [iRODS Development Environment](https://github.com/irods/irods_development_environment) to build packages in the usual manner. Please see the instructions for building plugins with the development environment: [https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin](https://github.com/irods/irods_development_environment?tab=readme-ov-file#how-to-build-an-irods-plugin)
@@ -109,7 +112,6 @@ For a default installation the following values are used:
 
 ```
 "plugin_specific_configuration": {
-    "access_time_attribute" : "irods::access_time",
     "group_attribute" : "irods::storage_tiering::group",
     "time_attribute" : "irods::storage_tiering::time",
     "query_attribute" : "irods::storage_tiering::query",
@@ -171,7 +173,7 @@ Data objects which have been labeled via particular metadata, or within a specif
 **Checking for resources in violating queries is required to prevent erroneous data migrations for replicas on other resources which may represent other tiers in the storage tiering group.** This can be done in the manner shown below (`DATA_RESC_ID in ('10068', '10069')`) or via resource hierarchy (e.g. `DATA_RESC_HIER like 'root_resc;%`), but the query must filter on resources to correctly identify violating objects.
 
 ```
-imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where META_DATA_ATTR_NAME = 'irods::access_time' and META_DATA_ATTR_VALUE < 'TIME_CHECK_STRING' and DATA_RESC_ID in ('10068', '10069')"
+imeta set -R fast_resc irods::storage_tiering::query "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where DATA_ACCESS_TIME < 'TIME_CHECK_STRING' and DATA_RESC_ID in ('10068', '10069')"
 ```
 
 The example above implements the default query.  Note that the string `TIME_CHECK_STRING` is used in place of an actual time.  This string will be replaced by the storage tiering framework with the appropriately computed time given the previous parameters.
