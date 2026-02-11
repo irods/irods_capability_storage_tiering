@@ -503,12 +503,12 @@ namespace irods {
         catch(const exception&) {
             const auto leaf_str = get_leaf_resources_string(_resource_name);
             metadata_results results;
-            results.push_back(std::make_pair(
-                fmt::format(
-                    "select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where DATA_ACCESS_TIME < '{}' and DATA_RESC_ID in ({})",
-                    tier_time,
-                    leaf_str),
-                ""));
+            results.push_back(
+                std::make_pair(fmt::format("select DATA_NAME, COLL_NAME, USER_NAME, USER_ZONE, DATA_REPL_NUM where "
+                                           "DATA_ACCESS_TIME < '{}' and DATA_RESC_ID in ({})",
+                                           tier_time,
+                                           leaf_str),
+                               ""));
             rodsLog(
                 config_.data_transfer_log_level_value,
                 "use default query for [%s]",
@@ -974,13 +974,12 @@ namespace irods {
     void storage_tiering::set_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _object_path) {
-        modAVUMetadataInp_t set_op{
-            "set",
-            "-d",
-            const_cast<char*>(_object_path.c_str()),
-            const_cast<char*>(config_.migration_scheduled_flag.c_str()),
-            "1",
-            ""};
+        modAVUMetadataInp_t set_op{"set",
+                                   "-d",
+                                   const_cast<char*>(_object_path.c_str()),
+                                   const_cast<char*>(config_.migration_scheduled_flag.c_str()),
+                                   "1",
+                                   ""};
 
         addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
@@ -994,13 +993,12 @@ namespace irods {
     void storage_tiering::unset_migration_metadata_flag_for_object(
         rcComm_t*          _comm,
         const std::string& _object_path) {
-        modAVUMetadataInp_t set_op{
-            "rm",
-            "-d",
-            const_cast<char*>(_object_path.c_str()),
-            const_cast<char*>(config_.migration_scheduled_flag.c_str()),
-            "1",
-            ""};
+        modAVUMetadataInp_t set_op{"rm",
+                                   "-d",
+                                   const_cast<char*>(_object_path.c_str()),
+                                   const_cast<char*>(config_.migration_scheduled_flag.c_str()),
+                                   "1",
+                                   ""};
 
         addKeyVal(&set_op.condInput, ADMIN_KW, "");
 
