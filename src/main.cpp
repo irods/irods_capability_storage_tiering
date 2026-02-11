@@ -182,8 +182,6 @@ namespace {
 
     } // apply_data_retention_policy
 
-
-
     int apply_data_movement_policy(
         rcComm_t*          _comm,
         const std::string& _instance_name,
