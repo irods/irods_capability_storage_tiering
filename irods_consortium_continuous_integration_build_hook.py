@@ -50,9 +50,12 @@ def copy_output_packages(build_directory, output_root_directory):
         irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
         lambda s:s.endswith(irods_python_ci_utilities.get_package_suffix()))
 
-def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory, debug_build=False, enable_asan=False, build_test_executables=True):
+def main(build_directory, output_root_directory, irods_packages_root_directory, externals_directory, debug_build=False, enable_asan=False, build_test_executables=True, irods_package_version=None):
     install_building_dependencies(externals_directory)
-    if irods_packages_root_directory:
+    if irods_package_version is not None:
+        irods_python_ci_utilities.install_irods_packages_repository()
+        irods_python_ci_utilities.install_released_irods_dev_and_runtime_packages(irods_package_version)
+    elif irods_packages_root_directory:
         irods_python_ci_utilities.install_irods_dev_and_runtime_packages(irods_packages_root_directory)
     build_directory = os.path.abspath(build_directory or tempfile.mkdtemp(prefix='irods_storage_tiering_plugin_build_directory'))
     build_type = "Debug" if debug_build else "Release"
@@ -75,6 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug_build', action='store_true')
     parser.add_argument("--enable_address_sanitizer", dest="enable_asan", action="store_true")
     parser.add_argument("--exclude_test_executables", dest="build_test_executables", action="store_false")
+    parser.add_argument('--irods_package_version')
     args = parser.parse_args()
 
     main(args.build_directory,
@@ -83,4 +87,5 @@ if __name__ == '__main__':
          args.externals_packages_directory,
          args.debug_build,
          args.enable_asan,
-         args.build_test_executables)
+         args.build_test_executables,
+         args.irods_package_version)
