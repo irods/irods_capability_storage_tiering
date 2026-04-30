@@ -9,7 +9,7 @@ The example diagram below shows a configuration with three tiers.
 ![Storage Tiering Diagram](storage_tiering_diagram.jpg)
 
 > [!NOTE]
-> The `access_time_attribute` configuration option in `plugin_specific_configuration` has been removed as the iRODS Server tracks access time directly since 5.0.0.
+> The `access_time_attribute` configuration option in `plugin_specific_configuration` has been removed as the iRODS Server tracks access time directly since v5.0.0.
 > If you are upgrading, update any custom violating objects queries that used the Access Time AVU and see [Removing Leftover Access Time AVUs](#removing-leftover-access-time-avus).
 
 ## How to build
