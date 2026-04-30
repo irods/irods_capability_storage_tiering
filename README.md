@@ -294,7 +294,7 @@ bash -x remove_storage_tiering_access_time_avus.sh
 
 ### Via direct SQL
 
-This will remove all rows in the join or junction table (`r_objt_metamap`) with a single database roundtrip.
+This will remove all rows in the join or junction table (`R_OBJT_METAMAP`) with a single database roundtrip.
 
 Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
 
