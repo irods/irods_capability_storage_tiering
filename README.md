@@ -300,7 +300,7 @@ Substitute the `irods::access_time` string if you used a custom `access_time_att
 
 ```
 # postgresql
-delete FROM r_objt_metamap om USING r_meta_main m WHERE m.meta_id = om.meta_id AND m.meta_attr_name = 'irods::access_time';
+delete from R_OBJT_METAMAP om using R_META_MAIN m where m.meta_id = om.meta_id and m.meta_attr_name = 'irods::access_time';
 ```
 
 ### Remove Unused Metadata
