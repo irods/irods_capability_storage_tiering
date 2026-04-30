@@ -283,7 +283,7 @@ To remove the now-redundant AVUs, either walk each data object with `imeta rm` o
 
 ### Via `imeta`
 
-This will generate many single `imeta -M rm` commands, one per data object (`O(n)`).
+This will generate many single `imeta -M rm` commands, one per data object.
 
 Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
 
@@ -294,7 +294,7 @@ bash -x remove_storage_tiering_access_time_avus.sh
 
 ### Via direct SQL
 
-This will remove all rows in the join or junction table (`r_objt_metamap`) directly (`O(1)`).
+This will remove all rows in the join or junction table (`r_objt_metamap`) with a single database roundtrip.
 
 Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
 
