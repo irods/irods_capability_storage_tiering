@@ -299,8 +299,13 @@ This will remove all rows in the join or junction table (`R_OBJT_METAMAP`) with 
 Substitute the `irods::access_time` string if you used a custom `access_time_attribute` value.
 
 ```
-# postgresql
-delete from R_OBJT_METAMAP om using R_META_MAIN m where m.meta_id = om.meta_id and m.meta_attr_name = 'irods::access_time';
+# PostgreSQL and MySQL
+delete from R_OBJT_METAMAP 
+where meta_id in (
+    select meta_id 
+    from R_META_MAIN 
+    where meta_attr_name = 'irods::access_time'
+);
 ```
 
 ### Remove Unused Metadata
