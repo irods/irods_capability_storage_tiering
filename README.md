@@ -305,7 +305,7 @@ delete from R_OBJT_METAMAP om using R_META_MAIN m where m.meta_id = om.meta_id a
 
 ### Remove Unused Metadata
 
-Both approaches above will leave the entries in the `r_meta_main` table and can be removed.
+Both approaches above will leave the entries in the `R_META_MAIN` table and can be removed.
 
 ```
 iadmin rum
