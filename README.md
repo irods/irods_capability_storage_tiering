@@ -224,6 +224,20 @@ In order to log the transfer of data objects from one tier to the next, set `dat
 },
 ```
 
+### Configuring migration scheduling threads
+
+Data objects in violation of a tiering policy are scheduled for asynchronous migration by a pool of threads. The size of this thread pool can be configured with `number_of_scheduling_threads` in the **plugin_specific_configuration**:
+```js
+{
+    "instance_name": "irods_rule_engine_plugin-unified_storage_tiering-instance",
+    "plugin_name": "irods_rule_engine_plugin-unified_storage_tiering",
+    "plugin_specific_configuration": {
+        "number_of_scheduling_threads": 4
+    }
+},
+```
+The default size is 4 threads. Note that this only affects the level of concurrency in scheduling asynchronous data migrations with the iRODS delay server. The number of delay rule executors is a separate configuration.
+
 ## Limitations
 
 There are a few known limitations to the storage tiering plugin which should be noted explicitly for understanding different failure modes which users may experience.
