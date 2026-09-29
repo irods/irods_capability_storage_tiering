@@ -1577,8 +1577,8 @@ class TestStorageTieringPluginRegistration(ResourceBase, unittest.TestCase):
     def test_file_registration(self):
         with storage_tiering_configured():
             with session.make_session_for_existing_admin() as admin_session:
-                filename  = 'test_put_file'
-                filepath  = lib.create_local_testfile(filename)
+                filename  = 'test_file_registration'
+                filepath  = lib.create_local_testfile('/tmp/' + filename)
                 ipwd, _, _ = admin_session.run_icommand('ipwd')
                 ipwd = ipwd.rstrip()
                 dest_path = ipwd + '/' + filename
@@ -2262,12 +2262,12 @@ class test_basic_tier_out_after_creating_single_data_object(unittest.TestCase):
         self.tier1 = "ufs1"
         self.tier0_time_in_seconds = 5
 
-        self.filename = "test_basic_tier_out_after_creating_single_data_object"
+        self.filename = "/tmp/test_basic_tier_out_after_creating_single_data_object"
         if not os.path.exists(self.filename):
             lib.create_local_testfile(self.filename)
 
         self.collection_path = "/".join(["/" + self.user1.zone_name, "public_collection"])
-        self.object_path = "/".join([self.collection_path, self.filename])
+        self.object_path = "/".join([self.collection_path, os.path.basename(self.filename)])
 
         with session.make_session_for_existing_admin() as admin_session:
             admin_session.assert_icommand(['iqdel', '-a'])
