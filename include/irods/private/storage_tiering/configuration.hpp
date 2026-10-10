@@ -5,8 +5,8 @@
 #include <irods/rcMisc.h>
 
 namespace irods {
-    struct storage_tiering_configuration {
-        std::string access_time_attribute{"irods::access_time"};
+    struct storage_tiering_configuration
+    {
         std::string group_attribute{"irods::storage_tiering::group"};
         std::string time_attribute{"irods::storage_tiering::time"};
         std::string query_attribute{"irods::storage_tiering::query"};
