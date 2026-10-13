@@ -11,6 +11,10 @@ and this project **only** adheres to the following _(as defined at [Semantic Ver
 > - MINOR version when you add functionality in a backward compatible manner
 > - PATCH version when you make backward compatible bug fixes
 
+## [5.1.1] - 2026-10-14
+
+This release updates scripts used for testing only. Plugin behavior remains unchanged.
+
 ## [5.1.0] - 2026-06-22
 
 This release makes it so that the plugin can calculate checksums without triggering a permission denied error.
